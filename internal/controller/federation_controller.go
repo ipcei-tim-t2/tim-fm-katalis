@@ -30,8 +30,10 @@ import (
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
+	k8sPolicy "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s/policy"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
+
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 )
 
@@ -45,6 +47,7 @@ type FederationReconciler struct {
 	Scheme *runtime.Scheme
 	opg.OPGClientsMapInterface
 	K8sClient  *k8s.FederationReconciler
+	K8sPolicy  *k8sPolicy.FederationReconciler
 	RestClient *rest.FederationReconciler
 }
 
@@ -81,12 +84,36 @@ func (r *FederationReconciler) Reconcile(
 			log.Info(">>> [Federation] Object not found")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "XXX [Federation] Error getting federation object")
+		log.Error(err, ">>> [Federation] Error getting federation object")
 		return ctrl.Result{}, err
 	}
 	log.Info(">>> [Federation] Object obtained", "name", f.Name, "originOP", f.Spec.OriginOP)
+
 	isGuest := IsGuestResource(f.Labels)
 	isRest := IsRestTechnology(f.Labels)
+
+	if f.Status.FederationContextId != "" {
+		policyHandler := &k8sPolicy.FederationReconciler{
+			Client: r.Client, // Fondamentale! Questo evita il nil pointer dereference
+			Scheme: r.Scheme,
+		}
+		var role, policyName string
+		if isGuest {
+			log.Info(">>> [Federation] FederationContextId received, updating policy")
+			role = "guest"
+			policyName = "opg-ewbi-fedguest-validation-policy"
+		} else {
+			log.Info(">>> [Federation] FederationContextId created, updating policy")
+			role = "host"
+			policyName = "opg-ewbi-fedhost-validation-policy"
+		}
+		if err := policyHandler.FederationContextIdPolicy(ctx, role, policyName); err != nil {
+			log.Error(err, ">>> [Federation] Error updating federation policy")
+			return ctrl.Result{}, err
+		}
+
+	}
+
 	log.Info(">>> [Federation] Resource type evaluation", "isGuest", isGuest, "isRest", isRest)
 	if f.GetDeletionTimestamp().IsZero() {
 		if controllerutil.AddFinalizer(&f, v1beta1.FederationFinalizer) {
@@ -166,6 +193,9 @@ func (r *FederationReconciler) Reconcile(
 		}
 		if f.Spec.AcceptedAvailabilityZones != nil {
 			f.Status.State = v1beta1.FederationStateAvailable
+			if isRest {
+				f.Status.FederationContextId = f.Labels["opg.ewbi.nby.one/federation-context-id"]
+			}
 		}
 		upErr := r.Status().Update(ctx, f.DeepCopy())
 		if upErr != nil {

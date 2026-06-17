@@ -25,7 +25,8 @@ spec:
       mncs:
         - "99"
   guestPartnerCredentials:
-    clientId: 3acde22c-d245-480d-b01e-24e38e01806d
+    clientId: 3acde22c-d245-480d-b01e-24e38e01806d  #In K8s not used, in this moment
   partner:
     callbackCredentials:
-      clientId: 5tyde22c-d245-480d-b01e-24e38e7689de
+      clientId: 5tyde22c-d245-480d-b01e-24e38e7689de  #In K8s not necessary
+    statusLink: "http://nearbyone-federation-api.katalis-dev-guest.svc.cluster.local:8080" #In K8s not necessary
