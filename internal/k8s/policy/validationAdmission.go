@@ -110,7 +110,7 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 			Validations: []admissionregistrationv1.Validation{
 				{
 					Expression: celExpression,
-					Message:    fmt.Sprintf("Not federationContextId found in the list of federationContextIds accepted"),
+					Message:    "Not federationContextId found in the list of federationContextIds accepted",
 				},
 			},
 		}
