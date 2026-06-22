@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.5
-  name: federations.opg.ewbi.nby.one
+  name: federations.opg.ewbi.katalis.com
 spec:
-  group: opg.ewbi.nby.one
+  group: opg.ewbi.katalis.com
   names:
     kind: Federation
     listKind: FederationList

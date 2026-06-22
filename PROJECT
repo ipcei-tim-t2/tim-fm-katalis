@@ -23,7 +23,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: nby.one
+  domain: katalis.com
   group: opg.ewbi
   kind: Federation
   path: github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1
