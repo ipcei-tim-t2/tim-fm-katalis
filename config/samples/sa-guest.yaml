@@ -1,28 +1,28 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: katalis-guest-sa
-  namespace: katalis-dev-host
+  name: guest-sa
+  namespace: host
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: katalis-guest-manager
+  name: guest-manager
 rules:
-- apiGroups: ["opg.ewbi.nby.one"] 
-  resources: ["federations", "federations/status", "files", "files/status", "artefacts", "artefacts/status", "applications", "applications/status", "applicationinstances", "applicationinstances/status"] 
+- apiGroups: ["opg.ewbi.katalis.com"] 
+  resources: ["federations", "federations/status", "images", "images/status", "artefacts", "artefacts/status", "applicationdeployments", "applicationdeployments/status", "applicationonboardings", "applicationonboardings/status"] 
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: katalis-guest-binding
-  namespace: katalis-dev-host
+  name: guest-binding
+  namespace: host
 subjects:
 - kind: ServiceAccount
-  name: katalis-guest-sa
-  namespace: katalis-dev-host
+  name: guest-sa
+  namespace: host
 roleRef:
   kind: ClusterRole
-  name: katalis-guest-manager
+  name: guest-manager
   apiGroup: rbac.authorization.k8s.io

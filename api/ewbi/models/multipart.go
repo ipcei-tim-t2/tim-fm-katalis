@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -13,13 +14,17 @@ func NewUploadArtefactMultipartBody(c echo.Context) (*UploadArtefactMultipartBod
 	}
 	// Ugly way to create the object, but I couldn't find a better way. So for now this is fine.
 	// We are sure that the item [0] exists, otherwise the validator would fail.
+	artefactId, err := uuid.Parse(form.Value["artefactId"][0])
+	if err != nil {
+		return nil, err
+	}
 	body := &UploadArtefactMultipartBody{
 		AppProviderId:          form.Value["appProviderId"][0],
-		ArtefactDescriptorType: (UploadArtefactMultipartBodyArtefactDescriptorType)(form.Value["artefactDescriptorType"][0]),
-		ArtefactId:             ArtefactId(form.Value["artefactId"][0]),
+		ArtefactDescriptorType: (ArtefactDescriptorType)(form.Value["artefactDescriptorType"][0]),
+		ArtefactId:             ArtefactId(artefactId),
 		ArtefactName:           form.Value["artefactName"][0],
 		ArtefactVersionInfo:    form.Value["artefactVersionInfo"][0],
-		ArtefactVirtType:       (UploadArtefactMultipartBodyArtefactVirtType)(form.Value["artefactVirtType"][0]),
+		ArtefactVirtType:       (ArtefactVirtType)(form.Value["artefactVirtType"][0]),
 	}
 
 	if err := json.Unmarshal([]byte(form.Value["componentSpec"][0]), &body.ComponentSpec); err != nil {
@@ -55,19 +60,23 @@ func NewUploadFileMultipartBody(c echo.Context) (*UploadFileMultipartBody, error
 	// }
 	// Ugly way to create the object, but I couldn't find a better way. So for now this is fine.
 	// We are sure that the item [0] exists, otherwise the validator would fail.
+	fileId, err := uuid.Parse(form.Value["fileId"][0])
+	if err != nil {
+		return nil, err
+	}
 	body := &UploadFileMultipartBody{
 		AppProviderId: form.Value["appProviderId"][0],
 		// Checksum *string `json:"checksum,omitempty"`
 		// File: &file,
 		// FileDescription *string `json:"fileDescription,omitempty"`
-		FileId:          FileId(form.Value["fileId"][0]),
+		FileId:          FileId(fileId),
 		FileName:        form.Value["fileName"][0],
 		FileType:        (VirtImageType)(form.Value["fileType"][0]),
 		FileVersionInfo: form.Value["fileVersionInfo"][0],
 
 		ImgInsSetArch: (CPUArchType)(form.Value["imgInsSetArch"][0]),
 
-		RepoType: (*UploadFileMultipartBodyRepoType)(&form.Value["repoType"][0]),
+		RepoType: (*RepoType)(&form.Value["repoType"][0]),
 	}
 
 	if err := json.Unmarshal([]byte(form.Value["fileRepoLocation"][0]), &body.FileRepoLocation); err != nil {

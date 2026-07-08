@@ -18,11 +18,11 @@ package k8s
 
 import (
 	"context"
+	"reflect"
 
-	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
+	v1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -35,122 +35,45 @@ type ArtefactReconciler struct {
 	opg.OPGClientsMapInterface
 }
 
-const (
-	errorUpdatingArtefactStatusMsg = ">>> [Artefact] Error Updating resource status"
-	unexpectedStatusArtefactMsg    = ">>> [Artefact] Unexpected Status Code"
-)
-
-func (r *ArtefactReconciler) CreateArtefact(ctx context.Context, a *v1beta1.Artefact, feder *v1beta1.Federation) error {
-	log := log.FromContext(ctx)
-	log.Info(">>> [Artefact][K8s] Using Kubernetes API to create artefact in federation host cluster")
-	log.Info(">>> [Artefact][K8s] Retrieving kubeconfig from secret")
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r.Client, feder.Labels[v1beta1.FederationSecretNameLabel], a.Namespace)
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error getting kubeconfig from secret")
-		return err
+func (r *ArtefactReconciler) CreateArtefact(ctx context.Context, art *v1beta1.Artefact, fed *v1beta1.Federation) error {
+	var artefactBody v1beta1.ArtefactBody
+	if !reflect.DeepEqual(art.Spec.ArtefactBody, v1beta1.ArtefactBody{}) {
+		artefactBody = art.Spec.ArtefactBody
 	}
-	log.Info(">>> [Artefact][K8s] Building dynamic client with kubeconfig")
-	hostClient, err := BuildClientWithKubeconfig(kubeconfigBytes, feder.Labels[v1beta1.FederationHostOPLabel])
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error building client with kubeconfig")
-		return err
-	}
-	unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(a)
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error converting Artefact to unstructured")
-		return err
-	}
-	spec, found, err := unstructured.NestedFieldCopy(unstructuredMap, "spec")
-	if err != nil || !found {
-
-		log.Error(err, ">>> [Artefact][K8s] Spec extraction failed")
-		return err
-	}
-	artefactObj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "opg.ewbi.nby.one/v1beta1",
-			"kind":       "Artefact",
-			"metadata": map[string]interface{}{
-				"name":      a.Name,
-				"namespace": feder.Labels[v1beta1.FederationNamespaceLabel],
-				"labels": map[string]interface{}{
-					"opg.ewbi.nby.one/federation-relation":   "host",
-					"opg.ewbi.nby.one/federation-context-id": feder.Status.FederationContextId,
-				},
-			},
-			"spec": spec,
+	artHost := &v1beta1.Artefact{
+		TypeMeta: art.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      art.Name,
+			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+		},
+		Spec: v1beta1.ArtefactSpec{
+			RelationType:        string(v1beta1.FederationRelationHost),
+			FederationContextId: fed.Status.FederationContextId,
+			ArtefactId:          art.Spec.ArtefactId,
+			ArtefactBody:        artefactBody,
 		},
 	}
-	appliedRes, err := ApplyK8sResource(ctx, hostClient, "opg.ewbi.nby.one", "v1beta1", "artefacts", feder.Labels[v1beta1.FederationNamespaceLabel], artefactObj, "artefact-controller")
+	err := ApplyRemoteResource(ctx, r.Client, r.Scheme, fed, artHost, &v1beta1.Artefact{}, art.Name, art.Namespace, v1beta1.GroupVersion.Group, v1beta1.GroupVersion.Version, v1beta1.PluralArtefact, "artefact-controller", "[Artefact][K8s]")
 	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error applying resource")
 		return err
-	}
-	log.Info(">>> [Artefact][K8s] Successfully applied resource to remote cluster, starting watcher", "name", appliedRes.GetName())
-	StartRemoteResourceWatcher(ctx, hostClient, feder.Labels[v1beta1.FederationNamespaceLabel], a.Name, a.Namespace, "opg.ewbi.nby.one", "v1beta1", "artefacts")
-	return nil
-}
-
-func (r *ArtefactReconciler) SyncStatusWithHost(ctx context.Context, a *v1beta1.Artefact, feder *v1beta1.Federation) error {
-	log := log.FromContext(ctx)
-	log.Info(">>> [Artefact][K8s] Using Kubernetes API to update artefact status from federation host cluster")
-	log.Info(">>> [Artefact][K8s] Retrieving kubeconfig from secret")
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r.Client, feder.Labels[v1beta1.FederationSecretNameLabel], a.Namespace)
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error getting kubeconfig from secret")
-		return err
-	}
-	log.Info(">>> [Artefact][K8s] Building dynamic client with kubeconfig")
-	hostClient, err := BuildClientWithKubeconfig(kubeconfigBytes, feder.Labels[v1beta1.FederationHostOPLabel])
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error building client with kubeconfig")
-		return err
-	}
-	log.Info(">>> [Artefact][K8s] Retrieve current state from host federation")
-	hostArtefact, err := GetK8sResource(ctx, hostClient, "opg.ewbi.nby.one", "v1beta1", "artefacts", feder.Labels[v1beta1.FederationNamespaceLabel], a.Name)
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Failed to get federation resource from target cluster")
-		return err
-	}
-	state, found, err := unstructured.NestedString(hostArtefact.Object, "status", "state")
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error parsing status.state")
-		return err
-	}
-	if !found {
-		log.Info(">>> [Artefact][K8s] Status.state field not found in the resource", "artefact", a.Name)
-		state = string(v1beta1.ArtefactStateReconciling) // Default to Reconciling if status is not yet set
-	}
-	log.Info(">>> [Artefact][K8s] Successfully retrieved state", "state", state)
-	a.Status.State = v1beta1.ArtefactState(state)
-	upErr := r.Status().Update(ctx, a.DeepCopy())
-	if upErr != nil {
-		log.Error(upErr, errorUpdatingArtefactStatusMsg)
-		return upErr
 	}
 	return nil
 }
 
-func (r *ArtefactReconciler) DeleteArtefact(ctx context.Context, a *v1beta1.Artefact, feder *v1beta1.Federation) error {
+func (r *ArtefactReconciler) UpdateArtefactStatus(ctx context.Context, art *v1beta1.Artefact, fed *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
-	log.Info(">>> [Artefact][K8s] Deleting external artefact via Kubernetes API")
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r.Client, feder.Labels[v1beta1.FederationSecretNameLabel], a.Namespace)
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error getting kubeconfig from secret")
+	artefactHost := &v1beta1.Artefact{}
+	remoteName := art.Name
+	if err := GetRemoteResource(ctx, r.Client, r.Scheme, fed, artefactHost, remoteName, art.Name, art.Namespace, "[Artefact][K8s]"); err != nil {
+		log.Error(err, ">>> [Artefact][K8s] Error retrieving remote resource.", "name", art.Name, "namespace", art.Namespace)
 		return err
 	}
-	log.Info(">>> [Artefact][K8s] Building dynamic client with kubeconfig")
-	hostClient, err := BuildClientWithKubeconfig(kubeconfigBytes, feder.Labels[v1beta1.FederationHostOPLabel])
-	if err != nil {
-		log.Error(err, ">>> [Artefact][K8s] Error building client with kubeconfig")
-		return err
-	}
-	err = DeleteK8sResource(ctx, hostClient, "opg.ewbi.nby.one", "v1beta1", "artefacts", feder.Labels[v1beta1.FederationNamespaceLabel], a.Name)
-	if err != nil && !apierrors.IsNotFound(err) {
-		log.Error(err, ">>> [Artefact][K8s] Failed to delete artefact resource from target cluster")
-		return err
-	}
-	log.Info(">>> [Artefact][K8s] Stopping background watcher for remote host")
-	StopRemoteResourceWatcher(feder.Labels[v1beta1.FederationHostIdLabel], a.Name)
+	art.Status = artefactHost.Status
 	return nil
+}
+
+func (r *ArtefactReconciler) DeleteArtefact(ctx context.Context, art *v1beta1.Artefact, fed *v1beta1.Federation) error {
+	remoteName := art.Name
+	return DeleteRemoteResource(ctx, r.Client, r.Scheme, fed, &v1beta1.Artefact{}, remoteName, art.Name, art.Namespace, "[Artefact][K8s]")
+
 }

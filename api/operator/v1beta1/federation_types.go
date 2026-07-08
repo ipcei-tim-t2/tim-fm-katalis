@@ -1,17 +1,17 @@
 /*
-Copyright 2025.
+	Copyright 2025.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 */
 
 package v1beta1
@@ -20,45 +20,67 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// finalizers
-const (
-	FederationFinalizer = "federation.opg.ewbi.finalizer.katalis.com"
-)
-
-// labels
-const (
-	FederationHostOPLabel     = "opg.ewbi.katalis.com/host-op"
-	FederationGuestOPLabel    = "opg.ewbi.katalis.com/guest-op"
-	FederationContextIdLabel  = "opg.ewbi.katalis.com/federation-context-id"
-	FederationRelationLabel   = "opg.ewbi.katalis.com/federation-relation"
-	FederationGuestUrlLabel   = "opg.ewbi.katalis.com/federation-guest-url"
-	ExternalIdLabel           = "opg.ewbi.katalis.com/id"
-	FederationSecretNameLabel = "opg.ewbi.katalis.com/secret-name"
-	FederationTechnologyLabel = "opg.ewbi.katalis.com/federation-technology"
-	FederationNamespaceLabel  = "opg.ewbi.katalis.com/namespace"
-	FederationHostIdLabel     = "opg.ewbi.katalis.com/host-id"
-)
-
-// fields
-const (
-	FederationStatusContextIDField = ".status.federationContextId"
-)
-
+type FederationState string
 type FederationRelation string
-
-const (
-	FederationRelationGuest FederationRelation = "guest"
-	FederationRelationHost  FederationRelation = "host"
-)
-
 type FederationTechnology string
 
 const (
-	FederationTechnologyK8s  FederationTechnology = "k8s"
-	FederationTechnologyRest FederationTechnology = "rest"
+	FederationRenewalAnnotation = "opg.ewbi.katalis.com/renew-federation"
+	GetHealthInfoAnnotation     = "opg.ewbi.katalis.com/get-health-info"
+	GetUpdateDetailsAnnotation  = "opg.ewbi.katalis.com/get-update-details"
+	GetPlatformCapsAnnotation   = "opg.ewbi.katalis.com/get-platform-caps"
+	UpdateDataAnnotation        = "opg.ewbi.katalis.com/update-data-revision"
+	FederationPolicyAnnotation  = "opg.ewbi.katalis.com/federation-policy"
+	FederationWatcherAnnotation = "opg.ewbi.katalis.com/federation-stop-watcher"
+	// finalizers
+	FederationFinalizer = "katalis.com/federation.opg.ewbi.finalizer"
+
+	// // labels
+	// FederationPolicyLabel  = "opg.ewbi.katalis.com/federation-policy"
+	// FederationWatcherLabel = "opg.ewbi.katalis.com/federation-stop-watcher"
+
+	// constants
+	FederationRelationGuest  FederationRelation   = "GUEST"
+	FederationRelationHost   FederationRelation   = "HOST"
+	FederationTechnologyK8s  FederationTechnology = "K8S"
+	FederationTechnologyRest FederationTechnology = "REST"
+
+	// status values
+	FederationStateFailed           FederationState = "FAILED"
+	FederationStateTemporaryFailure FederationState = "TEMPORARY_FAILURE"
+	FederationStateAvailable        FederationState = "AVAILABLE"
+	FederationStateLocked           FederationState = "LOCKED"
+	FederationStateNotAvailable     FederationState = "NOT_AVAILABLE"
+
+	// policy names
+	PolicyGuestName = "opg-ewbi-fedguest-validation-policy"
+	PolicyHostName  = "opg-ewbi-fedhost-validation-policy"
+
+	// resource names
+	PluralFederation = "federations"
+	KindFederation   = "Federation"
+
+	// status field paths
+	FederationStatusContextIDField = ".status.federationContextId"
 )
 
+// +kubebuilder:validation:XValidation:rule="self.technologyType == 'REST' ? has(self.restOptions) && !has(self.k8sOptions) : true",message="If technologyType is 'REST', restOptions must be specified and k8sOptions must be omitted"
+// +kubebuilder:validation:XValidation:rule="self.technologyType == 'K8S' ? has(self.k8sOptions) && !has(self.restOptions) : true",message="If technologyType is 'K8S', k8sOptions must be specified and restOptions must be omitted"
+// +kubebuilder:validation:XValidation:rule="!has(self.technologyType) || size(self.technologyType) == 0 ? !has(self.restOptions) && !has(self.k8sOptions) : true",message="technologyType is required to set restOptions or k8sOptions"
+// +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST') ? (has(self.clientId) && self.clientId.matches('^[A-Za-z0-9][A-Za-z0-9-]*$')) : true",message="clientId is required for GUEST"
+// +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST') ? (has(self.clientSecret) && self.clientSecret.matches('^[A-Za-z0-9][A-Za-z0-9-]*$')) : true",message="clientSecret is required for GUEST"
+// +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST' && has(self.restOptions)) ? has(self.restOptions.tokenUrl) : true",message="tokenUrl is required for GUEST federations using REST"
+// +kubebuilder:validation:XValidation:rule="self.relationType == 'GUEST' && has(self.k8sOptions) ? has(self.k8sOptions.secretName) && size(self.k8sOptions.secretName) > 0 : true", message="secretName in k8sOptions is required when relationType is GUEST"
+// +kubebuilder:validation:XValidation:rule="self.relationType == 'GUEST' && has(self.k8sOptions) ? has(self.k8sOptions.contextName) && size(self.k8sOptions.contextName) > 0 : true", message="contextName in k8sOptions is required when relationType is GUEST"
 type FederationData struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=HOST;GUEST
+	RelationType string `json:"relationType"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=K8S;REST
+	TechnologyType string `json:"technologyType"`
+
 	// Globally unique identifier allocated to an operator platform. This is valid and used only in context of MEC federation interface.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9][A-Za-z0-9-]*$`
@@ -69,32 +91,36 @@ type FederationData struct {
 	// +kubebuilder:validation:Pattern=`^[A-Z]{2}$`
 	OrigOPCountryCode string `json:"origOPCountryCode,omitempty"`
 
-	// Time zone info of the federation initiated by the originating OP
+	// Initial Date and time, time zone info of the federation initiated by the Originating OP
+	// e.g. "2025-01-10T09:50:32.571Z"
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Format=date-time
-	InitialDate string `json:"initialDate"`
-
-	// +kubebuilder:validation:Required
-	PartnerStatusLink string `json:"partnerStatusLink"`
+	InitialDate metav1.Time `json:"initialDate"`
 
 	// +kubebuilder:validation:Optional
-	PartnerCallbackCredentials *Credentials `json:"partnerCallbackCredentials,omitempty"`
+	RestOptions *RestOptions `json:"restOptions,omitempty"`
+	// +kubebuilder:validation:Optional
+	K8sOptions *K8sOptions `json:"k8sOptions,omitempty"`
+	// +kubebuilder:validation:Optional
+	ClientId string `json:"clientId,omitempty"`
+	// +kubebuilder:validation:Optional
+	ClientSecret string `json:"clientSecret,omitempty"`
 }
-
-type Credentials struct {
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9][A-Za-z0-9-]*$`
-	ClientId string `json:"clientId"`
-
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9][A-Za-z0-9-]*$`
-	ClientSecret string `json:"clientSecret"`
-
+type RestOptions struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern=`^https?://[^\s/$.?#].[^\s]*$`
+	TokenUrl string `json:"tokenUrl,omitempty"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern=`^https?://[^\s/$.?#].[^\s]*$`
-	TokenUrl string `json:"tokenUrl"`
+	PartnerStatusLink string `json:"partnerStatusLink"`
 }
-
+type K8sOptions struct {
+	// +kubebuilder:validation:Required
+	Namespace string `json:"namespace,omitempty"`
+	// +kubebuilder:validation:Optional
+	SecretName string `json:"secretName,omitempty"`
+	// +kubebuilder:validation:Optional
+	ContextName string `json:"contextName,omitempty"`
+}
 type AppIdList struct {
 	// (AppIdentifier) Identifier used to refer to an application.
 	// +kubebuilder:validation:Required
@@ -112,18 +138,26 @@ type AppIdList struct {
 	// +kubebuilder:validation:items:Pattern=`^[A-Za-z0-9][A-Za-z0-9-]*$`
 	ZoneIds []string `json:"zoneIds,omitempty"`
 }
-
 type AssocPolicy struct {
 	// (ApplPolicyIdentifier) Application-level Policy unique identifier"
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern=`^[A-Za-z][A-Za-z0-9_]{7,63}$`
 	PolicyId string `json:"policyId"`
 
-	// AppIdLocList
+	// AppIdList
 	// +kubebuilder:validation:Required
 	AppIdList AppIdList `json:"appIdList"`
 }
+type MobileNetworkIds struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern=`^\d{3}$`
+	Mcc string `json:"mcc,omitempty"`
 
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:items:Pattern=`^\d{2,3}$`
+	Mncs []string `json:"mncs,omitempty"`
+}
 type UpdateData struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=MOBILE_NETWORK_CODES;FIXED_NETWORK_CODES;OPS_POLICY;APP_POLICY
@@ -142,28 +176,18 @@ type UpdateData struct {
 	// Date and time of the federation modification by the originating partner OP
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Format=date-time
-	ModificationDate string `json:"modificationDate,omitempty"`
+	ModificationDate metav1.Time `json:"modificationDate,omitempty"`
+
+	AddMobileNetworkIds    *MobileNetworkIds `json:"addMobileNetworkIds,omitempty"`
+	RemoveMobileNetworkIds *MobileNetworkIds `json:"removeMobileNetworkIds,omitempty"`
+	AddFixedNetworkIds     []string          `json:"addFixedNetworkIds,omitempty"`
+	RemoveFixedNetworkIds  []string          `json:"removeFixedNetworkIds,omitempty"`
 }
-
-type MobileNetworkIds struct {
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Pattern=`^\d{3}$`
-	Mcc string `json:"mcc,omitempty"`
-
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:items:Pattern=`^\d{2,3}$`
-	Mncs []string `json:"mncs,omitempty"`
-}
-
-// List of network identifier associated with the fixedline network of the operator platform.
-// +kubebuilder:validation:Type=string
-type FixedNetworkId string
 
 // FederationSpec defines the desired state of Federation
 type FederationSpec struct {
-	// +kubebuilder:validation:Optional
-	FederationData *FederationData `json:"federationData,omitempty"`
+	// +kubebuilder:validation:Required
+	FederationData *FederationData `json:"federationData"`
 
 	// +kubebuilder:validation:Optional
 	UpdateData *UpdateData `json:"updateData,omitempty"`
@@ -173,7 +197,8 @@ type FederationSpec struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
-	FixedNetworkIds []FixedNetworkId `json:"fixedNetworkIds,omitempty"`
+	// List of network identifier associated with the fixedline network of the operator platform.
+	FixedNetworkIds []string `json:"fixedNetworkIds,omitempty"`
 
 	// The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
 	// +kubebuilder:validation:Optional
@@ -181,17 +206,7 @@ type FederationSpec struct {
 	CapType string `json:"capType,omitempty"`
 }
 
-// +kubebuilder:validation:Pattern=`^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$`
-// +kubebuilder:example=198.51.100.1
-type IPv4String string
-
-// +kubebuilder:validation:Format=ipv6
-// +kubebuilder:validation:Pattern=`^((([^:]+:){7}([^:]+))|((([^:]+:)*[^:]+)?::(([^:]+:)*[^:]+)?))$`
-// +kubebuilder:example=2001:db8:85a3::8a2e:370:7334
-type IPv6String string
-
 // Service Endpoint
-// +kubebuilder:validation:XValidation:rule="has(self.fqdn) || has(self.ipv4Addresses) || has(self.ipv6Addresses)",message="at least one among fqdn, ipv4Addresses, ipv6Addresses must be set"
 type ServiceEndpoint struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=edge;lcm
@@ -207,14 +222,19 @@ type ServiceEndpoint struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
-	Ipv4Addresses []IPv4String `json:"ipv4Addresses,omitempty"`
+	// +kubebuilder:validation:items:Format=ipv4
+	// +kubebuilder:validation:items:Pattern=`^(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$`
+	// +kubebuilder:validation:items:example=198.51.100.1
+	Ipv4Addresses []string `json:"ipv4Addresses,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
-	Ipv6Addresses []IPv6String `json:"ipv6Addresses,omitempty"`
+	// +kubebuilder:validation:items:Format=ipv6
+	// +kubebuilder:validation:items:Pattern=`^((([^:]+:){7}([^:]+))|((([^:]+:)*[^:]+)?::(([^:]+:)*[^:]+)?))$`
+	// +kubebuilder:validation:items:example=2001:db8:85a3::8a2e:370:7334
+	Ipv6Addresses []string `json:"ipv6Addresses,omitempty"`
 }
-
-type ZoneDetail struct {
+type ZoneDetails struct {
 	// Human readable name of the zone.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9][A-Za-z0-9-]*$`
@@ -228,23 +248,21 @@ type ZoneDetail struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^([-+]?)([\d]{1,2})((((\.)([\d]{1,4}))?(,)))(([-+]?)([\d]{1,3})((\.)([\d]{1,4}))?)$`
 	Geolocation string `json:"geolocation,omitempty"`
-}
 
-type AlarmStatus struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=FAILED;TEMPORARY_FAILURE;AVAILABLE;LOCKED;NOT_AVAILABLE
+	Status string `json:"status,omitempty"`
+}
+type FederationHealthInfo struct {
 	// Defines the alarm state during its life cycle (raised | updated | cleared).
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=RAISED;UPDATED;CLEAR
 	AlarmState string `json:"alarmState"`
-}
-
-type FederationHealthInfo struct {
-	// +kubebuilder:validation:Required
-	Status AlarmStatus `json:"status"`
 
 	// Date and Time zone info format
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Format=date-time
-	DateAndTimeZoneObject string `json:"dateAndTimeZoneObject"`
+	DateAndTimeZoneObject metav1.Time `json:"dateAndTimeZoneObject"`
 
 	// +kubebuilder:validation:Required
 	NumOfAcceptedZones string `json:"numOfAcceptedZones"`
@@ -263,11 +281,11 @@ type Caps struct {
 	CapabilityId string `json:"capabilityId"`
 
 	// The maximum detection time in seconds that the OP can determine the UE change of connectivity with the mobile network.
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	MaxiDetectionTime string `json:"maxiDetectionTime"`
 
 	// The enumerated list of UE location accuracy that an OP can determine via SBI-NR.
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=CELL_LEVEL_ACCURACY;REGISTRATION_AREA_ACCURACY;TRACKING_AREA_ACCURACY;GEO_LOCATION_ACCURACY
 	LocationType string `json:"locationType"`
 
@@ -277,11 +295,11 @@ type Caps struct {
 	LocationAccuracy string `json:"locationAccuracy,omitempty"`
 
 	// Indicates the maximum user plane latency in units of milliseconds to decide whether edge relocation is needed to ascertain latency remain in this range.
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	MaxUserPlaneLatency string `json:"maxUserPlaneLatency"`
 
 	// Set of one or more 5G QoS Identifier (5QI or 4G QCI) created via concatanation of Resource Type and 5QI values i.e., GBR1, GBR2, GBR65, NONGBR79 etc.
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	SupportedQoS string `json:"supportedQoS"`
 }
 
@@ -303,13 +321,33 @@ type Service struct {
 	// +kubebuilder:validation:items:Pattern=`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))?$`
 	ApiRoutingInfo []string `json:"apiRoutingInfo,omitempty"`
 }
+type UpdateDetails struct {
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Format=date-time
+	UpdateDate metav1.Time `json:"updateDate,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=FEDERATION;ZONES;EDGE_DISCOVERY_SERVICE;LCM_SERVICE;MOBILE_NETWORK_CODES;FIXED_NETWORK_CODES;SERVICE_APIS
+	ObjectType string `json:"objectType,omitempty"`
+
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=CREATE;UPDATE;ADD;REMOVE
+	OperationType string `json:"operationType,omitempty"`
+}
 
 // FederationStatus defines the observed state of Federation.
 type FederationStatus struct {
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=FAILED;TEMPORARY_FAILURE;AVAILABLE;LOCKED;NOT_AVAILABLE
+	State FederationState `json:"state,omitempty"`
+
 	// This identifier shall be provided by the partner OP on successful verification and validation of the federation create request and is used by partner op to identify this newly created federation context. Originating OP shall provide this identifier in any subsequent request towards the partner op.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9][A-Za-z0-9-]*$`
 	FederationContextId string `json:"federationContextId,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	UpdateDetails *UpdateDetails `json:"updateDetails,omitempty"`
 
 	// (FederationIdentifier) Globally unique identifier allocated to an operator platform. This is valid and used only in context of MEC federation interface.
 	// +kubebuilder:validation:Optional
@@ -322,7 +360,12 @@ type FederationStatus struct {
 	PartnerOPCountryCode string `json:"partnerOPCountryCode,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	ServiceEndpoint *ServiceEndpoint `json:"serviceEndpoint,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="has(self.fqdn) || has(self.ipv4Addresses) || has(self.ipv6Addresses)",message="at least one among fqdn, ipv4Addresses, ipv6Addresses must be set"
+	EdgeDiscoveryServiceEndPoint *ServiceEndpoint `json:"edgeDiscoveryServiceEndPoint,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="has(self.fqdn) || has(self.ipv4Addresses) || has(self.ipv6Addresses)",message="at least one among fqdn, ipv4Addresses, ipv6Addresses must be set"
+	LcmServiceEndPoint *ServiceEndpoint `json:"lcmServiceEndPoint,omitempty"`
 
 	// MobileNetworkIds
 	// +kubebuilder:validation:Optional
@@ -335,7 +378,7 @@ type FederationStatus struct {
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
-	ZoneDetails []ZoneDetail `json:"zoneDetails,omitempty"`
+	ZoneDetails []ZoneDetails `json:"zoneDetails,omitempty"`
 
 	// Home routing - Operator platform is capable of routing edge application data traffic from its edges to user device in their home location. This is the case where user devices are served in their home region (requesting platform region, non-roaming) but the corresponding edge application are in operator platform edges. Anchoring - Operator platform is capable of routing edge application traffic for roaming user devices to edge application in user device home network. Service APIs - Capability to handle Service APIs (e.g., CAMARA APIs) from the Leading OP
 	// +kubebuilder:validation:Optional
@@ -345,21 +388,45 @@ type FederationStatus struct {
 	//Date and Time zone info of the existing federation expiry
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Format=date-time
-	FederationExpiryDate string `json:"federationExpiryDate,omitempty"`
+	FederationExpiryDate metav1.Time `json:"federationExpiryDate,omitempty"`
 
 	// Date and Time zone info of the existing federation renewal. Shall be less than federationExpiryDate
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Format=date-time
-	FederationRenewalDate string `json:"federationRenewalDate,omitempty"`
+	FederationRenewalDate metav1.Time `json:"federationRenewalDate,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	FederationHealthInfo *FederationHealthInfo `json:"federationHealthInfo,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	Caps *Caps `json:"caps,omitempty"`
+	DeviceConnStatusChangeCap *Caps `json:"deviceConnStatusChangeCap,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	LocationRetrievalCap *Caps `json:"locationRetrievalCap,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	UserPlaneMgmtEvtCap *Caps `json:"userPlaneMgmtEvtCap,omitempty"`
+
+	// +kubebuilder:validation:Optional
+	DynamicQoSCap *Caps `json:"dynamicQoSCap,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	Service *Service `json:"service,omitempty"`
+
+	// // +kubebuilder:validation:Optional
+	// LastUpdateDataRevision int `json:"lastUpdateDataRevision,omitempty"`
+	// // +kubebuilder:validation:Optional
+	// LastCapTypeRevision int `json:"lastCapTypeRevision,omitempty"`
+	// // Use to enable or disable the health information reporting for the federation. If set to true, the federation will report health information.
+	// // +kubebuilder:validation:Optional
+	// LastHealthCheckRevision int `json:"lastHealthCheckRevision,omitempty"`
+
+	// // Use to restablish the federation after it has been locked due to the expiry date being reached. If set to true, the federation will be renewed and the expiry date will be extended.
+	// // +kubebuilder:validation:Optional
+	// LastFederationDateRevision int `json:"lastFederationDateRevision,omitempty"`
+
+	// // +kubebuilder:validation:Optional
+	// LastSupportedServerAPIRevision int `json:"lastSupportedServerAPIRevision,omitempty"`
 }
 
 // +kubebuilder:object:root=true

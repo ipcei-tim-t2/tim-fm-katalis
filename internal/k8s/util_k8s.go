@@ -18,20 +18,46 @@ package k8s
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 
+	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// CompareSameAZs compares two slices of ZoneDetails and returns true if they contain the same elements, regardless of order.
+func CompareSameAZs(s1, s2 []v1beta1.ZoneDetails) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	set := make(map[string]bool)
+	for _, v := range s1 {
+		set[v.ZoneId] = true
+	}
+	for _, v := range s2 {
+		if !set[v.ZoneId] {
+			return false
+		}
+	}
+	return true
+}
+
+// Build a Kubernetes client and dynamic client for the host cluster using the kubeconfig stored in the secret referenced by the Federation resource.
+func buildHostClient(ctx context.Context, fed *v1beta1.Federation, r client.Client, scheme *runtime.Scheme) (client.Client, dynamic.Interface, error) {
+	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r, fed.Spec.FederationData.K8sOptions.SecretName, fed.Namespace)
+	if err != nil {
+		return nil, nil, err
+	}
+	return BuildClientWithKubeconfig(kubeconfigBytes, fed.Spec.FederationData.K8sOptions.ContextName, scheme)
+}
+
+// GetKubeconfigFromSecret retrieves the kubeconfig from the specified secret in the given namespace.
 func GetKubeconfigFromSecret(ctx context.Context, client client.Client, secretName string, namespace string) ([]byte, error) {
 	var secret corev1.Secret
 	if err := client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
@@ -44,178 +70,159 @@ func GetKubeconfigFromSecret(ctx context.Context, client client.Client, secretNa
 	return kubeconfigData, nil
 }
 
-func BuildClientWithKubeconfig(kubeconfigBytes []byte, contextName string) (dynamic.Interface, error) {
+// BuildClientWithKubeconfig builds a Kubernetes client and dynamic client from the provided kubeconfig bytes and context name.
+func BuildClientWithKubeconfig(kubeconfigBytes []byte, contextName string, scheme *runtime.Scheme) (client.Client, dynamic.Interface, error) {
 	// Load the configuration from the kubeconfig bytes
 	config, err := clientcmd.NewClientConfigFromBytes(kubeconfigBytes)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if contextName != "" {
 		rawConfig, err := config.RawConfig()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if _, exists := rawConfig.Contexts[contextName]; !exists {
-			return nil, errors.New("Context not found in kubeconfig")
+			return nil, nil, errors.New("Context not found in kubeconfig")
 		}
 		rawConfig.CurrentContext = contextName
 		config = clientcmd.NewDefaultClientConfig(rawConfig, &clientcmd.ConfigOverrides{})
 	}
 	restConfig, err := config.ClientConfig()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	k8sClient, err := client.New(restConfig, client.Options{
+		Scheme: scheme,
+	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return dynamicClient, nil
+
+	// Create a dynamic client for unstructured resources
+	dynClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return k8sClient, dynClient, nil
 }
 
-func ApplyK8sResource(
-	ctx context.Context,
-	dynamicClient dynamic.Interface,
-	group, version, resourcePlural string,
-	namespace string,
-	resource *unstructured.Unstructured,
-	fieldManager string,
-) (*unstructured.Unstructured, error) {
-	// Create the GroupVersionResource (GVR) for the target resource
-	gvr := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: resourcePlural,
-	}
-
-	var resourceInterface dynamic.ResourceInterface
-	// Cluster-scoped or namespace-scoped
-	if namespace != "" {
-		resourceInterface = dynamicClient.Resource(gvr).Namespace(namespace)
-	} else {
-		resourceInterface = dynamicClient.Resource(gvr)
-	}
-
-	//The Server-Side Apply requires the object to be sent as JSON (Patch)
-	data, err := json.Marshal(resource)
+// ApplyRemoteResource applies or updates a remote Kubernetes resource in the host cluster based on the provided object, and starts a watcher if it's a new resource.
+func ApplyRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, remoteObj client.Object, emptyCheckObj client.Object, localName string, localNamespace string, group string, version string, plural string, fieldOwner string, logPrefix string) error {
+	log := ctrl.Log
+	remoteNamespace := remoteObj.GetNamespace()
+	log.Info(">>> "+logPrefix+" APPLYING SPEC... Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
+	k8sClient, dynClient, err := buildHostClient(ctx, fed, localClient, scheme)
 	if err != nil {
-		return nil, fmt.Errorf("Error during marshal of resource %s: %w", resource.GetName(), err)
+		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		return err
 	}
-
-	// Set the fieldManager (required for Server-Side Apply) and force the apply
-	patchOptions := metav1.PatchOptions{
-		FieldManager: fieldManager, // e.g., "my-custom-controller"
-		Force:        func(b bool) *bool { return &b }(true),
+	reqKey := types.NamespacedName{
+		Name:      remoteObj.GetName(),
+		Namespace: remoteNamespace,
 	}
+	isNewResource := false
 
-	// Perform the Patch operation using ApplyPatchType
-	appliedRes, err := resourceInterface.Patch(
-		ctx,
-		resource.GetName(),
-		types.ApplyPatchType,
-		data,
-		patchOptions,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("Error during generic apply on %s/%s: %w", resourcePlural, resource.GetName(), err)
+	if checkErr := k8sClient.Get(ctx, reqKey, emptyCheckObj); checkErr != nil {
+		if apierrors.IsNotFound(checkErr) {
+			isNewResource = true
+		} else {
+			log.Error(checkErr, ">>> "+logPrefix+" Failed to check remote resource existence via GET.", "name", localName, "namespace", localNamespace)
+			return checkErr
+		}
 	}
-
-	return appliedRes, nil
-}
-
-func GetK8sResource(
-	ctx context.Context,
-	dynamicClient dynamic.Interface,
-	group, version, resourcePlural string,
-	namespace, resourceName string,
-) (*unstructured.Unstructured, error) {
-	// Create the GroupVersionResource (GVR) for the target resource
-	gvr := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: resourcePlural,
+	if err := k8sClient.Patch(ctx, remoteObj, client.Apply, client.ForceOwnership, client.FieldOwner(fieldOwner)); err != nil {
+		log.Error(err, ">>> "+logPrefix+" Failed to APPLY/UPDATE.", "name", localName, "namespace", localNamespace)
+		return err
 	}
-	var resourceInterface dynamic.ResourceInterface
-
-	// Namespace-scoped or cluster-scoped resource
-	if namespace != "" {
-		resourceInterface = dynamicClient.Resource(gvr).Namespace(namespace)
-	} else {
-		resourceInterface = dynamicClient.Resource(gvr)
+	log.Info(">>> "+logPrefix+" SUCCESSFULLY APPLIED/UPDATED.", "name", localName, "namespace", localNamespace)
+	if isNewResource {
+		StartRemoteResourceWatcher(ctx, dynClient, remoteNamespace, localName, localNamespace, group, version, plural)
+		log.Info(">>> "+logPrefix+" SUCCESSFULLY STARTED background WATCHER.", "name", localName, "namespace", localNamespace)
 	}
-	// Execute the get operation
-	unstructuredRes, err := resourceInterface.Get(ctx, resourceName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Error during generic get on %s/%s: %w", resourcePlural, resourceName, err)
-	}
-	return unstructuredRes, nil
-}
-
-func PatchK8sResource(
-	ctx context.Context,
-	dynamicClient dynamic.Interface,
-	group, version, resourcePlural string,
-	namespace, resourceName string,
-	patchType types.PatchType,
-	patchData []byte,
-) error {
-
-	// Creamo the GroupVersionResource for the target resource
-	gvr := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: resourcePlural,
-	}
-
-	var resourceInterface dynamic.ResourceInterface
-
-	// Namespace-scoped or cluster-scoped resource
-	if namespace != "" {
-		resourceInterface = dynamicClient.Resource(gvr).Namespace(namespace)
-	} else {
-		resourceInterface = dynamicClient.Resource(gvr)
-	}
-
-	// Execute the patch operation
-	_, err := resourceInterface.Patch(
-		ctx,
-		resourceName,
-		patchType,
-		patchData,
-		metav1.PatchOptions{},
-	)
-	if err != nil {
-		return fmt.Errorf("error during generic patch on %s/%s: %w", resourcePlural, resourceName, err)
-	}
-
 	return nil
 }
 
-func DeleteK8sResource(
-	ctx context.Context,
-	dynamicClient dynamic.Interface,
-	group, version, resourcePlural string,
-	namespace, resourceName string,
-) error {
-	// Create the GroupVersionResource (GVR) for the target resource
-	gvr := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: resourcePlural,
-	}
-	var resourceInterface dynamic.ResourceInterface
-
-	// Namespace-scoped or cluster-scoped resource
-	if namespace != "" {
-		resourceInterface = dynamicClient.Resource(gvr).Namespace(namespace)
-	} else {
-		resourceInterface = dynamicClient.Resource(gvr)
-	}
-
-	// Execute the delete operation
-	err := resourceInterface.Delete(ctx, resourceName, metav1.DeleteOptions{})
+// GetRemoteResource retrieves a remote Kubernetes resource from the host cluster based on the provided object and updates the local object with its status.
+func GetRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, remoteObj client.Object, remoteName string, localName string, localNamespace string, logPrefix string) error {
+	log := ctrl.Log
+	remoteNamespace := fed.Spec.FederationData.K8sOptions.Namespace
+	log.Info(">>> "+logPrefix+" UPDATING STATUS... Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
+	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
 	if err != nil {
-		return fmt.Errorf("Error during generic delete on %s/%s: %w", resourcePlural, resourceName, err)
+		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		return err
 	}
+	reqKey := types.NamespacedName{
+		Name:      remoteName,
+		Namespace: remoteNamespace,
+	}
+	if err := k8sClient.Get(ctx, reqKey, remoteObj); err != nil {
+		log.Error(err, ">>> "+logPrefix+" Failed to GET remote resource.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	return nil
+}
 
+// PatchRemoteResource applies or updates a remote Kubernetes resource using a MergePatch.
+func PatchRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, targetObj client.Object, localName string, localNamespace string, group string, version string, plural string, logPrefix string) error {
+	log := ctrl.Log
+	remoteNamespace := targetObj.GetNamespace()
+	log.Info(">>> "+logPrefix+" UPDATING SPEC... Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
+	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
+	if err != nil {
+		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	reqKey := types.NamespacedName{
+		Name:      targetObj.GetName(),
+		Namespace: remoteNamespace,
+	}
+	// Download the CURRENT state of the remote object from the cluster
+	if err := k8sClient.Get(ctx, reqKey, targetObj); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info(">>> "+logPrefix+" Remote resource not found.", "name", localName, "namespace", localNamespace)
+		} else {
+			log.Error(err, ">>> "+logPrefix+" Failed to check remote resource existence.", "name", localName, "namespace", localNamespace)
+			return err
+		}
+	}
+	// Prepare the base for the Patch (save an exact copy of the current state)
+	var patchBase client.Patch
+	patchBase = client.MergeFrom(targetObj.DeepCopyObject().(client.Object))
+	// Execute the Mutator function!
+	// This function will modify `targetObj` by adding or changing ONLY the fields you care about.
+	// Perform a standard MergePatch. K8s will understand exactly which fields you changed by comparing targetObj with patchBase.
+	if err := k8sClient.Patch(ctx, targetObj, patchBase); err != nil {
+		log.Error(err, ">>> "+logPrefix+" Failed to PATCH the SPEC.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	log.Info(">>> "+logPrefix+" SUCCESSFULLY PATCHED the SPEC.", "name", localName, "namespace", localNamespace)
+	return nil
+}
+
+// DeleteRemoteResource deletes a remote Kubernetes resource from the host cluster based on the provided object and stops the watcher if it was running.
+func DeleteRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, obj client.Object, remoteName string, localName string, localNamespace string, logPrefix string) error {
+	log := ctrl.Log
+	remoteNamespace := fed.Spec.FederationData.K8sOptions.Namespace
+	log.Info(">>> "+logPrefix+" DELETING... Retrieving KUBECONFIG", "name", localName, "namespace", localNamespace)
+	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
+	if err != nil {
+		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	obj.SetName(remoteName)
+	obj.SetNamespace(remoteNamespace)
+	if err := k8sClient.Delete(ctx, obj); err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, ">>> "+logPrefix+" Failed to DELETE.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	log.Info(">>> "+logPrefix+" SUCCESSFULLY DELETED.", "name", localName, "namespace", localNamespace)
+	if !StopRemoteResourceWatcher(remoteNamespace, localName) {
+		log.Error(nil, ">>> "+logPrefix+" Problem during the stopping of the WATCHER.", "name", localName, "namespace", localNamespace)
+	} else {
+		log.Info(">>> "+logPrefix+" SUCCESSFULLY STOPPED background WATCHER.", "name", localName, "namespace", localNamespace)
+	}
 	return nil
 }

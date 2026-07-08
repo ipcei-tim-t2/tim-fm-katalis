@@ -8,18 +8,72 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
-	opgv1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
+	v1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
+)
+
+const (
+	FedContextIdIndex = "status.federationContextId"
+	RelationTypeIndex = "spec.federationData.relationType"
+
+	ImageIdIndex = "spec.imageId"
+
+	ArtefactIdIndex = "spec.artefactId"
+	FedIdIndex      = "spec.federationContextId"
+	RelationType    = "spec.relationType"
 )
 
 type Opt func(obj metav1.Object) error
+
+func (c *k8sClient) patchK8sStatus(original k8scli.Object, modified k8scli.Object) error {
+
+	// Creiamo la patch calcolando le differenze tra l'originale e il modificato
+	patch := client.MergeFrom(original)
+
+	// Attenzione: usiamo .Status().Patch() per toccare solo la sub-risorsa Status!
+	if err := c.kubernetes.Status().Patch(context.Background(), modified, patch); err != nil {
+		return errors.Wrapf(err, "unable to patch status of object %T", modified)
+	}
+
+	return nil
+}
+
+// getResourceByFields è un motore di ricerca universale per le Custom Resource di Kubernetes.
+func (c *k8sClient) getResourceByFields(ctx context.Context, listObj client.ObjectList, fields map[string]string) (client.Object, error) {
+
+	// 1. Interroga Kubernetes chiedendo di filtrare i risultati in base ai campi forniti
+	err := c.kubernetes.List(ctx, listObj, client.MatchingFields(fields))
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Estrae gli elementi dalla lista generica
+	objs, err := meta.ExtractList(listObj)
+	if err != nil {
+		return nil, fmt.Errorf("errore durante l'estrazione della lista: %w", err)
+	}
+
+	// 3. Verifica se ci sono risultati
+	if len(objs) == 0 {
+		return nil, fmt.Errorf("nessuna risorsa trovata con i campi richiesti")
+	}
+
+	// 4. Converte e restituisce il primo risultato utile
+	if obj, ok := objs[0].(client.Object); ok {
+		return obj, nil
+	}
+
+	return nil, fmt.Errorf("impossibile convertire l'oggetto in client.Object")
+}
 
 func WithOwnerReference(owner metav1.Object, scheme *runtime.Scheme) Opt {
 	return func(obj metav1.Object) error {
@@ -30,10 +84,10 @@ func WithOwnerReference(owner metav1.Object, scheme *runtime.Scheme) Opt {
 	}
 }
 
-// buildOwnerReferenceOption generates an Opt function that sets the owner reference
-// of a Kubernetes Custom Resource to the specified Federation in a k8s object.
+// // buildOwnerReferenceOption generates an Opt function that sets the owner reference
+// // of a Kubernetes Custom Resource to the specified Federation in a k8s object.
 func (c *k8sClient) buildOwnerReferenceOption(federationContextID string) (Opt, error) {
-	federation, err := c.getKubernetesObject(federationContextID, &opgv1beta1.FederationList{}, federationContextID)
+	federation, err := c.getKubernetesObject(federationContextID, &v1beta1.FederationList{}, federationContextID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +186,7 @@ func (c *k8sClient) updateK8sObjectAppInstStatus(object k8scli.Object, updates *
 	info := updates.AppInstanceInfo
 	var patch struct {
 		AccessPointInfo *models.AccessPointInfo `json:"accessPointInfo,omitempty"`
-		State           *models.InstanceState    `json:"state,omitempty"`
+		State           *models.InstanceState   `json:"state,omitempty"`
 	}
 
 	if info.AppInstanceState != nil {
@@ -160,32 +214,32 @@ func (c *k8sClient) updateK8sObjectAppInstStatus(object k8scli.Object, updates *
 func getFirstItemFromObjectList(list k8scli.ObjectList) (k8scli.Object, error) {
 	kind := getListKind(list)
 	switch typedList := list.(type) {
-	case *opgv1beta1.ApplicationInstanceList:
+	case *v1beta1.ApplicationDeploymentList:
 		if len(typedList.Items) == 0 {
 			return nil, fmt.Errorf("no '%s' items found", kind)
 		}
 		return &typedList.Items[0], nil
-	case *opgv1beta1.ApplicationList:
+	case *v1beta1.ApplicationOnboardingList:
 		if len(typedList.Items) == 0 {
 			return nil, fmt.Errorf("no '%s' items found", kind)
 		}
 		return &typedList.Items[0], nil
-	case *opgv1beta1.ArtefactList:
+	case *v1beta1.ArtefactList:
 		if len(typedList.Items) == 0 {
 			return nil, fmt.Errorf("no '%s' items found", kind)
 		}
 		return &typedList.Items[0], nil
-	case *opgv1beta1.AvailabilityZoneList:
+	case *v1beta1.AvailabilityZoneList:
 		if len(typedList.Items) == 0 {
 			return nil, fmt.Errorf("no '%s' items found", kind)
 		}
 		return &typedList.Items[0], nil
-	case *opgv1beta1.FederationList:
+	case *v1beta1.FederationList:
 		if len(typedList.Items) == 0 {
 			return nil, fmt.Errorf("no '%s' items found", kind)
 		}
 		return &typedList.Items[0], nil
-	case *opgv1beta1.FileList:
+	case *v1beta1.ImageList:
 		if len(typedList.Items) == 0 {
 			return nil, fmt.Errorf("no '%s' items found", kind)
 		}
@@ -197,18 +251,18 @@ func getFirstItemFromObjectList(list k8scli.ObjectList) (k8scli.Object, error) {
 
 func getListKind(list k8scli.ObjectList) string {
 	switch list.(type) {
-	case *opgv1beta1.ApplicationInstanceList:
-		return applicationInstanceKind
-	case *opgv1beta1.ApplicationList:
-		return applicationKind
-	case *opgv1beta1.ArtefactList:
+	case *v1beta1.ApplicationDeploymentList:
+		return applicationDeploymentKind
+	case *v1beta1.ApplicationOnboardingList:
+		return applicationOnboardingKind
+	case *v1beta1.ArtefactList:
 		return artefactKind
-	case *opgv1beta1.AvailabilityZoneList:
+	case *v1beta1.AvailabilityZoneList:
 		return availabilityZoneKind
-	case *opgv1beta1.FederationList:
+	case *v1beta1.FederationList:
 		return federationKind
-	case *opgv1beta1.FileList:
-		return fileKind
+	case *v1beta1.ImageList:
+		return imageKind
 	default:
 		return "Unknown"
 	}
@@ -216,18 +270,18 @@ func getListKind(list k8scli.ObjectList) string {
 
 func getObjectKind(obj k8scli.Object) string {
 	switch obj.(type) {
-	case *opgv1beta1.ApplicationInstance:
-		return applicationInstanceKind
-	case *opgv1beta1.Application:
-		return applicationKind
-	case *opgv1beta1.Artefact:
+	case *v1beta1.ApplicationDeployment:
+		return applicationDeploymentKind
+	case *v1beta1.ApplicationOnboarding:
+		return applicationOnboardingKind
+	case *v1beta1.Artefact:
 		return artefactKind
-	case *opgv1beta1.AvailabilityZone:
+	case *v1beta1.AvailabilityZone:
 		return availabilityZoneKind
-	case *opgv1beta1.Federation:
+	case *v1beta1.Federation:
 		return federationKind
-	case *opgv1beta1.File:
-		return fileKind
+	case *v1beta1.Image:
+		return imageKind
 	default:
 		return "Unknown"
 	}

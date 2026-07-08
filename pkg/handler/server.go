@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/server"
+	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/controller"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/deployment"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/metastore"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 )
 
 var _ server.ServerInterface = &handler{}
@@ -27,6 +31,7 @@ func NewServer(apiRoot string, k8sClient client.Client, namespace string) *handl
 		getRequestClientCredentialsFunc: getRequestClientCredentials,
 		getRequestContextFunc:           getRequestContext,
 		metaStoreClient:                 metastore.NewK8sClient(k8sClient, namespace),
+		Client:                          k8sClient,
 	}
 }
 
@@ -36,8 +41,46 @@ type handler struct {
 	getRequestClientCredentialsFunc func(echo.Context) (metastore.ClientCredentials, error) // test purposes
 	getRequestContextFunc           func(echo.Context) context.Context                      // test purposes
 	metaStoreClient                 metastore.Client
+	client.Client
 }
 
+func mapServiceEndpoint(src *v1beta1.ServiceEndpoint) *models.ServiceEndpoint {
+	if src == nil {
+		return nil
+	}
+
+	// Helper inline per convertire le slice e restituire il puntatore
+	mapIpv4 := func(ips []string) *[]models.Ipv4Addr {
+		if len(ips) == 0 {
+			return nil
+		}
+		res := make([]models.Ipv4Addr, len(ips))
+		for i, ip := range ips {
+			res[i] = models.Ipv4Addr(ip)
+		}
+		return &res
+	}
+
+	mapIpv6 := func(ips []string) *[]models.Ipv6Addr {
+		if len(ips) == 0 {
+			return nil
+		}
+		res := make([]models.Ipv6Addr, len(ips))
+		for i, ip := range ips {
+			res[i] = models.Ipv6Addr(ip)
+		}
+		return &res
+	}
+
+	return &models.ServiceEndpoint{
+		Fqdn:          &src.Fqdn,
+		Ipv4Addresses: mapIpv4(src.Ipv4Addresses),
+		Ipv6Addresses: mapIpv6(src.Ipv6Addresses),
+		Port:          src.Port,
+	}
+}
+
+// POST /Partner
 func (h *handler) CreateFederation(c echo.Context) error {
 	ctx := h.getRequestContextFunc(c)
 
@@ -46,22 +89,66 @@ func (h *handler) CreateFederation(c echo.Context) error {
 		return sendErrorResponse(c, http.StatusBadRequest, err.Error())
 	}
 
-	federationID := h.generateFederationContextID(c)
 	userClientCredentials, _ := h.getRequestClientCredentialsFunc(c)
-	var fed *metastore.Federation
+	var fed *v1beta1.Federation
+	federationContextId := uuid.V5(*request.OrigOPFederationId + request.InitialDate.String())
 	if fed, err = h.metaStoreClient.CreateFederation(ctx, &metastore.Federation{
 		ClientCredentials:     userClientCredentials,
 		FederationRequestData: request,
-		FederationContextId:   federationID,
+		FederationContextId:   federationContextId,
 	}); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 
-	c.Response().Header().Set("Location", h.apiRoot+"/operatorplatform/federation/v1/partner/"+federationID)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for (len(fed.Status.ZoneDetails) == 0) || fed.Status.PartnerOPFederationId == "" || fed.Status.PartnerOPCountryCode == "" || fed.Status.FederationExpiryDate.IsZero() || fed.Status.FederationRenewalDate.IsZero() || fed.Status.PlatformCaps == nil {
+		select {
+		case <-timeoutCtx.Done():
+			// End the loop if the timeout context is done
+			return sendErrorResponse(c, http.StatusRequestTimeout, "timeout: federation status non ancora pronto")
+		case <-ticker.C:
+			fed, _, err = controller.GetFederation(ctx, false, h.Client, string(federationContextId), fed.Namespace)
+			if err != nil {
+				return sendErrorResponseFromError(c, err)
+			}
+		}
+	}
+
+	offeredZones := make([]models.ZoneDetails, len(fed.Status.ZoneDetails))
+	for i, zd := range fed.Status.ZoneDetails {
+		offeredZones[i] = models.ZoneDetails{
+			ZoneId:           zd.ZoneId,
+			Geolocation:      &zd.Geolocation,
+			GeographyDetails: zd.GeographyDetails,
+		}
+	}
+	var partnerMobileNetCodes *models.MobileNetworkIds
+	if fed.Status.MobileNetworkIds != nil {
+		partnerMobileNetCodes = &models.MobileNetworkIds{
+			Mcc:  &fed.Status.MobileNetworkIds.Mcc,
+			Mncs: &fed.Status.MobileNetworkIds.Mncs,
+		}
+	}
+	c.Response().Header().Set("Location", h.apiRoot+"/operatorplatform/federation/v1/partner/"+federationContextId)
 	response := models.FederationResponseData{
-		FederationContextId:      &federationID,
-		OfferedAvailabilityZones: fed.OfferedAvailabilityZones,
-		PlatformCaps:             []models.FederationResponseDataPlatformCaps{},
+		FederationContextId:      &federationContextId,
+		OfferedAvailabilityZones: &offeredZones,
+		PlatformCaps:             fed.Status.PlatformCaps,
+		PartnerOPFederationId:    &fed.Status.PartnerOPFederationId,
+		PartnerOPCountryCode:     &fed.Status.PartnerOPCountryCode,
+
+		//OPTIONAL
+		EdgeDiscoveryServiceEndPoint: mapServiceEndpoint(fed.Status.EdgeDiscoveryServiceEndPoint),
+		LcmServiceEndPoint:           mapServiceEndpoint(fed.Status.LcmServiceEndPoint),
+		PartnerOPMobileNetworkCodes:  partnerMobileNetCodes,
+		PartnerOPFixedNetworkCodes:   &fed.Status.FixedNetworkIds,
+		FederationExpiryDate:         &fed.Status.FederationExpiryDate.Time,
+		FederationRenewalDate:        &fed.Status.FederationRenewalDate.Time,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -69,7 +156,7 @@ func (h *handler) CreateFederation(c echo.Context) error {
 
 // Instantiates an application on a partner OP zone.
 // (POST /{federationContextId}/application/lcm)
-func (h *handler) InstallApp(c echo.Context, federationContextId models.FederationContextId) error {
+func (h *handler) InstallApp(c echo.Context, federationContextId models.FederationContextId, params models.InstallAppParams) error {
 	request := models.InstallAppJSONBody{}
 	if err := c.Bind(&request); err != nil {
 		detail := err.Error()
@@ -77,7 +164,7 @@ func (h *handler) InstallApp(c echo.Context, federationContextId models.Federati
 			Detail: &detail,
 		})
 	}
-	if _,_, err := h.depClient.Install(h.getRequestContextFunc(c), &deployment.InstallDeployment{
+	if _, _, err := h.depClient.Install(h.getRequestContextFunc(c), &deployment.InstallDeployment{
 		InstallAppJSONBody:  &request,
 		FederationContextID: federationContextId,
 	}); err != nil {
@@ -99,7 +186,7 @@ func (h *handler) RemoveApp(c echo.Context, federationContextId models.Federatio
 // Retrieves an application instance details from partner OP.
 // (GET /{federationContextId}/application/lcm/app/{appId}/instance/{appInstanceId}/zone/{zoneId})
 func (h *handler) GetAppInstanceDetails(c echo.Context, federationContextId models.FederationContextId, appId models.AppIdentifier, appInstanceId models.InstanceIdentifier, zoneId models.ZoneIdentifier) error {
-	appInst, err := h.metaStoreClient.GetApplicationInstanceDetails(h.getRequestContextFunc(c), federationContextId, appInstanceId)
+	appInst, err := h.metaStoreClient.GetApplicationDeploymentDetails(h.getRequestContextFunc(c), federationContextId, appInstanceId)
 	if err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
@@ -120,7 +207,7 @@ func (h *handler) OnboardApplication(c echo.Context, federationContextId models.
 		})
 	}
 
-	if _,err := h.metaStoreClient.OnboardApplication(ctx, &metastore.OnboardApplication{
+	if _, err := h.metaStoreClient.OnboardApplication(ctx, &metastore.OnboardApplication{
 		OnboardApplicationJSONBody: &request,
 		FederationContextId:        federationContextId,
 	}); err != nil {
@@ -129,6 +216,7 @@ func (h *handler) OnboardApplication(c echo.Context, federationContextId models.
 
 	return c.JSON(http.StatusAccepted, nil)
 }
+
 // Deboards the application from any zones, if any, and deletes the App.
 // (GET /{federationContextId}/application/onboarding/app/{appId})
 func (h *handler) DeleteApp(c echo.Context, federationContextId models.FederationContextId, appId string) error {
@@ -171,7 +259,7 @@ func (h *handler) UploadArtefact(c echo.Context, federationContextId models.Fede
 		})
 	}
 
-	if _,err := h.metaStoreClient.UploadArtefact(ctx, &metastore.UploadArtefact{
+	if _, err := h.metaStoreClient.UploadArtefact(ctx, &metastore.UploadArtefact{
 		UploadArtefactMultipartBody: request,
 		FederationContextId:         federationContextId,
 	}); err != nil {
@@ -184,7 +272,7 @@ func (h *handler) UploadArtefact(c echo.Context, federationContextId models.Fede
 // Removes an artefact from partner OP.
 // (DELETE /{federationContextId}/artefact/{artefactId})
 func (h *handler) RemoveArtefact(c echo.Context, federationContextId models.FederationContextId, artefactId models.ArtefactId) error {
-	if err := h.metaStoreClient.RemoveArtefact(h.getRequestContextFunc(c), federationContextId, artefactId); err != nil {
+	if err := h.metaStoreClient.RemoveArtefact(h.getRequestContextFunc(c), federationContextId, string(artefactId[:])); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusOK, nil)
@@ -193,7 +281,7 @@ func (h *handler) RemoveArtefact(c echo.Context, federationContextId models.Fede
 // Retrieves details about an artefact.
 // (GET /{federationContextId}/artefact/{artefactId})
 func (h *handler) GetArtefact(c echo.Context, federationContextId models.FederationContextId, artefactId models.ArtefactId) error {
-	artefact, err := h.metaStoreClient.GetArtefact(h.getRequestContextFunc(c), federationContextId, artefactId)
+	artefact, err := h.metaStoreClient.GetArtefact(h.getRequestContextFunc(c), federationContextId, string(artefactId[:]))
 	if err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
@@ -213,7 +301,7 @@ func (h *handler) UploadFile(c echo.Context, federationContextId models.Federati
 		})
 	}
 
-	if _,err := h.metaStoreClient.UploadFile(ctx, &metastore.UploadFile{
+	if _, err := h.metaStoreClient.UploadImage(ctx, &metastore.UploadImage{
 		UploadFileMultipartBody: request,
 		FederationContextId:     federationContextId,
 	}); err != nil {
@@ -226,7 +314,7 @@ func (h *handler) UploadFile(c echo.Context, federationContextId models.Federati
 // Removes an image file from partner OP.
 // (DELETE /{federationContextId}/files/{fileId})
 func (h *handler) RemoveFile(c echo.Context, federationContextId models.FederationContextId, fileId models.FileId) error {
-	if err := h.metaStoreClient.RemoveFile(h.getRequestContextFunc(c), federationContextId, fileId); err != nil {
+	if err := h.metaStoreClient.RemoveImage(h.getRequestContextFunc(c), federationContextId, string(fileId[:])); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusOK, nil)
@@ -235,7 +323,7 @@ func (h *handler) RemoveFile(c echo.Context, federationContextId models.Federati
 // View an image file from partner OP.
 // (GET /{federationContextId}/files/{fileId})
 func (h *handler) ViewFile(c echo.Context, federationContextId models.FederationContextId, fileId models.FileId) error {
-	file, err := h.metaStoreClient.GetFile(h.getRequestContextFunc(c), federationContextId, fileId)
+	file, err := h.metaStoreClient.GetImage(h.getRequestContextFunc(c), federationContextId, string(fileId[:]))
 	if err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
@@ -308,17 +396,18 @@ func (h *handler) ZoneSubscribe(c echo.Context, federationContextId models.Feder
 		}
 	}
 
-	// updateFederationWithAcceptedSites
-	if err := h.metaStoreClient.AddAvailabilityZones(ctx, federationContextId, zoneRegistrationRequest.AcceptedAvailabilityZones); err != nil {
-		return sendErrorResponseFromError(c, err)
-	}
-
 	registered := []models.ZoneRegisteredData{}
 	for _, acc := range zoneRegistrationRequest.AcceptedAvailabilityZones {
 		registered = append(registered, models.ZoneRegisteredData{
 			ZoneId: acc,
 		})
 	}
+
+	// updateFederationWithAcceptedSites
+	if err := h.metaStoreClient.AddAvailabilityZones(ctx, federationContextId, zoneRegistrationRequest.AcceptedAvailabilityZones); err != nil {
+		return sendErrorResponseFromError(c, err)
+	}
+
 	resp := models.ZoneRegistrationResponseData{
 		AcceptedZoneResourceInfo: registered,
 	}
@@ -327,10 +416,10 @@ func (h *handler) ZoneSubscribe(c echo.Context, federationContextId models.Feder
 
 // Retrieves details about the computation and network resources that partner OP has reserved for this zone.
 // (GET /{federationContextId}/zones/{zoneId})
-func (h *handler) GetZoneData(c echo.Context, federationContextId models.FederationContextId, zoneId models.ZoneIdentifier) error {
+func (h *handler) GetZoneData(c echo.Context, federationContextId models.FederationContextId, params models.GetZoneDataParams) error {
 	ctx := h.getRequestContextFunc(c)
 
-	az, err := h.metaStoreClient.GetAvailabilityZone(ctx, federationContextId, zoneId)
+	az, err := h.metaStoreClient.GetAvailabilityZone(ctx, federationContextId, string(*params.ZoneId))
 	if err != nil {
 		return sendErrorResponseFromError(c, err)
 	}

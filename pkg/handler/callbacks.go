@@ -18,7 +18,7 @@ func (h *handler) FileStatusCallbackLink(c echo.Context, federationCallbackId mo
 		return sendErrorResponse(c, http.StatusBadRequest, err.Error())
 	}
 
-	if err := h.metaStoreClient.UpdateFileStatus(ctx, federationCallbackId, request); err != nil {
+	if err := h.metaStoreClient.UpdateImageStatus(ctx, federationCallbackId, request); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusNoContent, nil)
@@ -66,7 +66,7 @@ func (h *handler) AppInstCallbackLink(c echo.Context, federationCallbackId model
 		return sendErrorResponse(c, http.StatusBadRequest, err.Error())
 	}
 
-	if err := h.metaStoreClient.UpdateApplicationInstanceStatus(ctx, federationCallbackId, request); err != nil {
+	if err := h.metaStoreClient.UpdateApplicationDeploymentStatus(ctx, federationCallbackId, request); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusNoContent, nil)
@@ -98,24 +98,9 @@ func (h *handler) PartnerStatusLink(c echo.Context, federationCallbackId models.
 		return sendErrorResponse(c, http.StatusBadRequest, err.Error())
 	}
 
-	unsuportedOperationErr := func() error {
-		return sendErrorResponse(c, http.StatusBadRequest, "unsuported operation type for objectType "+string(request.ObjectType))
+	if err := h.metaStoreClient.UpdateFederationStatus(ctx, federationCallbackId, request); err != nil {
+		return sendErrorResponseFromError(c, err)
 	}
-	switch request.ObjectType {
-	case models.PartnerStatusLinkJSONBodyObjectTypeFEDERATION:
-		if request.OperationType != models.PartnerStatusLinkJSONBodyOperationTypeSTATUS {
-			return unsuportedOperationErr()
-		}
-		if request.FederationStatus == nil {
-			return sendErrorResponse(c, http.StatusBadRequest, "missing federationStatus")
-		}
-		if err := h.metaStoreClient.UpdateFederationStatus(ctx, federationCallbackId, *request.FederationStatus); err != nil {
-			return sendErrorResponseFromError(c, err)
-		}
-	default:
-		return sendErrorResponse(c, http.StatusNotImplemented, "ObjectType not implemented")
-	}
-
 	return c.JSON(http.StatusNoContent, nil)
 }
 

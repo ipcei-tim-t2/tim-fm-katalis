@@ -1,17 +1,17 @@
 # Create this when the Origin Partner (Client)
 # credentials are created in the host system
-apiVersion: opg.ewbi.nby.one/v1beta1
+apiVersion: opg.ewbi.katalis.com/v1beta1
 kind: Federation
 metadata:
   namespace: katalis-dev-host
   labels:
-    opg.ewbi.nby.one/federation-relation: host
-    # opg.ewbi.nby.one/host-operator-org-id: "
-    opg.ewbi.nby.one/origin-operator-name: guestName
-    opg.ewbi.nby.one/origin-client-id: 3acde22c-d245-480d-b01e-24e38e01806d # uuid, will match with clientID request
-    opg.ewbi.nby.one/origin-country-code: ES
+    opg.ewbi.katalis.com/federation-relation: host
+    # opg.ewbi.katalis.com/host-operator-org-id: "
+    opg.ewbi.katalis.com/origin-operator-name: guestName
+    opg.ewbi.katalis.com/origin-client-id: 3acde22c-d245-480d-b01e-24e38e01806d # uuid, will match with clientID request
+    opg.ewbi.katalis.com/origin-country-code: ES
 
-    opg.ewbi.k8s/federation-technology: k8s
+    opg.ewbi.katalis.com/federation-technology: k8s
   name: fed-host-k8s # prefix-uuid
 spec:
   offeredAvailabilityZones:

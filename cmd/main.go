@@ -23,6 +23,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,12 +47,12 @@ import (
 )
 
 const (
-	unableToCreateControllerMsg = "unable to create controller"
+	unableToCreateControllerMsg = "Unable to create controller"
 )
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	setupLog = ctrl.Log.WithName(">>>>> [SETUP]")
 )
 
 func init() {
@@ -84,6 +85,13 @@ func main() {
 		"If set, the CA certificates verification is skipped for OPG Clients requests.")
 	opts := zap.Options{
 		Development: true,
+		EncoderConfigOptions: []zap.EncoderConfigOption{
+			func(c *zapcore.EncoderConfig) {
+				c.CallerKey = ""     // Nasconde il nome del file e la riga
+				c.StacktraceKey = "" // Nasconde lo stacktrace degli errori
+				c.TimeKey = ""       // Togli il commento se vuoi nascondere anche l'orario
+			},
+		},
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -99,7 +107,7 @@ func main() {
 	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
 	// - https://github.com/advisories/GHSA-4374-p667-p6c8
 	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("disabling http/2")
+		setupLog.Info("Disabling http/2")
 		c.NextProtos = []string{"http/1.1"}
 	}
 
@@ -146,7 +154,7 @@ func main() {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "7e554ad8.nby.one",
+		LeaderElectionID:       "7e554ad8.katalis.com",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -164,17 +172,17 @@ func main() {
 		}},
 	})
 
+	if err != nil {
+		setupLog.Error(err, "Unable to start manager")
+		os.Exit(1)
+	}
+
 	opgClientOpts := []opg.OPGClientsMapOpt{}
 	if opgInsecureSkipVerify {
 		setupLog.Info("INSECURE: disabling CA cert verification in https requests to federation partners")
 		opgClientOpts = append(opgClientOpts, opg.WithInsecureSkipVerify())
 	}
 	opgClients := opg.NewOPGClientsMap(opgClientOpts...)
-
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
 
 	if err = (&controller.FederationReconciler{
 		Client:                 mgr.GetClient(),
@@ -194,22 +202,22 @@ func main() {
 		setupLog.Error(err, unableToCreateControllerMsg, "controller", "Federation")
 		os.Exit(1)
 	}
-	if err = (&controller.FileReconciler{
+	if err = (&controller.ImageReconciler{
 		Client:                 mgr.GetClient(),
 		Scheme:                 mgr.GetScheme(),
 		OPGClientsMapInterface: opgClients,
-		K8sClient: &k8s.FileReconciler{
+		K8sClient: &k8s.ImageReconciler{
 			Client:                 mgr.GetClient(),
 			Scheme:                 mgr.GetScheme(),
 			OPGClientsMapInterface: opgClients,
 		},
-		RestClient: &rest.FileReconciler{
+		RestClient: &rest.ImageReconciler{
 			Client:                 mgr.GetClient(),
 			Scheme:                 mgr.GetScheme(),
 			OPGClientsMapInterface: opgClients,
 		},
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, unableToCreateControllerMsg, "controller", "File")
+		setupLog.Error(err, unableToCreateControllerMsg, "controller", "Image")
 		os.Exit(1)
 	}
 	if err = (&controller.ArtefactReconciler{
@@ -230,40 +238,40 @@ func main() {
 		setupLog.Error(err, unableToCreateControllerMsg, "controller", "Artefact")
 		os.Exit(1)
 	}
-	if err = (&controller.ApplicationReconciler{
+	if err = (&controller.ApplicationOnboardingReconciler{
 		Client:                 mgr.GetClient(),
 		Scheme:                 mgr.GetScheme(),
 		OPGClientsMapInterface: opgClients,
-		K8sClient: &k8s.ApplicationReconciler{
+		K8sClient: &k8s.ApplicationOnboardingReconciler{
 			Client:                 mgr.GetClient(),
 			Scheme:                 mgr.GetScheme(),
 			OPGClientsMapInterface: opgClients,
 		},
-		RestClient: &rest.ApplicationReconciler{
+		RestClient: &rest.ApplicationOnboardingReconciler{
 			Client:                 mgr.GetClient(),
 			Scheme:                 mgr.GetScheme(),
 			OPGClientsMapInterface: opgClients,
 		},
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, unableToCreateControllerMsg, "controller", "Application")
+		setupLog.Error(err, unableToCreateControllerMsg, "controller", "ApplicationOnboarding")
 		os.Exit(1)
 	}
-	if err = (&controller.ApplicationInstanceReconciler{
+	if err = (&controller.ApplicationDeploymentReconciler{
 		Client:                 mgr.GetClient(),
 		Scheme:                 mgr.GetScheme(),
 		OPGClientsMapInterface: opgClients,
-		K8sClient: &k8s.ApplicationInstanceReconciler{
+		K8sClient: &k8s.ApplicationDeploymentReconciler{
 			Client:                 mgr.GetClient(),
 			Scheme:                 mgr.GetScheme(),
 			OPGClientsMapInterface: opgClients,
 		},
-		RestClient: &rest.ApplicationInstanceReconciler{
+		RestClient: &rest.ApplicationDeploymentReconciler{
 			Client:                 mgr.GetClient(),
 			Scheme:                 mgr.GetScheme(),
 			OPGClientsMapInterface: opgClients,
 		},
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, unableToCreateControllerMsg, "controller", "ApplicationInstance")
+		setupLog.Error(err, unableToCreateControllerMsg, "controller", "ApplicationDeployment")
 		os.Exit(1)
 	}
 	if err = (&controller.AvailabilityZoneReconciler{
@@ -276,17 +284,17 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		setupLog.Error(err, "Unable to set up health check")
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		setupLog.Error(err, "Unable to set up ready check")
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager", "namespace", monitoredNamespace)
+	setupLog.Info("Starting manager", "namespace", monitoredNamespace)
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+		setupLog.Error(err, "Problem running manager")
 		os.Exit(1)
 	}
 }

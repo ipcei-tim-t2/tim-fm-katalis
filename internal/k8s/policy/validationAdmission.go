@@ -27,9 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingadmissionpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -42,27 +41,50 @@ type FederationReconciler struct {
 	opg.OPGClientsMapInterface
 }
 
-func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, role string, policyName string) error {
-	log := log.FromContext(ctx)
-	log.Info(">>> [Federation] Updating Federation policy")
-
+func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, role v1beta1.FederationRelation, policyName string, action string, federationContextID string) error {
+	log := ctrl.Log
 	listFed := &v1beta1.FederationList{}
-	listOpts := []client.ListOption{
-		client.MatchingLabels{
-			"opg.ewbi.nby.one/federation-relation": role,
-		},
-	}
-	// Fetch the Federation instance
-	if err := r.Client.List(ctx, listFed, listOpts...); err != nil {
+
+	// 1. Recupera TUTTE le istanze di Federation (Senza usare MatchingFields)
+	// In questo modo aggiriamo completamente il problema dell'indice della cache
+	if err := r.Client.List(ctx, listFed); err != nil {
 		log.Error(err, ">>> [Federation] Failed to list Federations")
 		return err
 	}
-	var federationContextIds []string
+
+	// Utilizziamo una mappa per evitare duplicati in modo semplice
+	idMap := make(map[string]bool)
+
+	// 2. Scorriamo la lista e facciamo il FILTRO LATO GO
 	for _, fed := range listFed.Items {
-		if fed.Status.FederationContextId != "" {
-			federationContextIds = append(federationContextIds, fed.Status.FederationContextId)
+		// Aggiungiamo alla mappa SOLO se il relationType corrisponde al ruolo cercato
+		if fed.Spec.FederationData.RelationType == string(role) && fed.Status.FederationContextId != "" {
+			idMap[fed.Status.FederationContextId] = true
 		}
 	}
+
+	// 2. GESTIONE DELL'AZIONE SULL'ELEMENTO SPECIFICO
+	if federationContextID != "" {
+		switch action {
+		case "remove":
+			// Rimuoviamo l'elemento (forzando l'esclusione anche se fosse ancora in cache)
+			delete(idMap, federationContextID)
+		case "add":
+			// Aggiungiamo l'elemento (utile nel caso in cui non sia ancora comparso nella cache della List)
+			idMap[federationContextID] = true
+		default:
+			log.Error(fmt.Errorf("invalid action"), ">>> [Federation] Invalid action provided", "action", action)
+			return fmt.Errorf("invalid action: %s", action)
+		}
+	}
+
+	// 3. Trasformiamo la mappa nella lista finale
+	var federationContextIds []string
+	for id := range idMap {
+		federationContextIds = append(federationContextIds, id)
+	}
+
+	// 4. Costruiamo la stringa per l'espressione CEL
 	celList := "[]"
 	if len(federationContextIds) > 0 {
 		var celListItems []string
@@ -71,23 +93,28 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 		}
 		celList = fmt.Sprintf("[%s]", strings.Join(celListItems, ","))
 	}
-	celExpression := fmt.Sprintf(
-		"(request.operation == 'DELETE' ? "+
-			"(has(oldObject.metadata) && has(oldObject.metadata.labels) && "+
-			"('opg.ewbi.nby.one/federation-relation' in oldObject.metadata.labels && oldObject.metadata.labels['opg.ewbi.nby.one/federation-relation'] == '%s' ? "+
-			"('opg.ewbi.nby.one/federation-context-id' in oldObject.metadata.labels && oldObject.metadata.labels['opg.ewbi.nby.one/federation-context-id'] in %s) : true)) : "+
-			"(has(object.metadata) && has(object.metadata.labels) && "+
-			"('opg.ewbi.nby.one/federation-relation' in object.metadata.labels && object.metadata.labels['opg.ewbi.nby.one/federation-relation'] == '%s' ? "+
-			"('opg.ewbi.nby.one/federation-context-id' in object.metadata.labels && object.metadata.labels['opg.ewbi.nby.one/federation-context-id'] in %s) : true)))",
-		role, celList, role, celList,
+	celExpression := fmt.Sprintf(`
+	(request.operation == 'DELETE' ? 
+		(has(oldObject.spec) && has(oldObject.spec.relationType) &&
+		(oldObject.spec.relationType == '%s' ? 
+			(has(oldObject.spec.federationContextId) && oldObject.spec.federationContextId in %s) : true)) 
+	: 
+		(has(object.spec) && has(object.spec.relationType) &&
+		(object.spec.relationType == '%s' ? 
+			(has(object.spec.federationContextId) && object.spec.federationContextId in %s) : true))
 	)
-	policy := &admissionregistrationv1.ValidatingAdmissionPolicy{
-		ObjectMeta: metav1.ObjectMeta{Name: policyName},
-	}
+`, string(role), celList, string(role), celList)
 
-	// Create or Update
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, policy, func() error {
-		policy.Spec = admissionregistrationv1.ValidatingAdmissionPolicySpec{
+	// 6. Costruzione e Patch della Policy
+	policy := &admissionregistrationv1.ValidatingAdmissionPolicy{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admissionregistration.k8s.io/v1",
+			Kind:       "ValidatingAdmissionPolicy",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: policyName,
+		},
+		Spec: admissionregistrationv1.ValidatingAdmissionPolicySpec{
 			FailurePolicy: ptr.To(admissionregistrationv1.Fail),
 			MatchConstraints: &admissionregistrationv1.MatchResources{
 				ResourceRules: []admissionregistrationv1.NamedRuleWithOperations{
@@ -99,7 +126,7 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 								admissionregistrationv1.Delete,
 							},
 							Rule: admissionregistrationv1.Rule{
-								APIGroups:   []string{"opg.ewbi.nby.one"},
+								APIGroups:   []string{"opg.ewbi.katalis.com"},
 								APIVersions: []string{"v1beta1"},
 								Resources:   []string{"files", "artefacts", "applications", "applicationinstances"},
 							},
@@ -110,38 +137,43 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 			Validations: []admissionregistrationv1.Validation{
 				{
 					Expression: celExpression,
-					Message:    "Not federationContextId found in the list of federationContextIds accepted",
+					Message:    "No federationContextId found in the list of federationContextIds accepted",
 				},
 			},
-		}
-		return nil
-	})
+		},
+	}
 
+	err := r.Client.Patch(ctx, policy, client.Apply, client.ForceOwnership, client.FieldOwner("federation-controller"))
 	if err != nil {
+		log.Error(err, ">>> [Federation] Impossible to patch ValidatingAdmissionPolicy", "policyName", policyName)
 		return err
 	}
 
+	// 7. Costruzione e Patch del Binding (rimane inalterato)
 	bindingName := policyName + "-binding"
 	binding := &admissionregistrationv1.ValidatingAdmissionPolicyBinding{
-		ObjectMeta: metav1.ObjectMeta{Name: bindingName},
-	}
-
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
-		binding.Spec = admissionregistrationv1.ValidatingAdmissionPolicyBindingSpec{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "admissionregistration.k8s.io/v1",
+			Kind:       "ValidatingAdmissionPolicyBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: bindingName,
+		},
+		Spec: admissionregistrationv1.ValidatingAdmissionPolicyBindingSpec{
 			PolicyName: policyName,
 			ValidationActions: []admissionregistrationv1.ValidationAction{
 				admissionregistrationv1.Deny,
 			},
-			MatchResources: &admissionregistrationv1.MatchResources{}, // Si applica a tutti i namespace
-		}
-		return nil
-	})
+			MatchResources: &admissionregistrationv1.MatchResources{},
+		},
+	}
 
+	err = r.Client.Patch(ctx, binding, client.Apply, client.ForceOwnership, client.FieldOwner("federation-controller"))
 	if err != nil {
-		log.Error(err, "Impossibile creare/aggiornare il ValidatingAdmissionPolicyBinding")
+		log.Error(err, ">>> [Federation] Impossible to patch ValidatingAdmissionPolicyBinding", "bindingName", bindingName)
 		return err
 	}
 
-	log.Info(">>> [Federation] Policy & Binding updated successfully", "validIDs", federationContextIds)
+	log.Info(">>> [Federation] Policy & Binding updated successfully", "policyName", policyName, "validIDsCount", len(federationContextIds), "actionPerformed", action)
 	return nil
 }

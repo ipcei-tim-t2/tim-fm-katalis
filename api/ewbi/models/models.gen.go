@@ -19,34 +19,104 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for ActionType.
+const (
+	Allow     ActionType = "allow"
+	Deny      ActionType = "deny"
+	Prefer    ActionType = "prefer"
+	Priortize ActionType = "priortize"
+	Restrict  ActionType = "restrict"
+)
+
+// Defines values for AlarmTypeAlarmType.
+const (
+	AlarmTypeAlarmTypeAPIFEDERATION AlarmTypeAlarmType = "APIFEDERATION"
+	AlarmTypeAlarmTypeAPPLICATION   AlarmTypeAlarmType = "APPLICATION"
+	AlarmTypeAlarmTypeARTEFACT      AlarmTypeAlarmType = "ARTEFACT"
+	AlarmTypeAlarmTypeEDGEDISC      AlarmTypeAlarmType = "EDGEDISC"
+	AlarmTypeAlarmTypeEDGERES       AlarmTypeAlarmType = "EDGERES"
+	AlarmTypeAlarmTypeFEDERATION    AlarmTypeAlarmType = "FEDERATION"
+	AlarmTypeAlarmTypeFILE          AlarmTypeAlarmType = "FILE"
+	AlarmTypeAlarmTypeSECURITY      AlarmTypeAlarmType = "SECURITY"
+)
+
+// Defines values for AlarmUpdateOps.
+const (
+	REPLACE AlarmUpdateOps = "REPLACE"
+)
+
+// Defines values for AppEventTypes.
+const (
+	EvtTypeAppDownscale   AppEventTypes = "evt_type_app_downscale"
+	EvtTypeAppRelocation  AppEventTypes = "evt_type_app_relocation"
+	EvtTypeAppRestarts    AppEventTypes = "evt_type_app_restarts"
+	EvtTypeAppSessionCont AppEventTypes = "evt_type_app_session_cont"
+	EvtTypeAppUpscale     AppEventTypes = "evt_type_app_upscale"
+)
+
+// Defines values for AppLocation.
+const (
+	Regions AppLocation = "regions"
+	Zones   AppLocation = "zones"
+)
+
 // Defines values for AppMetaDataCategory.
 const (
-	CONNECTIVITY   AppMetaDataCategory = "CONNECTIVITY"
-	EDUCATION      AppMetaDataCategory = "EDUCATION"
-	ENTERTAINMENT  AppMetaDataCategory = "ENTERTAINMENT"
-	GAMING         AppMetaDataCategory = "GAMING"
-	HEALTHCARE     AppMetaDataCategory = "HEALTH_CARE"
-	INDUSTRIAL     AppMetaDataCategory = "INDUSTRIAL"
-	IOT            AppMetaDataCategory = "IOT"
-	OTHERS         AppMetaDataCategory = "OTHERS"
-	PRODUCTIVITY   AppMetaDataCategory = "PRODUCTIVITY"
-	SECURITY       AppMetaDataCategory = "SECURITY"
-	SOCIALIZING    AppMetaDataCategory = "SOCIALIZING"
-	SURVEILLANCE   AppMetaDataCategory = "SURVEILLANCE"
-	VIRTUALREALITY AppMetaDataCategory = "VIRTUAL_REALITY"
+	AppMetaDataCategoryCONNECTIVITY   AppMetaDataCategory = "CONNECTIVITY"
+	AppMetaDataCategoryEDUCATION      AppMetaDataCategory = "EDUCATION"
+	AppMetaDataCategoryENTERTAINMENT  AppMetaDataCategory = "ENTERTAINMENT"
+	AppMetaDataCategoryGAMING         AppMetaDataCategory = "GAMING"
+	AppMetaDataCategoryHEALTHCARE     AppMetaDataCategory = "HEALTH_CARE"
+	AppMetaDataCategoryINDUSTRIAL     AppMetaDataCategory = "INDUSTRIAL"
+	AppMetaDataCategoryIOT            AppMetaDataCategory = "IOT"
+	AppMetaDataCategoryOTHERS         AppMetaDataCategory = "OTHERS"
+	AppMetaDataCategoryPRODUCTIVITY   AppMetaDataCategory = "PRODUCTIVITY"
+	AppMetaDataCategorySECURITY       AppMetaDataCategory = "SECURITY"
+	AppMetaDataCategorySOCIALIZING    AppMetaDataCategory = "SOCIALIZING"
+	AppMetaDataCategorySURVEILLANCE   AppMetaDataCategory = "SURVEILLANCE"
+	AppMetaDataCategoryVIRTUALREALITY AppMetaDataCategory = "VIRTUAL_REALITY"
 )
 
-// Defines values for AppQoSProfileLatencyConstraints.
+// Defines values for ApplPolicyScope.
 const (
-	AppQoSProfileLatencyConstraintsLOW      AppQoSProfileLatencyConstraints = "LOW"
-	AppQoSProfileLatencyConstraintsNONE     AppQoSProfileLatencyConstraints = "NONE"
-	AppQoSProfileLatencyConstraintsULTRALOW AppQoSProfileLatencyConstraints = "ULTRALOW"
+	ApplPolicyScopeGlobal ApplPolicyScope = "global"
+	ApplPolicyScopeZonal  ApplPolicyScope = "zonal"
 )
 
-// Defines values for AppQoSProfileMultiUserClients.
+// Defines values for ApplPolicyType.
 const (
-	AppQoSProfileMultiUserClientsAPPTYPEMULTIUSER  AppQoSProfileMultiUserClients = "APP_TYPE_MULTI_USER"
-	AppQoSProfileMultiUserClientsAPPTYPESINGLEUSER AppQoSProfileMultiUserClients = "APP_TYPE_SINGLE_USER"
+	ApplPolicyTypeDynamic ApplPolicyType = "dynamic"
+	ApplPolicyTypeStatic  ApplPolicyType = "static"
+)
+
+// Defines values for ArtefactDescriptorType.
+const (
+	ANSIBLE       ArtefactDescriptorType = "ANSIBLE"
+	COMPONENTSPEC ArtefactDescriptorType = "COMPONENTSPEC"
+	HELM          ArtefactDescriptorType = "HELM"
+	SHELL         ArtefactDescriptorType = "SHELL"
+	TERRAFORM     ArtefactDescriptorType = "TERRAFORM"
+)
+
+// Defines values for ArtefactFileFormat.
+const (
+	TAR   ArtefactFileFormat = "TAR"
+	TARGZ ArtefactFileFormat = "TARGZ"
+	TEXT  ArtefactFileFormat = "TEXT"
+	ZIP   ArtefactFileFormat = "ZIP"
+)
+
+// Defines values for ArtefactVirtType.
+const (
+	CONTAINERTYPE ArtefactVirtType = "CONTAINER_TYPE"
+	VMTYPE        ArtefactVirtType = "VM_TYPE"
+)
+
+// Defines values for BinaryRuleOperatorType.
+const (
+	BinaryRuleOperatorTypeEQ BinaryRuleOperatorType = "EQ"
+	BinaryRuleOperatorTypeGT BinaryRuleOperatorType = "GT"
+	BinaryRuleOperatorTypeLT BinaryRuleOperatorType = "LT"
 )
 
 // Defines values for CPUArchType.
@@ -54,6 +124,14 @@ const (
 	CPUArchTypeISAARM64 CPUArchType = "ISA_ARM_64"
 	CPUArchTypeISAX86   CPUArchType = "ISA_X86"
 	CPUArchTypeISAX8664 CPUArchType = "ISA_X86_64"
+)
+
+// Defines values for CapabilityID.
+const (
+	NWCAPCONNSTATECHANGE     CapabilityID = "NW_CAP_CONN_STATE_CHANGE"
+	NWCAPDYNAMICQOS          CapabilityID = "NW_CAP_DYNAMIC_QOS"
+	NWCAPLOCATIONRETRIEVAL   CapabilityID = "NW_CAP_LOCATION_RETRIEVAL"
+	NWCAPUSERPLANEMGMTEVENTS CapabilityID = "NW_CAP_USERPLANE_MGMT_EVENTS"
 )
 
 // Defines values for ClientLocationRadLocationCarrier.
@@ -90,16 +168,31 @@ const (
 	KUBERNETESMANIFEST DeploymentConfigConfigType = "KUBERNETES_MANIFEST"
 )
 
-// Defines values for FederationResponseDataPlatformCaps.
+// Defines values for FederationAPINames.
 const (
-	Anchoring   FederationResponseDataPlatformCaps = "Anchoring"
-	HomeRouting FederationResponseDataPlatformCaps = "homeRouting"
+	FederationAPINamesARTEFACT   FederationAPINames = "ARTEFACT"
+	FederationAPINamesAVAILZONE  FederationAPINames = "AVAILZONE"
+	FederationAPINamesEVENTMGMT  FederationAPINames = "EVENTMGMT"
+	FederationAPINamesFAULTMGMT  FederationAPINames = "FAULTMGMT"
+	FederationAPINamesFEDERATION FederationAPINames = "FEDERATION"
+	FederationAPINamesFILE       FederationAPINames = "FILE"
+	FederationAPINamesRESMONITOR FederationAPINames = "RESMONITOR"
+	FederationAPINamesSVSAPEFED  FederationAPINames = "SVSAPEFED"
 )
 
 // Defines values for GpuInfoGpuVendorType.
 const (
 	GPUPROVIDERAMD    GpuInfoGpuVendorType = "GPU_PROVIDER_AMD"
 	GPUPROVIDERNVIDIA GpuInfoGpuVendorType = "GPU_PROVIDER_NVIDIA"
+)
+
+// Defines values for HttpMethods.
+const (
+	DELETE HttpMethods = "DELETE"
+	GET    HttpMethods = "GET"
+	PATCH  HttpMethods = "PATCH"
+	POST   HttpMethods = "POST"
+	PUT    HttpMethods = "PUT"
 )
 
 // Defines values for HugePagePageSize.
@@ -128,6 +221,52 @@ const (
 const (
 	VISIBILITYEXTERNAL InterfaceDetailsVisibilityType = "VISIBILITY_EXTERNAL"
 	VISIBILITYINTERNAL InterfaceDetailsVisibilityType = "VISIBILITY_INTERNAL"
+)
+
+// Defines values for LatencyConstraints.
+const (
+	LOW      LatencyConstraints = "LOW"
+	NONE     LatencyConstraints = "NONE"
+	ULTRALOW LatencyConstraints = "ULTRALOW"
+)
+
+// Defines values for LatencyRangesUnit.
+const (
+	MS LatencyRangesUnit = "MS"
+)
+
+// Defines values for LocationRetrievalCapLocationAccuracy.
+const (
+	CURRENTLOCATION   LocationRetrievalCapLocationAccuracy = "CURRENT_LOCATION"
+	INITIALLOCATION   LocationRetrievalCapLocationAccuracy = "INITIAL_LOCATION"
+	LASTKNOWNLOCATION LocationRetrievalCapLocationAccuracy = "LAST_KNOWN_LOCATION"
+)
+
+// Defines values for LocationRetrievalCapLocationType.
+const (
+	CELLLEVELACCURACY        LocationRetrievalCapLocationType = "CELL_LEVEL_ACCURACY"
+	GEOLOCATIONACCURACY      LocationRetrievalCapLocationType = "GEO_LOCATION_ACCURACY"
+	REGISTRATIONAREAACCURACY LocationRetrievalCapLocationType = "REGISTRATION_AREA_ACCURACY"
+	TRACKINGAREAACCURACY     LocationRetrievalCapLocationType = "TRACKING_AREA_ACCURACY"
+)
+
+// Defines values for MultiUserClients.
+const (
+	APPTYPEMULTIUSER  MultiUserClients = "APP_TYPE_MULTI_USER"
+	APPTYPESINGLEUSER MultiUserClients = "APP_TYPE_SINGLE_USER"
+)
+
+// Defines values for NetworkCapsNwAccelSpeed.
+const (
+	N100Gbps NetworkCapsNwAccelSpeed = "100Gbps"
+	N10Gbps  NetworkCapsNwAccelSpeed = "10Gbps"
+	N1Gbps   NetworkCapsNwAccelSpeed = "1Gbps"
+)
+
+// Defines values for NetworkCapsNwAccelType.
+const (
+	DPDK  NetworkCapsNwAccelType = "DPDK"
+	SRIOV NetworkCapsNwAccelType = "SRIOV"
 )
 
 // Defines values for OSTypeArchitecture.
@@ -164,6 +303,49 @@ const (
 	OSTypeVersionOTHER                  OSTypeVersion = "OTHER"
 )
 
+// Defines values for OnboardStatusInfo.
+const (
+	OnboardStatusInfoDEBOARDING OnboardStatusInfo = "DEBOARDING"
+	OnboardStatusInfoFAILED     OnboardStatusInfo = "FAILED"
+	OnboardStatusInfoONBOARDED  OnboardStatusInfo = "ONBOARDED"
+	OnboardStatusInfoPENDING    OnboardStatusInfo = "PENDING"
+	OnboardStatusInfoREMOVED    OnboardStatusInfo = "REMOVED"
+)
+
+// Defines values for OpsPolicyScope.
+const (
+	OpsPolicyScopeGlobal OpsPolicyScope = "global"
+	OpsPolicyScopeZonal  OpsPolicyScope = "zonal"
+)
+
+// Defines values for OpsPolicyType.
+const (
+	OpsPolicyTypeDynamic OpsPolicyType = "dynamic"
+	OpsPolicyTypeStatic  OpsPolicyType = "static"
+)
+
+// Defines values for PatchableParams.
+const (
+	PatchableParamsAffectedService   PatchableParams = "/affectedService"
+	PatchableParamsAlarmDetails      PatchableParams = "/alarmDetails"
+	PatchableParamsAlarmedObject     PatchableParams = "/alarmedObject"
+	PatchableParamsPerceivedSeverity PatchableParams = "/perceivedSeverity"
+	PatchableParamsProbableCause     PatchableParams = "/probableCause"
+	PatchableParamsServiceAffecting  PatchableParams = "/serviceAffecting"
+	PatchableParamsSourceSystemId    PatchableParams = "/sourceSystemId"
+	PatchableParamsSpecificProblem   PatchableParams = "/specificProblem"
+	PatchableParamsState             PatchableParams = "/state"
+)
+
+// Defines values for PerceivedSeveritySeverity.
+const (
+	CRITICAL     PerceivedSeveritySeverity = "CRITICAL"
+	INFOMATIONAL PerceivedSeveritySeverity = "INFOMATIONAL"
+	MAJOR        PerceivedSeveritySeverity = "MAJOR"
+	MINOR        PerceivedSeveritySeverity = "MINOR"
+	WARNING      PerceivedSeveritySeverity = "WARNING"
+)
+
 // Defines values for PersistentVolumeDetailsAccessMode.
 const (
 	RO PersistentVolumeDetailsAccessMode = "RO"
@@ -184,6 +366,53 @@ const (
 	N50Gi  PersistentVolumeDetailsVolumeSize = "50Gi"
 )
 
+// Defines values for RepoType.
+const (
+	PRIVATEREPO RepoType = "PRIVATEREPO"
+	PUBLICREPO  RepoType = "PUBLICREPO"
+	UPLOAD      RepoType = "UPLOAD"
+)
+
+// Defines values for ResourceSpecResourceModel.
+const (
+	Arm64      ResourceSpecResourceModel = "Arm64"
+	IntelX8664 ResourceSpecResourceModel = "Intel-x86_64"
+	Nvidia     ResourceSpecResourceModel = "Nvidia"
+)
+
+// Defines values for ResourceSpecResourceType.
+const (
+	ResourceSpecResourceTypeCPU  ResourceSpecResourceType = "CPU"
+	ResourceSpecResourceTypeFPGA ResourceSpecResourceType = "FPGA"
+	ResourceSpecResourceTypeGPU  ResourceSpecResourceType = "GPU"
+)
+
+// Defines values for RuleLHSParamType.
+const (
+	AppsPolicyAppMetadataComputeCPU        RuleLHSParamType = "AppsPolicy.App.Metadata.Compute.CPU"
+	AppsPolicyAppMetadataComputeGPU        RuleLHSParamType = "AppsPolicy.App.Metadata.Compute.GPU"
+	AppsPolicyAppMetadataLocationAZ        RuleLHSParamType = "AppsPolicy.App.Metadata.Location.AZ"
+	AppsPolicyAppMetadataLocationRegion    RuleLHSParamType = "AppsPolicy.App.Metadata.Location.Region"
+	AppsPolicyAppMetadataQoSLatency        RuleLHSParamType = "AppsPolicy.App.Metadata.QoS.Latency"
+	OpsPolicyEdgeCloudMetadataComputeCPU   RuleLHSParamType = "OpsPolicy.EdgeCloud.Metadata.Compute.CPU"
+	OpsPolicyEdgeCloudMetadataComputeGPU   RuleLHSParamType = "OpsPolicy.EdgeCloud.Metadata.Compute.GPU"
+	OpsPolicyEdgeCloudMetadataNetworkSRIOV RuleLHSParamType = "OpsPolicy.EdgeCloud.Metadata.Network.SRIOV"
+	OpsPolicyEdgeCloudMetadataQoSLatency   RuleLHSParamType = "OpsPolicy.EdgeCloud.Metadata.QoS.Latency"
+)
+
+// Defines values for ServiceAffecting.
+const (
+	NO  ServiceAffecting = "NO"
+	YES ServiceAffecting = "YES"
+)
+
+// Defines values for StateAlarmState.
+const (
+	CLEAR   StateAlarmState = "CLEAR"
+	RAISED  StateAlarmState = "RAISED"
+	UPDATED StateAlarmState = "UPDATED"
+)
+
 // Defines values for Status.
 const (
 	StatusAVAILABLE        Status = "AVAILABLE"
@@ -193,11 +422,91 @@ const (
 	StatusTEMPORARYFAILURE Status = "TEMPORARY_FAILURE"
 )
 
+// Defines values for StringRuleOperatorType.
+const (
+	StringRuleOperatorTypeEQ    StringRuleOperatorType = "EQ"
+	StringRuleOperatorTypeNOTEQ StringRuleOperatorType = "NOTEQ"
+)
+
 // Defines values for VirtImageType.
 const (
 	DOCKER VirtImageType = "DOCKER"
 	OVA    VirtImageType = "OVA"
 	QCOW2  VirtImageType = "QCOW2"
+)
+
+// Defines values for ApiContentType.
+const (
+	Applicationjson ApiContentType = "application/json"
+)
+
+// Defines values for EventCriterionTriggerCondition.
+const (
+	EQ  EventCriterionTriggerCondition = "EQ"
+	GT  EventCriterionTriggerCondition = "GT"
+	GTE EventCriterionTriggerCondition = "GTE"
+	LEQ EventCriterionTriggerCondition = "LEQ"
+	LT  EventCriterionTriggerCondition = "LT"
+)
+
+// Defines values for MonitoringSubsType.
+const (
+	Alarm        MonitoringSubsType = "alarm"
+	All          MonitoringSubsType = "all"
+	AppResource  MonitoringSubsType = "app_resource"
+	EdgeResource MonitoringSubsType = "edge_resource"
+)
+
+// Defines values for ResourceType.
+const (
+	ResourceTypeCPU     ResourceType = "CPU"
+	ResourceTypeDISK    ResourceType = "DISK"
+	ResourceTypeFLAVOUR ResourceType = "FLAVOUR"
+	ResourceTypeMEMORY  ResourceType = "MEMORY"
+	ResourceTypeNetwork ResourceType = "Network"
+)
+
+// Defines values for ServiceAPINameVal.
+const (
+	DeviceIdentifier   ServiceAPINameVal = "DeviceIdentifier"
+	DeviceLocation     ServiceAPINameVal = "DeviceLocation"
+	DeviceStatus       ServiceAPINameVal = "DeviceStatus"
+	NumberVerification ServiceAPINameVal = "NumberVerification"
+	QualityOnDemand    ServiceAPINameVal = "QualityOnDemand"
+	SimSwap            ServiceAPINameVal = "SimSwap"
+)
+
+// Defines values for ServiceType.
+const (
+	ApiFederation ServiceType = "api_federation"
+)
+
+// Defines values for SvcEventType.
+const (
+	EvtDelete      SvcEventType = "evt_delete"
+	EvtNetwork     SvcEventType = "evt_network"
+	EvtTimerexpiry SvcEventType = "evt_timerexpiry"
+)
+
+// Defines values for ThresholdValUnit.
+const (
+	ThresholdValUnitCORES   ThresholdValUnit = "CORES"
+	ThresholdValUnitGB      ThresholdValUnit = "GB"
+	ThresholdValUnitGBPS    ThresholdValUnit = "GBPS"
+	ThresholdValUnitMBPS    ThresholdValUnit = "MBPS"
+	ThresholdValUnitPercent ThresholdValUnit = "percent"
+	ThresholdValUnitTB      ThresholdValUnit = "TB"
+)
+
+// Defines values for UtilizationValueUnit.
+const (
+	UtilizationValueUnitCORES   UtilizationValueUnit = "CORES"
+	UtilizationValueUnitGB      UtilizationValueUnit = "GB"
+	UtilizationValueUnitMBPS    UtilizationValueUnit = "MBPS"
+	UtilizationValueUnitMINUTES UtilizationValueUnit = "MINUTES"
+	UtilizationValueUnitPercent UtilizationValueUnit = "Percent"
+	UtilizationValueUnitSECONDS UtilizationValueUnit = "SECONDS"
+	UtilizationValueUnitTB      UtilizationValueUnit = "TB"
 )
 
 // Defines values for AppStatusCallbackLinkJSONBodyStatusInfoOnboardStatusInfo.
@@ -219,10 +528,10 @@ const (
 
 // Defines values for FileStatusCallbackLinkJSONBodyUpdateStatus.
 const (
-	ERROR   FileStatusCallbackLinkJSONBodyUpdateStatus = "ERROR"
-	PENDING FileStatusCallbackLinkJSONBodyUpdateStatus = "PENDING"
-	READY   FileStatusCallbackLinkJSONBodyUpdateStatus = "READY"
-	UNKNOWN FileStatusCallbackLinkJSONBodyUpdateStatus = "UNKNOWN"
+	FileStatusCallbackLinkJSONBodyUpdateStatusERROR   FileStatusCallbackLinkJSONBodyUpdateStatus = "ERROR"
+	FileStatusCallbackLinkJSONBodyUpdateStatusPENDING FileStatusCallbackLinkJSONBodyUpdateStatus = "PENDING"
+	FileStatusCallbackLinkJSONBodyUpdateStatusREADY   FileStatusCallbackLinkJSONBodyUpdateStatus = "READY"
+	FileStatusCallbackLinkJSONBodyUpdateStatusUNKNOWN FileStatusCallbackLinkJSONBodyUpdateStatus = "UNKNOWN"
 )
 
 // Defines values for PartnerStatusLinkJSONBodyObjectType.
@@ -243,6 +552,18 @@ const (
 	PartnerStatusLinkJSONBodyOperationTypeUPDATE PartnerStatusLinkJSONBodyOperationType = "UPDATE"
 )
 
+// Defines values for RetrieveApplicationPolicyParamsPolicySearchType.
+const (
+	AppId     RetrieveApplicationPolicyParamsPolicySearchType = "app-id"
+	AppProvId RetrieveApplicationPolicyParamsPolicySearchType = "app-prov-id"
+)
+
+// Defines values for RetrieveApplSubsMetaInfoParamsInfoType.
+const (
+	AppsInfo RetrieveApplSubsMetaInfoParamsInfoType = "apps-info"
+	SubsInfo RetrieveApplSubsMetaInfoParamsInfoType = "subs-info"
+)
+
 // Defines values for InstallAppJSONBodyZoneInfoResourceConsumption.
 const (
 	RESERVEDRESAVOID  InstallAppJSONBodyZoneInfoResourceConsumption = "RESERVED_RES_AVOID"
@@ -251,54 +572,10 @@ const (
 	RESERVEDRESSHALL  InstallAppJSONBodyZoneInfoResourceConsumption = "RESERVED_RES_SHALL"
 )
 
-// Defines values for UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraints.
+// Defines values for GetEventsListParamsEventType.
 const (
-	UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraintsLOW      UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraints = "LOW"
-	UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraintsNONE     UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraints = "NONE"
-	UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraintsULTRALOW UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraints = "ULTRALOW"
-)
-
-// Defines values for UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClients.
-const (
-	UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClientsAPPTYPEMULTIUSER  UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClients = "APP_TYPE_MULTI_USER"
-	UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClientsAPPTYPESINGLEUSER UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClients = "APP_TYPE_SINGLE_USER"
-)
-
-// Defines values for UploadArtefactMultipartBodyArtefactDescriptorType.
-const (
-	ANSIBLE       UploadArtefactMultipartBodyArtefactDescriptorType = "ANSIBLE"
-	COMPONENTSPEC UploadArtefactMultipartBodyArtefactDescriptorType = "COMPONENTSPEC"
-	HELM          UploadArtefactMultipartBodyArtefactDescriptorType = "HELM"
-	SHELL         UploadArtefactMultipartBodyArtefactDescriptorType = "SHELL"
-	TERRAFORM     UploadArtefactMultipartBodyArtefactDescriptorType = "TERRAFORM"
-)
-
-// Defines values for UploadArtefactMultipartBodyArtefactFileFormat.
-const (
-	TAR    UploadArtefactMultipartBodyArtefactFileFormat = "TAR"
-	TARGZ  UploadArtefactMultipartBodyArtefactFileFormat = "TARGZ"
-	TEXT   UploadArtefactMultipartBodyArtefactFileFormat = "TEXT"
-	WINZIP UploadArtefactMultipartBodyArtefactFileFormat = "WINZIP"
-)
-
-// Defines values for UploadArtefactMultipartBodyArtefactVirtType.
-const (
-	CONTAINERTYPE UploadArtefactMultipartBodyArtefactVirtType = "CONTAINER_TYPE"
-	VMTYPE        UploadArtefactMultipartBodyArtefactVirtType = "VM_TYPE"
-)
-
-// Defines values for UploadArtefactMultipartBodyRepoType.
-const (
-	UploadArtefactMultipartBodyRepoTypePRIVATEREPO UploadArtefactMultipartBodyRepoType = "PRIVATEREPO"
-	UploadArtefactMultipartBodyRepoTypePUBLICREPO  UploadArtefactMultipartBodyRepoType = "PUBLICREPO"
-	UploadArtefactMultipartBodyRepoTypeUPLOAD      UploadArtefactMultipartBodyRepoType = "UPLOAD"
-)
-
-// Defines values for UploadFileMultipartBodyRepoType.
-const (
-	UploadFileMultipartBodyRepoTypePRIVATEREPO UploadFileMultipartBodyRepoType = "PRIVATEREPO"
-	UploadFileMultipartBodyRepoTypePUBLICREPO  UploadFileMultipartBodyRepoType = "PUBLICREPO"
-	UploadFileMultipartBodyRepoTypeUPLOAD      UploadFileMultipartBodyRepoType = "UPLOAD"
+	GetEventsListParamsEventTypeEventCriterion GetEventsListParamsEventType = "event_criterion"
+	GetEventsListParamsEventTypeEventId        GetEventsListParamsEventType = "event_id"
 )
 
 // Defines values for UpdateISVResPoolJSONBodyUpdateType.
@@ -308,17 +585,27 @@ const (
 	UpdateISVResPoolJSONBodyUpdateTypeREMOVE   UpdateISVResPoolJSONBodyUpdateType = "REMOVE"
 )
 
+// Defines values for RetrieveOperationPolicyParamsPolicySearchType.
+const (
+	ZoneId RetrieveOperationPolicyParamsPolicySearchType = "zone-id"
+)
+
 // Defines values for UpdateFederationJSONBodyObjectType.
 const (
-	UpdateFederationJSONBodyObjectTypeFIXEDNETWORKCODES  UpdateFederationJSONBodyObjectType = "FIXED_NETWORK_CODES"
-	UpdateFederationJSONBodyObjectTypeMOBILENETWORKCODES UpdateFederationJSONBodyObjectType = "MOBILE_NETWORK_CODES"
+	APPPOLICY          UpdateFederationJSONBodyObjectType = "APP_POLICY"
+	FIXEDNETWORKCODES  UpdateFederationJSONBodyObjectType = "FIXED_NETWORK_CODES"
+	MOBILENETWORKCODES UpdateFederationJSONBodyObjectType = "MOBILE_NETWORK_CODES"
+	OPSPOLICY          UpdateFederationJSONBodyObjectType = "OPS_POLICY"
 )
 
 // Defines values for UpdateFederationJSONBodyOperationType.
 const (
-	ADDCODES    UpdateFederationJSONBodyOperationType = "ADD_CODES"
-	REMOVECODES UpdateFederationJSONBodyOperationType = "REMOVE_CODES"
-	UPDATECODES UpdateFederationJSONBodyOperationType = "UPDATE_CODES"
+	ADDCODES     UpdateFederationJSONBodyOperationType = "ADD_CODES"
+	ADDPOLICY    UpdateFederationJSONBodyOperationType = "ADD_POLICY"
+	REMOVECODES  UpdateFederationJSONBodyOperationType = "REMOVE_CODES"
+	REMOVEPOLICY UpdateFederationJSONBodyOperationType = "REMOVE_POLICY"
+	UPDATECODES  UpdateFederationJSONBodyOperationType = "UPDATE_CODES"
+	UPDATEPOLICY UpdateFederationJSONBodyOperationType = "UPDATE_POLICY"
 )
 
 // AccessPointInfo Information about the IP and Port exposed by the OP. Application clients shall use these access points to reach this application instance.
@@ -329,23 +616,163 @@ type AccessPointInfo = []struct {
 	InterfaceId InterfaceId `json:"interfaceId"`
 }
 
-// AppComponentSpecs An application may consist of more than one component. Each component is associated with a descriptor and may exposes its services externally or internally. App providers are required to provide details about all these components, their associated descriptors and their DNS names.
+// ActionType Action to be taken once a policy rule is applied on target resource indicated by RuleLHSParamType
+type ActionType string
+
+// ActiveAlarmsList List of active alarms
+type ActiveAlarmsList = []AlarmObjectInfo
+
+// AddAppsForNotif defines model for AddAppsForNotif.
+type AddAppsForNotif = []AppsForNotif
+
+// AffectedService defines model for AffectedService.
+type AffectedService struct {
+	// AffectedService Defines the affected services e.g., edge discovery, application services, API services etc at source
+	AffectedService []string `json:"affectedService"`
+}
+
+// AggrApplEventsList defines model for AggrApplEventsList.
+type AggrApplEventsList struct {
+	// AggrAppsEventsList Applications events list in a various availability zones for different application providers
+	AggrAppsEventsList []ApplEventsList `json:"aggrAppsEventsList"`
+
+	// EndTime Date and Time zone info format
+	EndTime DateAndTimeZoneObject `json:"endTime"`
+
+	// StartTime Date and Time zone info format
+	StartTime DateAndTimeZoneObject `json:"startTime"`
+}
+
+// AlarmDetails defines model for AlarmDetails.
+type AlarmDetails struct {
+	// AlarmDetails Detailed information of the alarm
+	AlarmDetails string `json:"alarmDetails"`
+}
+
+// AlarmIdentifier defines model for AlarmIdentifier.
+type AlarmIdentifier struct {
+	// AlarmId Alarm identifier to refer to an alarm instance
+	AlarmId string `json:"alarmId"`
+}
+
+// AlarmObjectInfo defines model for AlarmObjectInfo.
+type AlarmObjectInfo struct {
+	AffectedService   *AffectedService  `json:"affectedService,omitempty"`
+	AlarmDetails      *AlarmDetails     `json:"alarmDetails,omitempty"`
+	AlarmId           AlarmIdentifier   `json:"alarmId"`
+	AlarmRaisedTime   AlarmRaisedTime   `json:"alarmRaisedTime"`
+	AlarmType         AlarmType         `json:"alarmType"`
+	AlarmedObject     AlarmedObject     `json:"alarmedObject"`
+	PerceivedSeverity PerceivedSeverity `json:"perceivedSeverity"`
+	ProbableCause     ProbableCause     `json:"probableCause"`
+
+	// ServiceAffecting Specific information related to the alarm
+	ServiceAffecting *ServiceAffecting `json:"serviceAffecting,omitempty"`
+	SourceSystemId   SourceSystemId    `json:"sourceSystemId"`
+	SpecificProblem  *SpecificProblem  `json:"specificProblem,omitempty"`
+	State            State             `json:"state"`
+}
+
+// AlarmRaisedTime defines model for AlarmRaisedTime.
+type AlarmRaisedTime struct {
+	// AlarmRaisedTime Defines the alarm raised time at source
+	AlarmRaisedTime time.Time `json:"alarmRaisedTime"`
+}
+
+// AlarmType defines model for AlarmType.
+type AlarmType struct {
+	// AlarmType Alarm type category
+	AlarmType AlarmTypeAlarmType `json:"alarmType"`
+}
+
+// AlarmTypeAlarmType Alarm type category
+type AlarmTypeAlarmType string
+
+// AlarmUpdateOps Operations that can be performed to update the parameters of an alarm
+type AlarmUpdateOps string
+
+// AlarmedObject defines model for AlarmedObject.
+type AlarmedObject struct {
+	AlarmId AlarmIdentifier `json:"alarmId"`
+	Href    Uri             `json:"href"`
+}
+
+// AppComponentSpecs An application may consist of more than one component. Each component is associated with a descriptor and may exposes its services externally or internally.  App providers are required to provide details about all these components, their associated descriptors and their DNS names.
 type AppComponentSpecs = []struct {
 	// ArtefactId A globally unique identifier associated with the artefact. Originating OP generates this identifier when artefact is submitted over NBI.
 	ArtefactId ArtefactId `json:"artefactId"`
 
-	// ComponentName Must be a valid RFC 1123 label name. Component name must be unique with an application
-	ComponentName *string `json:"componentName,omitempty"`
+	// ComponentName Must be a valid RFC 1035 label name.  Component name must be unique with an application
+	ComponentName *ComponentName `json:"componentName,omitempty"`
 
-	// ServiceNameEW Must be a valid RFC 1123 label name. This defines the DNS name via which the component can be accessed via peer components. Access via serviceNameEW is open on all ports. Platform shall not expose serviceNameEW externally outside edge.
-	ServiceNameEW *string `json:"serviceNameEW,omitempty"`
+	// ServiceNameEW Must be a valid RFC 1035 label name. This defines the DNS name via which the component can be accessed via peer components. Access via serviceNameEW is open on all ports.   Platform shall not expose serviceNameEW externally outside edge.
+	ServiceNameEW *ServiceNameEW `json:"serviceNameEW,omitempty"`
 
-	// ServiceNameNB Must be a valid RFC 1123 label name. This defines the DNS name via which the component can be accessed over NBI. Access via serviceNameNB is restricted on specific ports. Platform shall expose component access externally via this DNS name
-	ServiceNameNB *string `json:"serviceNameNB,omitempty"`
+	// ServiceNameNB Must be a valid RFC 1035 label name. This defines the DNS name via which the component can be accessed over NBI. Access via     serviceNameNB is restricted on specific ports. Platform shall expose component access externally via this DNS name
+	ServiceNameNB *ServiceNameNB `json:"serviceNameNB,omitempty"`
+}
+
+// AppComponents An application may consist of more than one component. Each component is associated with a descriptor and may exposes its services externally or internally.  App providers are required to provide details about all these components, their associated descriptors and their DNS names.
+type AppComponents = []AppComponents_Item
+
+// AppComponents0 defines model for .
+type AppComponents0 = interface{}
+
+// AppComponents1 defines model for .
+type AppComponents1 = interface{}
+
+// AppComponents2 defines model for .
+type AppComponents2 = interface{}
+
+// AppComponents_Item defines model for AppComponents.Item.
+type AppComponents_Item struct {
+	// ArtefactId A globally unique identifier associated with the artefact. Originating OP generates this identifier when artefact is submitted over NBI.
+	ArtefactId *ArtefactId `json:"artefactId,omitempty"`
+
+	// ComponentName Must be a valid RFC 1035 label name.  Component name must be unique with an application
+	ComponentName ComponentName `json:"componentName"`
+
+	// ServiceNameEW Must be a valid RFC 1035 label name. This defines the DNS name via which the component can be accessed via peer components. Access via serviceNameEW is open on all ports.   Platform shall not expose serviceNameEW externally outside edge.
+	ServiceNameEW *ServiceNameEW `json:"serviceNameEW,omitempty"`
+
+	// ServiceNameNB Must be a valid RFC 1035 label name. This defines the DNS name via which the component can be accessed over NBI. Access via     serviceNameNB is restricted on specific ports. Platform shall expose component access externally via this DNS name
+	ServiceNameNB *ServiceNameNB `json:"serviceNameNB,omitempty"`
+	union         json.RawMessage
+}
+
+// AppEventTypes Application-level events
+type AppEventTypes string
+
+// AppEvents List of availability zones where application events are to be monitored
+type AppEvents = []AppEventTypes
+
+// AppIdLocList defines model for AppIdLocList.
+type AppIdLocList struct {
+	// AppId Identifier used to refer to an application.
+	AppId AppIdentifier `json:"appId"`
+
+	// AppProvId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProvId AppProviderId     `json:"appProvId"`
+	ZoneIds   *[]ZoneIdentifier `json:"zoneIds,omitempty"`
 }
 
 // AppIdentifier Identifier used to refer to an application.
 type AppIdentifier = string
+
+// AppInstNetworkCapList defines model for AppInstNetworkCapList.
+type AppInstNetworkCapList struct {
+	AppInstanceNwCapInfo []struct {
+		// AppInstIdentifier Unique identifier generated by the partner OP to identify an instance of the application on a specific zone.
+		AppInstIdentifier InstanceIdentifier `json:"appInstIdentifier"`
+
+		// AppInstanceState Running status of the application instance.
+		AppInstanceState  InstanceState     `json:"appInstanceState"`
+		NetworkCapInvoked NetworkCapInvoked `json:"networkCapInvoked"`
+	} `json:"appInstanceNwCapInfo"`
+}
+
+// AppLocation Application Location in terms of availability zones or regions
+type AppLocation string
 
 // AppMetaData Application metadata details
 type AppMetaData struct {
@@ -362,7 +789,7 @@ type AppMetaData struct {
 	Category *AppMetaDataCategory `json:"category,omitempty"`
 
 	// MobilitySupport Indicates if an application is sensitive to user mobility and can be relocated. Default is “FALSE”
-	MobilitySupport *bool `json:"mobilitySupport,omitempty"`
+	MobilitySupport *MobilitySupport `json:"mobilitySupport,omitempty"`
 
 	// Version Version info of the application
 	Version string `json:"version"`
@@ -371,59 +798,209 @@ type AppMetaData struct {
 // AppMetaDataCategory Possible categorization of the application
 type AppMetaDataCategory string
 
-// AppProviderId UserId of the app provider. Identifier is relevant only in context of this federation.
+// AppPolicyTemplate defines model for AppPolicyTemplate.
+type AppPolicyTemplate struct {
+	// ApplPolicyDescription Brief policy template description on policy objective
+	ApplPolicyDescription string             `json:"applPolicyDescription"`
+	ApplPolicyMetaInfo    ApplPolicyMetaInfo `json:"applPolicyMetaInfo"`
+
+	// ApplPolicyName Brief policy template name on policy objective
+	ApplPolicyName string `json:"applPolicyName"`
+
+	// ApplPolicyRules Set of policy action rules for a given policy
+	ApplPolicyRules []ApplPolicyRule `json:"applPolicyRules"`
+
+	// ApplPolicyScope Application-level Policy scope defines if a policy is a set of availability zones or applies globally to all zones
+	ApplPolicyScope ApplPolicyScope `json:"applPolicyScope"`
+
+	// ApplPolicyType Policy attribute that the given policy intent to control specific resources e.g. compute capacity expansion statically vs dynamic scaling of app instance
+	ApplPolicyType ApplPolicyType `json:"applPolicyType"`
+}
+
+// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
 type AppProviderId = string
+
+// AppProvisioning Define if application can be instantiated or not
+type AppProvisioning = bool
 
 // AppQoSProfile Parameters corresponding to the performance constraints, tenancy details etc.
 type AppQoSProfile struct {
 	// AppProvisioning Define if application can be instantiated or not
-	AppProvisioning *bool `json:"appProvisioning,omitempty"`
+	AppProvisioning *AppProvisioning `json:"appProvisioning,omitempty"`
 
 	// BandwidthRequired Data transfer bandwidth requirement (minimum limit) for the application. It should in Mbits/sec
-	BandwidthRequired *int32 `json:"bandwidthRequired,omitempty"`
+	BandwidthRequired *BandwidthRequired `json:"bandwidthRequired,omitempty"`
 
-	// LatencyConstraints Latency requirements for the application. Allowed values (non-standardized) are none, low and ultra-low. Ultra-Low may corresponds to range 15 - 30 msec, Low correspond to range 30 - 50 msec. None means 51 and above
-	LatencyConstraints AppQoSProfileLatencyConstraints `json:"latencyConstraints"`
+	// LatencyConstraints Latency requirements for the application.Allowed values (non-standardized) are none, low and ultra-low. Ultra-Low may corresponds to range 15 - 30 msec, Low correspond to range 30 - 50 msec. None means 51 and above
+	LatencyConstraints LatencyConstraints `json:"latencyConstraints"`
 
 	// MultiUserClients Single user type application are designed to serve just one client. Multi user type application is designed to serve multiple clients
-	MultiUserClients *AppQoSProfileMultiUserClients `json:"multiUserClients,omitempty"`
+	MultiUserClients *MultiUserClients `json:"multiUserClients,omitempty"`
 
 	// NoOfUsersPerAppInst Maximum no of clients that can connect to an instance of this application. This parameter is relevant only for application of type multi user
-	NoOfUsersPerAppInst *int `json:"noOfUsersPerAppInst,omitempty"`
+	NoOfUsersPerAppInst *NoOfUsersPerAppInst `json:"noOfUsersPerAppInst,omitempty"`
 }
 
-// AppQoSProfileLatencyConstraints Latency requirements for the application. Allowed values (non-standardized) are none, low and ultra-low. Ultra-Low may corresponds to range 15 - 30 msec, Low correspond to range 30 - 50 msec. None means 51 and above
-type AppQoSProfileLatencyConstraints string
+// AppZones List of availability zones where application events are to be monitored
+type AppZones = []ZoneIdentifier
 
-// AppQoSProfileMultiUserClients Single user type application are designed to serve just one client. Multi user type application is designed to serve multiple clients
-type AppQoSProfileMultiUserClients string
+// ApplConcretePolicy Application policy id and policy parameter value limits registered by the Originating OP
+type ApplConcretePolicy struct {
+	// PolicyId Application-level Policy unique identifier
+	PolicyId ApplPolicyIdentifier `json:"policyId"`
+
+	// PolicyParamLimits List of Application policies
+	PolicyParamLimits ApplPolicyRule `json:"policyParamLimits"`
+}
+
+// ApplEventsList defines model for ApplEventsList.
+type ApplEventsList struct {
+	// AggrApplEvents Applications instance events list in a availability zone
+	AggrApplEvents []ZoneLevelApplEventsList `json:"aggrApplEvents"`
+
+	// AppId Identifier used to refer to an application.
+	AppId AppIdentifier `json:"appId"`
+
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProviderId AppProviderId `json:"appProviderId"`
+}
+
+// ApplEventsSubsInfo defines model for ApplEventsSubsInfo.
+type ApplEventsSubsInfo struct {
+	// AppEventSubsId Event subscription identifier allocated for enabling event reporting
+	AppEventSubsId EventSubscriptionIdentifier `json:"appEventSubsId"`
+
+	// AppEvtSubsLastReportTime Date and Time zone info format
+	AppEvtSubsLastReportTime DateAndTimeZoneObject `json:"appEvtSubsLastReportTime"`
+	AppEvtSubsNumApps        int                   `json:"appEvtSubsNumApps"`
+	AppEvtSubsPeriodicity    PeriodicityInterval   `json:"appEvtSubsPeriodicity"`
+
+	// AppEvtSubsStartTime Date and Time zone info format
+	AppEvtSubsStartTime DateAndTimeZoneObject `json:"appEvtSubsStartTime"`
+}
+
+// ApplInstEventTypeInfo defines model for ApplInstEventTypeInfo.
+type ApplInstEventTypeInfo struct {
+	// ApplInstEvent Application-level events
+	ApplInstEvent AppEventTypes `json:"applInstEvent"`
+
+	// ApplInstEventCount Number of occurances of given epplication event
+	ApplInstEventCount int `json:"applInstEventCount"`
+}
+
+// ApplInstEventsContainer defines model for ApplInstEventsContainer.
+type ApplInstEventsContainer struct {
+	// AppInstEventsList Application instance events list
+	AppInstEventsList []ApplInstEventTypeInfo `json:"appInstEventsList"`
+
+	// AppInstanceId Unique identifier generated by the partner OP to identify an instance of the application on a specific zone.
+	AppInstanceId InstanceIdentifier `json:"appInstanceId"`
+}
+
+// ApplInstEventsList defines model for ApplInstEventsList.
+type ApplInstEventsList struct {
+	// AppInstanceEventsList Application instance events list for one or more applications
+	AppInstanceEventsList []ApplInstEventsContainer `json:"appInstanceEventsList"`
+}
+
+// ApplPolicyIdentifier Application-level Policy unique identifier
+type ApplPolicyIdentifier = string
+
+// ApplPolicyMetaInfo defines model for ApplPolicyMetaInfo.
+type ApplPolicyMetaInfo struct {
+	// ApplPolicyTypeIdentifier Application-level Policy unique identifier
+	ApplPolicyTypeIdentifier ApplPolicyTypeIdentifier `json:"applPolicyTypeIdentifier"`
+
+	// PolicyVersion Policy template version using Semantic Versioning 2.0.0 in MAJOR.MINOR.PATCH format
+	PolicyVersion string `json:"policyVersion"`
+}
+
+// ApplPolicyRule List of Application policies
+type ApplPolicyRule = []GenericPolicyRule
+
+// ApplPolicyScope Application-level Policy scope defines if a policy is a set of availability zones or applies globally to all zones
+type ApplPolicyScope string
+
+// ApplPolicyTemplateList List of Application policy templates from the Partner OP
+type ApplPolicyTemplateList = []AppPolicyTemplate
+
+// ApplPolicyType Policy attribute that the given policy intent to control specific resources e.g. compute capacity expansion statically vs dynamic scaling of app instance
+type ApplPolicyType string
+
+// ApplPolicyTypeIdentifier Application-level Policy unique identifier
+type ApplPolicyTypeIdentifier = string
+
+// AppsForNotif defines model for AppsForNotif.
+type AppsForNotif struct {
+	// AppEvents List of availability zones where application events are to be monitored
+	AppEvents AppEvents `json:"appEvents"`
+
+	// AppId Identifier used to refer to an application.
+	AppId AppIdentifier `json:"appId"`
+
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProviderId AppProviderId `json:"appProviderId"`
+
+	// AppZones List of availability zones where application events are to be monitored
+	AppZones AppZones `json:"appZones"`
+}
+
+// ArtefactDescription Brief description of the artefact by the application provider
+type ArtefactDescription = string
+
+// ArtefactDescriptorType Type of descriptor present in the artefact.  App provider can either define either a Helm chart or a Terraform script or container spec.
+type ArtefactDescriptorType string
+
+// ArtefactFileFormat Artefacts like Helm charts or Terraform scripts may need compressed format.
+type ArtefactFileFormat string
+
+// ArtefactFileName Name of the file.
+type ArtefactFileName = string
 
 // ArtefactId A globally unique identifier associated with the artefact. Originating OP generates this identifier when artefact is submitted over NBI.
-type ArtefactId = string
+type ArtefactId = openapi_types.UUID
 
 // ArtefactName Name of the artefact.
 type ArtefactName = string
 
-// AuthorizationToken A token assigned to the roaming user's during registration with home OP and the token is provided back to the visited OP by the user client on end user device when redirected to register with visited OP
-type AuthorizationToken = string
+// ArtefactVersionInfo Artefact version information
+type ArtefactVersionInfo = string
+
+// ArtefactVirtType defines model for ArtefactVirtType.
+type ArtefactVirtType string
+
+// AssocApplPolicies defines model for AssocApplPolicies.
+type AssocApplPolicies struct {
+	AppIdList AppIdLocList `json:"appIdList"`
+
+	// PolicyId Application-level Policy unique identifier
+	PolicyId ApplPolicyIdentifier `json:"policyId"`
+}
+
+// AssocOpsPolicies defines model for AssocOpsPolicies.
+type AssocOpsPolicies struct {
+	AppIdList AppIdLocList `json:"appIdList"`
+
+	// PolicyId Operation-level Policy unique identifier
+	PolicyId OpsPolicyIdentifier `json:"policyId"`
+}
+
+// BandwidthRequired Data transfer bandwidth requirement (minimum limit) for the application. It should in Mbits/sec
+type BandwidthRequired = int32
+
+// BinaryRuleOperatorType Operations that can be applied on Parameter e.g., “Binary Operation” EQ(EQual)
+type BinaryRuleOperatorType string
 
 // CPUArchType CPU Instruction Set Architecture (ISA) E.g., Intel, Arm etc.
 type CPUArchType string
 
-// CallbackCredentials Authentication credentials for callbacks. Callbacks use the same security scheme, flows, and scopes as the forward path.
-type CallbackCredentials struct {
-	// ClientId Client id for oauth2 client credentials flow.
-	ClientId string `json:"clientId"`
-
-	// ClientSecret Client secret for oauth2 client credentials flow.
-	ClientSecret string `json:"clientSecret"`
-	TokenUrl     Uri    `json:"tokenUrl"`
-}
+// CapabilityID The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
+type CapabilityID string
 
 // ClientLocation defines model for ClientLocation.
 type ClientLocation struct {
-	// GeoLocation Latitude,Longitude as decimal fraction up to 4 digit precision
-	GeoLocation *GeoLocation `json:"geo_location,omitempty"`
+	// GeoLocation Latitude, Longitude as decimal fraction up to 4 digit precision
+	GeoLocation *string `json:"geo_location,omitempty"`
 
 	// RadLocation Information about the 4G/5G Cell ids where the client is currently served.
 	RadLocation *[]struct {
@@ -471,13 +1048,16 @@ type CompEnvParams struct {
 // CompEnvParamsEnvValueType defines model for CompEnvParams.EnvValueType.
 type CompEnvParamsEnvValueType string
 
+// ComponentName Must be a valid RFC 1035 label name.  Component name must be unique with an application
+type ComponentName = string
+
 // ComponentSpec Details about compute, networking and storage requirements for each component of the application. App provider should define all information needed to instantiate the component. If artefact is being defined at component level this section should have information just about the component. In case the artefact is being defined at application level the section should provide details about all the components.
 type ComponentSpec struct {
 	// CommandLineParams List of commands and arguments that shall be invoked when the component instance is created. This is valid only for container based deployment.
 	CommandLineParams *CommandLineParams `json:"commandLineParams,omitempty"`
 	CompEnvParams     *[]CompEnvParams   `json:"compEnvParams,omitempty"`
 
-	// ComponentName Must be a valid RFC 1123 label name. Component name must be unique with an application
+	// ComponentName Must be a valid RFC 1035 label name.  Component name must be unique with an application
 	ComponentName          string              `json:"componentName"`
 	ComputeResourceProfile ComputeResourceInfo `json:"computeResourceProfile"`
 
@@ -532,6 +1112,12 @@ type ComputeResourceInfo struct {
 // ComputeResourceInfoCpuArchType CPU Instruction Set Architecture (ISA) E.g., Intel, Arm etc.
 type ComputeResourceInfoCpuArchType string
 
+// ComputeResourceProfile Type and amount of compute resources
+type ComputeResourceProfile struct {
+	// ResourceSpec Resource type and  architecture specification
+	ResourceSpec ResourceSpec `json:"resourceSpec"`
+}
+
 // CountryCode ISO 3166-1 Alpha-2 code for the country of Partner operator
 type CountryCode = string
 
@@ -547,8 +1133,31 @@ type DeploymentConfig struct {
 // DeploymentConfigConfigType Config type.
 type DeploymentConfigConfigType string
 
-// DeviceId The identifier of the application user (i.e., GPSI or preferably an identity token)
-type DeviceId = string
+// DeviceConnStatusChangeCap defines model for DeviceConnStatusChangeCap.
+type DeviceConnStatusChangeCap struct {
+	// CapabilityId The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
+	CapabilityId CapabilityID `json:"capabilityId"`
+
+	// MaxiDetectionTime The maximum detection time in seconds that the OP can determine the UE change of connectivity with the mobile network.
+	MaxiDetectionTime string `json:"maxiDetectionTime"`
+}
+
+// DiscoveredAppInsts defines model for DiscoveredAppInsts.
+type DiscoveredAppInsts = []struct {
+	// AppId Identifier used to refer to an application.
+	AppId        AppIdentifier `json:"appId"`
+	AppInstances []struct {
+		InstancesInfo struct {
+			InstanceDetails *InstanceDetails `json:"instanceDetails,omitempty"`
+
+			// ZoneId Human readable name of the zone.
+			ZoneId ZoneIdentifier `json:"zoneId"`
+		} `json:"instancesInfo"`
+	} `json:"appInstances"`
+
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProviderId AppProviderId `json:"appProviderId"`
+}
 
 // DiscoveredEdgeNodes List of candidate zones where application instance could be created. LatencyServiceEndpoint is responsible for responding to latency measurement request from client
 type DiscoveredEdgeNodes = []struct {
@@ -558,11 +1167,70 @@ type DiscoveredEdgeNodes = []struct {
 	ZoneId ZoneIdentifier `json:"zoneId"`
 }
 
+// DynamicQoSCap defines model for DynamicQoSCap.
+type DynamicQoSCap struct {
+	// CapabilityId The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
+	CapabilityId CapabilityID `json:"capabilityId"`
+
+	// SupportedQoS Set of one or more 5G QoS Identifier (5QI or 4G QCI) created via concatanation of Resource Type and 5QI values i.e., GBR1, GBR2, GBR65, NONGBR79 etc.
+	SupportedQoS string `json:"supportedQoS"`
+}
+
+// EdgeAppFQDN DNS FQDN assigned to application instances in an availability zone. User Clients can resolve the FQDN to communicate with the edge instances of the application
+type EdgeAppFQDN = string
+
+// EventIdentifier Event identifier allocated for event detected
+type EventIdentifier = openapi_types.UUID
+
+// EventSubscription defines model for EventSubscription.
+type EventSubscription struct {
+	EventListner Uri                 `json:"eventListner"`
+	Periodicity  PeriodicityInterval `json:"periodicity"`
+
+	// ResUsageType Indicate the type of resource
+	ResUsageType ResourceType `json:"resUsageType"`
+}
+
+// EventSubscriptionIdentifier Event subscription identifier allocated for enabling event reporting
+type EventSubscriptionIdentifier = openapi_types.UUID
+
+// EventSubscriptionInfo defines model for EventSubscriptionInfo.
+type EventSubscriptionInfo struct {
+	Periodicity PeriodicityInterval `json:"periodicity"`
+
+	// ResUsageType Indicate the type of resource
+	ResUsageType   ResourceType       `json:"resUsageType"`
+	SubscriptionId openapi_types.UUID `json:"subscriptionId"`
+}
+
+// EventsList List of events detected
+type EventsList = []DetectedEvent
+
+// FederationAPINames defines model for FederationAPINames.
+type FederationAPINames string
+
+// FederationAPIResources defines model for FederationAPIResources.
+type FederationAPIResources struct {
+	// ApiOperations List of HTTP Methods supported for the given API category
+	ApiOperations []HttpResources    `json:"apiOperations"`
+	Name          FederationAPINames `json:"name"`
+}
+
 // FederationCallbackId UUID for grouping resources in the origin OP before a federation context ID exists.
 type FederationCallbackId = string
 
 // FederationContextId This identifier shall be provided by the partner OP on successful verification and validation of the federation create request and is used by partner op to identify this newly created federation context. Originating OP shall provide this identifier in any subsequent request towards the partner op.
 type FederationContextId = string
+
+// FederationHealthInfo defines model for FederationHealthInfo.
+type FederationHealthInfo struct {
+	// FederationStartTime Date and Time zone info format
+	FederationStartTime DateAndTimeZoneObject `json:"federationStartTime"`
+	FederationStatus    State                 `json:"federationStatus"`
+	NumOfAcceptedZones  string                `json:"numOfAcceptedZones"`
+	NumOfActiveAlarms   *string               `json:"numOfActiveAlarms,omitempty"`
+	NumOfApplications   *string               `json:"numOfApplications,omitempty"`
+}
 
 // FederationIdentifier Globally unique identifier allocated to an operator platform. This is valid and used only in context of MEC federation interface.
 type FederationIdentifier = string
@@ -576,15 +1244,12 @@ type FederationRequestData struct {
 	OrigOPCountryCode *CountryCode `json:"origOPCountryCode,omitempty"`
 
 	// OrigOPFederationId Globally unique identifier allocated to an operator platform. This is valid and used only in context of MEC federation interface.
-	OrigOPFederationId FederationIdentifier `json:"origOPFederationId"`
+	OrigOPFederationId *FederationIdentifier `json:"origOPFederationId,omitempty"`
 
 	// OrigOPFixedNetworkCodes List of network identifier associated with the fixed line network of the operator platform.
 	OrigOPFixedNetworkCodes  *FixedNetworkIds  `json:"origOPFixedNetworkCodes,omitempty"`
 	OrigOPMobileNetworkCodes *MobileNetworkIds `json:"origOPMobileNetworkCodes,omitempty"`
-
-	// PartnerCallbackCredentials Authentication credentials for callbacks. Callbacks use the same security scheme, flows, and scopes as the forward path.
-	PartnerCallbackCredentials *CallbackCredentials `json:"partnerCallbackCredentials,omitempty"`
-	PartnerStatusLink          Uri                  `json:"partnerStatusLink"`
+	PartnerStatusLink        Uri               `json:"partnerStatusLink"`
 }
 
 // FederationResponseData defines model for FederationResponseData.
@@ -593,7 +1258,13 @@ type FederationResponseData struct {
 
 	// FederationContextId This identifier shall be provided by the partner OP on successful verification and validation of the federation create request and is used by partner op to identify this newly created federation context. Originating OP shall provide this identifier in any subsequent request towards the partner op.
 	FederationContextId *FederationContextId `json:"federationContextId,omitempty"`
-	LcmServiceEndPoint  *ServiceEndpoint     `json:"lcmServiceEndPoint,omitempty"`
+
+	// FederationExpiryDate Date and Time zone info of the existing federation expiry
+	FederationExpiryDate *time.Time `json:"federationExpiryDate,omitempty"`
+
+	// FederationRenewalDate Date and Time zone info of the existing federation renewal. Shall be less than federationExpiryDate
+	FederationRenewalDate *time.Time       `json:"federationRenewalDate,omitempty"`
+	LcmServiceEndPoint    *ServiceEndpoint `json:"lcmServiceEndPoint,omitempty"`
 
 	// OfferedAvailabilityZones List of zones, which the operator platform wishes to make available to developers/ISVs of requesting operator platform.
 	OfferedAvailabilityZones *[]ZoneDetails `json:"offeredAvailabilityZones,omitempty"`
@@ -602,22 +1273,40 @@ type FederationResponseData struct {
 	PartnerOPCountryCode *CountryCode `json:"partnerOPCountryCode,omitempty"`
 
 	// PartnerOPFederationId Globally unique identifier allocated to an operator platform. This is valid and used only in context of MEC federation interface.
-	PartnerOPFederationId FederationIdentifier `json:"partnerOPFederationId"`
+	PartnerOPFederationId *FederationIdentifier `json:"partnerOPFederationId,omitempty"`
 
 	// PartnerOPFixedNetworkCodes List of network identifier associated with the fixed line network of the operator platform.
-	PartnerOPFixedNetworkCodes  *FixedNetworkIds                     `json:"partnerOPFixedNetworkCodes,omitempty"`
-	PartnerOPMobileNetworkCodes *MobileNetworkIds                    `json:"partnerOPMobileNetworkCodes,omitempty"`
-	PlatformCaps                []FederationResponseDataPlatformCaps `json:"platformCaps"`
+	PartnerOPFixedNetworkCodes  *FixedNetworkIds  `json:"partnerOPFixedNetworkCodes,omitempty"`
+	PartnerOPMobileNetworkCodes *MobileNetworkIds `json:"partnerOPMobileNetworkCodes,omitempty"`
+
+	// PlatformCaps Home routing - Operator platform is capable of routing edge application data traffic from its edges to user device in their home location. This is the case where user devices are served in their home region (requesting platform region, non-roaming) but the corresponding edge application are in operator platform edges. Anchoring - Operator platform is capable of routing edge application traffic for roaming user devices to edge application in user device home network. Service APIs - Capability to handle Service APIs (e.g., CAMARA APIs) from the Leading OP
+	PlatformCaps PlatformCaps `json:"platformCaps"`
 }
 
-// FederationResponseDataPlatformCaps Home routing - Operator platform is capable of routing edge application data traffic from its edges to user device in their home location. This is the case where user devices are served in their home region (requesting platform region, non-roaming) but the corresponding edge application are in operator platform edges. Anchoring - Operator platform is capable of routing edge application traffic for roaming user devices to edge application in user device home network.
-type FederationResponseDataPlatformCaps string
+// FederationSupportedAPIs defines model for FederationSupportedAPIs.
+type FederationSupportedAPIs struct {
+	ArtefactAPI           FederationAPIResources  `json:"artefactAPI"`
+	AvailabilityZoneAPI   FederationAPIResources  `json:"availabilityZoneAPI"`
+	EdgeApplicationAPI    FederationAPIResources  `json:"edgeApplicationAPI"`
+	EventManagementAPI    *FederationAPIResources `json:"eventManagementAPI,omitempty"`
+	FaultManagementAPI    *FederationAPIResources `json:"faultManagementAPI,omitempty"`
+	FederationBaseAPI     FederationAPIResources  `json:"federationBaseAPI"`
+	FileAPI               FederationAPIResources  `json:"fileAPI"`
+	ResourceMonitoringAPI *FederationAPIResources `json:"resourceMonitoringAPI,omitempty"`
+	ServiceAPIFederation  *FederationAPIResources `json:"serviceAPIFederation,omitempty"`
+}
+
+// FileDescription Brief description about the image file.
+type FileDescription = string
 
 // FileId A globally unique identifier associated with the image file. Originating OP generates this identifier when file is uploaded over NBI.
-type FileId = string
+type FileId = openapi_types.UUID
 
-// FileName Name of the image file.
+// FileName Name of the image file.   App provides specifies this name when image is uploaded on originating OP over NBI.
 type FileName = string
+
+// FileVersionInfo File version information.
+type FileVersionInfo = string
 
 // FixedNetworkIds List of network identifier associated with the fixed line network of the operator platform.
 type FixedNetworkIds = []string
@@ -630,7 +1319,7 @@ type Flavour struct {
 	// CpuExclusivity Support for exclusive CPUs
 	CpuExclusivity *bool `json:"cpuExclusivity,omitempty"`
 
-	// FlavourId An identifier to refer to a specific combination of compute resources.
+	// FlavourId An identifier to refer to a specific combination of compute resources
 	FlavourId FlavourId `json:"flavourId"`
 
 	// Fpga Number of FPGAs
@@ -654,11 +1343,25 @@ type Flavour struct {
 	Vpu *int `json:"vpu,omitempty"`
 }
 
-// FlavourId An identifier to refer to a specific combination of compute resources.
+// FlavourId An identifier to refer to a specific combination of compute resources
 type FlavourId = string
 
-// Fqdn defines model for Fqdn.
-type Fqdn = string
+// GenericPolicyRule defines model for GenericPolicyRule.
+type GenericPolicyRule struct {
+	RuleAction RuleActionType `json:"ruleAction"`
+
+	// RuleDescription Brief description of the actions to be performed
+	RuleDescription string `json:"ruleDescription"`
+
+	// RuleLHSParamType Resource attributes that policy will act on to determine the target pplication after applying the policy rules
+	RuleLHSParamType RuleLHSParamType `json:"ruleLHSParamType"`
+
+	// RuleOperator Defines the logical operations that policy rule will execute on application attribute value
+	RuleOperator RuleOperatorType `json:"ruleOperator"`
+
+	// RuleRHSParamVal Permitted type specific value objects for types in ruleLHSParamType
+	RuleRHSParamVal RuleRHSParamVal `json:"ruleRHSParamVal"`
+}
 
 // GeoLocation Latitude,Longitude as decimal fraction up to 4 digit precision
 type GeoLocation = string
@@ -681,6 +1384,17 @@ type GpuInfo struct {
 // GpuInfoGpuVendorType GPU vendor name e.g. NVIDIA, AMD etc.
 type GpuInfoGpuVendorType string
 
+// HttpMethods defines model for HttpMethods.
+type HttpMethods string
+
+// HttpResources defines model for HttpResources.
+type HttpResources struct {
+	Href Uri `json:"href"`
+
+	// HttpMethods List of HTTP Methods supported for the given API category
+	HttpMethods []HttpMethods `json:"httpMethods"`
+}
+
 // HugePage defines model for HugePage.
 type HugePage struct {
 	// Number Total number of huge pages
@@ -692,6 +1406,17 @@ type HugePage struct {
 
 // HugePagePageSize Size of hugepage
 type HugePagePageSize string
+
+// InstanceDetails defines model for InstanceDetails.
+type InstanceDetails = []struct {
+	AppInstanceInfo struct {
+		// InstanceIdentifier Unique identifier generated by the partner OP to identify an instance of the application on a specific zone.
+		InstanceIdentifier InstanceIdentifier `json:"instanceIdentifier"`
+
+		// Instancestate Running status of the application instance.
+		Instancestate *InstanceState `json:"instancestate,omitempty"`
+	} `json:"appInstanceInfo"`
+}
 
 // InstanceIdentifier Unique identifier generated by the partner OP to identify an instance of the application on a specific zone.
 type InstanceIdentifier = string
@@ -711,9 +1436,9 @@ type InterfaceDetails struct {
 	CommProtocol InterfaceDetailsCommProtocol `json:"commProtocol"`
 
 	// InterfaceId Each Port and corresponding traffic protocol exposed by the component is identified by a name. Application client on user device requires this to uniquely identify the interface.
-	InterfaceId InterfaceId `json:"interfaceId"`
+	InterfaceId string `json:"interfaceId"`
 
-	// Network Name of the network. In case the application has to be associated with more than 1 network then app provider must define the name of the network on which this interface has to be exposed. This parameter is required only if the port has to be exposed on a specific network other than default.
+	// Network Name of the network.  In case the application has to be associated with more than 1 network then app provider must define the name of the network on which this interface has to be exposed.  This parameter is required only if the port has to be exposed on a specific network other than default.
 	Network *string `json:"network,omitempty"`
 
 	// VisibilityType Defines whether the interface is exposed to outer world or not i.e., external, or internal. If this is set to "external", then it is exposed to external applications otherwise it is exposed internally to edge application components within edge cloud. When exposed to external world, an external dynamic port is assigned for UC traffic and mapped to the internal container Port
@@ -741,6 +1466,42 @@ type Ipv4Addr = string
 // Ipv6Addr defines model for Ipv6Addr.
 type Ipv6Addr = interface{}
 
+// LatencyConstraints Latency requirements for the application.Allowed values (non-standardized) are none, low and ultra-low. Ultra-Low may corresponds to range 15 - 30 msec, Low correspond to range 30 - 50 msec. None means 51 and above
+type LatencyConstraints string
+
+// LatencyRanges Latency ranges that can be experienced in the Partner OP environment
+type LatencyRanges struct {
+	// MaxLatency Maximum latency in milliseconds
+	MaxLatency string `json:"maxLatency"`
+
+	// MinLatency Minimum latency in milliseconds
+	MinLatency string `json:"minLatency"`
+
+	// Unit Maximum latency in milliseconds
+	Unit LatencyRangesUnit `json:"unit"`
+}
+
+// LatencyRangesUnit Maximum latency in milliseconds
+type LatencyRangesUnit string
+
+// LocationRetrievalCap defines model for LocationRetrievalCap.
+type LocationRetrievalCap struct {
+	// CapabilityId The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
+	CapabilityId CapabilityID `json:"capabilityId"`
+
+	// LocationAccuracy The enumerated list of type of network location of an UE that an OP can determine via SBI-NR.
+	LocationAccuracy *LocationRetrievalCapLocationAccuracy `json:"locationAccuracy,omitempty"`
+
+	// LocationType The enumerated list of UE location accuracy that an OP can determine via SBI-NR.
+	LocationType LocationRetrievalCapLocationType `json:"locationType"`
+}
+
+// LocationRetrievalCapLocationAccuracy The enumerated list of type of network location of an UE that an OP can determine via SBI-NR.
+type LocationRetrievalCapLocationAccuracy string
+
+// LocationRetrievalCapLocationType The enumerated list of UE location accuracy that an OP can determine via SBI-NR.
+type LocationRetrievalCapLocationType string
+
 // Mcc defines model for Mcc.
 type Mcc = string
 
@@ -752,6 +1513,68 @@ type MobileNetworkIds struct {
 	Mcc  *Mcc   `json:"mcc,omitempty"`
 	Mncs *[]Mnc `json:"mncs,omitempty"`
 }
+
+// MobilitySupport Indicates if an application is sensitive to user mobility and can be relocated. Default is “FALSE”
+type MobilitySupport = bool
+
+// MultiUserClients Single user type application are designed to serve just one client. Multi user type application is designed to serve multiple clients
+type MultiUserClients string
+
+// NetworkCapAppInfoList defines model for NetworkCapAppInfoList.
+type NetworkCapAppInfoList = []struct {
+	// AppId Identifier used to refer to an application.
+	AppId                    AppIdentifier          `json:"appId"`
+	AppInstNetworkCapInvoked *AppInstNetworkCapList `json:"appInstNetworkCapInvoked,omitempty"`
+
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProviderId AppProviderId `json:"appProviderId"`
+
+	// ZoneId Human readable name of the zone.
+	ZoneId ZoneIdentifier `json:"zoneId"`
+}
+
+// NetworkCapInvoked defines model for NetworkCapInvoked.
+type NetworkCapInvoked struct {
+	// CapabilityId The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
+	CapabilityId CapabilityID `json:"capabilityId"`
+
+	// InvocationTime Date and Time zone info format
+	InvocationTime *DateAndTimeZoneObject `json:"invocationTime,omitempty"`
+
+	// NetworkEventId Unique identifier allocated for a network event
+	NetworkEventId  openapi_types.UUID `json:"networkEventId"`
+	NwCapabilitySLI string             `json:"nwCapabilitySLI"`
+
+	// ZoneId Human readable name of the zone.
+	ZoneId ZoneIdentifier `json:"zoneId"`
+}
+
+// NetworkCapSubsInfo defines model for NetworkCapSubsInfo.
+type NetworkCapSubsInfo struct {
+	// AppId Identifier used to refer to an application.
+	AppId AppIdentifier `json:"appId"`
+
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProviderId AppProviderId `json:"appProviderId"`
+
+	// CapabilityId The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
+	CapabilityId CapabilityID `json:"capabilityId"`
+}
+
+// NetworkCaps Type and speed of network acceleration resources
+type NetworkCaps struct {
+	NwAccelSpeed *NetworkCapsNwAccelSpeed `json:"nwAccelSpeed,omitempty"`
+	NwAccelType  *NetworkCapsNwAccelType  `json:"nwAccelType,omitempty"`
+}
+
+// NetworkCapsNwAccelSpeed defines model for NetworkCaps.NwAccelSpeed.
+type NetworkCapsNwAccelSpeed string
+
+// NetworkCapsNwAccelType defines model for NetworkCaps.NwAccelType.
+type NetworkCapsNwAccelType string
+
+// NoOfUsersPerAppInst Maximum no of clients that can connect to an instance of this application. This parameter is relevant only for application of type multi user
+type NoOfUsersPerAppInst = int
 
 // OSType defines model for OSType.
 type OSType struct {
@@ -786,6 +1609,78 @@ type ObjectRepoLocation struct {
 	UserName *string `json:"userName,omitempty"`
 }
 
+// OnboardStatusInfo Defines change in application status. This change could be related to application itself or an application instance status
+type OnboardStatusInfo string
+
+// OpsConcretePolicy Application policy id and policy parameter value limits registered by the Originating OP
+type OpsConcretePolicy struct {
+	// PolicyId Operation-level Policy unique identifier
+	PolicyId OpsPolicyIdentifier `json:"policyId"`
+
+	// PolicyParamLimits Operation policies rule defines the action to be taken against the subscribed policy template
+	PolicyParamLimits OpsPolicyRule `json:"policyParamLimits"`
+}
+
+// OpsPolicyIdentifier Operation-level Policy unique identifier
+type OpsPolicyIdentifier = string
+
+// OpsPolicyRule Operation policies rule defines the action to be taken against the subscribed policy template
+type OpsPolicyRule struct {
+	OpsPolicyRule *GenericPolicyRule `json:"opsPolicyRule,omitempty"`
+}
+
+// OpsPolicyScope Operation-level Policy scope defines if a policy is a set of availability zones or applies globally to all zones
+type OpsPolicyScope string
+
+// OpsPolicyTemplate defines model for OpsPolicyTemplate.
+type OpsPolicyTemplate struct {
+	// OpsPolicyDescription Brief policy template description on policy objective
+	OpsPolicyDescription string `json:"opsPolicyDescription"`
+
+	// OpsPolicyName Brief policy template name on policy objective
+	OpsPolicyName string `json:"opsPolicyName"`
+
+	// OpsPolicyRules Set of policy action rules for a given policy
+	OpsPolicyRules []OpsPolicyRule `json:"opsPolicyRules"`
+
+	// OpsPolicyScope Operation-level Policy scope defines if a policy is a set of availability zones or applies globally to all zones
+	OpsPolicyScope OpsPolicyScope `json:"opsPolicyScope"`
+
+	// OpsPolicyType Policy attribute that defines if the policy rules applies to static part of the infra or dynamic part of the edge cloud infra
+	OpsPolicyType      OpsPolicyType       `json:"opsPolicyType"`
+	OpslPolicyMetaInfo *OpslPolicyMetaInfo `json:"opslPolicyMetaInfo,omitempty"`
+}
+
+// OpsPolicyTemplateList List of Operation policy templates from the Partner OP
+type OpsPolicyTemplateList = []OpsPolicyTemplate
+
+// OpsPolicyType Policy attribute that defines if the policy rules applies to static part of the infra or dynamic part of the edge cloud infra
+type OpsPolicyType string
+
+// OpsPolicyTypeIdentifier Operation-level Policy template unique identifier
+type OpsPolicyTypeIdentifier = string
+
+// OpslPolicyMetaInfo defines model for OpslPolicyMetaInfo.
+type OpslPolicyMetaInfo struct {
+	// OpslPolicyTypeIdentifier Operation-level Policy template unique identifier
+	OpslPolicyTypeIdentifier OpsPolicyTypeIdentifier `json:"opslPolicyTypeIdentifier"`
+
+	// PolicyVersion Policy template version using Semantic Versioning 2.0.0 in MAJOR.MINOR.PATCH format
+	PolicyVersion string `json:"policyVersion"`
+}
+
+// PatchableParams defines model for PatchableParams.
+type PatchableParams string
+
+// PerceivedSeverity defines model for PerceivedSeverity.
+type PerceivedSeverity struct {
+	// Severity Alarm severity
+	Severity PerceivedSeveritySeverity `json:"severity"`
+}
+
+// PerceivedSeveritySeverity Alarm severity
+type PerceivedSeveritySeverity string
+
 // PersistentVolumeDetails defines model for PersistentVolumeDetails.
 type PersistentVolumeDetails struct {
 	// AccessMode Values are RW (read/write) and RO (read-only)l
@@ -816,6 +1711,9 @@ type PersistentVolumeDetailsSharingPolicy string
 // PersistentVolumeDetailsVolumeSize size of the volume given by user (10GB, 20GB, 50 GB or 100GB)
 type PersistentVolumeDetailsVolumeSize string
 
+// PlatformCaps Home routing - Operator platform is capable of routing edge application data traffic from its edges to user device in their home location. This is the case where user devices are served in their home region (requesting platform region, non-roaming) but the corresponding edge application are in operator platform edges. Anchoring - Operator platform is capable of routing edge application traffic for roaming user devices to edge application in user device home network. Service APIs - Capability to handle Service APIs (e.g., CAMARA APIs) from the Leading OP
+type PlatformCaps = []string
+
 // PoolId OP defined Identifier for the pool reserved for the ISV. It should be unique with an OP.
 type PoolId = string
 
@@ -825,13 +1723,30 @@ type PoolName = string
 // Port defines model for Port.
 type Port = int
 
+// ProbableCause defines model for ProbableCause.
+type ProbableCause struct {
+	// Cause Probale cause of the alarm
+	Cause string `json:"cause"`
+}
+
 // ProblemDetails defines model for ProblemDetails.
 type ProblemDetails struct {
-	Cause         *string         `json:"cause,omitempty"`
+	// Cause Fixed string indicating cause of the issue
+	Cause *string `json:"cause,omitempty"`
+
+	// Detail Specific detail of the issue
 	Detail        *string         `json:"detail,omitempty"`
 	InvalidParams *[]InvalidParam `json:"invalidParams,omitempty"`
-	Title         *string         `json:"title,omitempty"`
+
+	// Title Summary of the problem
+	Title *string `json:"title,omitempty"`
 }
+
+// RemoveAppsForNotif defines model for RemoveAppsForNotif.
+type RemoveAppsForNotif = []AppsForNotif
+
+// RepoType Artefact or file repository location. PUBLICREPO is used of public URLs like GitHub, Helm repo, docker registry etc., PRIVATEREPO is used for private repo managed by the application developer, UPLOAD is for the case when artefact/file is uploaded from MEC web portal.  OP should pull the image from ‘repoUrl' immediately after receiving the request and then send back the response. In case the repoURL corresponds to a docker registry, use docker v2 http api to do the pull.
+type RepoType string
 
 // ResourceReservationDuration Time period for which resources are to be reserved starting from now
 type ResourceReservationDuration struct {
@@ -845,12 +1760,64 @@ type ResourceReservationDuration struct {
 	NumOfYears *int32 `json:"numOfYears,omitempty"`
 }
 
+// ResourceSpec Resource type and  architecture specification
+type ResourceSpec struct {
+	ResourceCount string                    `json:"resourceCount"`
+	ResourceModel ResourceSpecResourceModel `json:"resourceModel"`
+	ResourceType  ResourceSpecResourceType  `json:"resourceType"`
+}
+
+// ResourceSpecResourceModel defines model for ResourceSpec.ResourceModel.
+type ResourceSpecResourceModel string
+
+// ResourceSpecResourceType defines model for ResourceSpec.ResourceType.
+type ResourceSpecResourceType string
+
+// RuleActionType defines model for RuleActionType.
+type RuleActionType struct {
+	// ActionTargetType Resource attributes that policy will act on to determine the target pplication after applying the policy rules
+	ActionTargetType RuleLHSParamType `json:"actionTargetType"`
+
+	// ActionType Action to be taken once a policy rule is applied on target resource indicated by RuleLHSParamType
+	ActionType ActionType `json:"actionType"`
+}
+
+// RuleLHSParamType Resource attributes that policy will act on to determine the target pplication after applying the policy rules
+type RuleLHSParamType string
+
+// RuleOperatorType Defines the logical operations that policy rule will execute on application attribute value
+type RuleOperatorType struct {
+	// BinaryRuleOperatorType Operations that can be applied on Parameter e.g., “Binary Operation” EQ(EQual)
+	BinaryRuleOperatorType *BinaryRuleOperatorType `json:"BinaryRuleOperatorType,omitempty"`
+
+	// StringRuleOperatorType Operations that can be applied on Parameter e.g., String Operation” EQ(EQual), NOTEQ(Not Equal)
+	StringRuleOperatorType *StringRuleOperatorType `json:"StringRuleOperatorType,omitempty"`
+}
+
+// RuleRHSParamVal Permitted type specific value objects for types in ruleLHSParamType
+type RuleRHSParamVal struct {
+	AppLocation *[]AppLocation `json:"appLocation,omitempty"`
+
+	// ComputeResourceProfile Type and amount of compute resources
+	ComputeResourceProfile *ComputeResourceProfile `json:"computeResourceProfile,omitempty"`
+
+	// LatencyRanges Latency ranges that can be experienced in the Partner OP environment
+	LatencyRanges *LatencyRanges `json:"latencyRanges,omitempty"`
+
+	// NetworkCaps Type and speed of network acceleration resources
+	NetworkCaps *NetworkCaps `json:"networkCaps,omitempty"`
+}
+
+// ServiceAffecting Specific information related to the alarm
+type ServiceAffecting string
+
 // ServiceEndpoint defines model for ServiceEndpoint.
 type ServiceEndpoint struct {
-	Fqdn          *Fqdn       `json:"fqdn,omitempty"`
-	Ipv4Addresses *[]Ipv4Addr `json:"ipv4Addresses,omitempty"`
-	Ipv6Addresses *[]Ipv6Addr `json:"ipv6Addresses,omitempty"`
-	Port          Port        `json:"port"`
+	// Fqdn DNS FQDN assigned to application instances in an availability zone. User Clients can resolve the FQDN to communicate with the edge instances of the application
+	Fqdn          *EdgeAppFQDN `json:"fqdn,omitempty"`
+	Ipv4Addresses *[]Ipv4Addr  `json:"ipv4Addresses,omitempty"`
+	Ipv6Addresses *[]Ipv6Addr  `json:"ipv6Addresses,omitempty"`
+	Port          Port         `json:"port"`
 	union         json.RawMessage
 }
 
@@ -863,11 +1830,77 @@ type ServiceEndpoint1 = interface{}
 // ServiceEndpoint2 defines model for .
 type ServiceEndpoint2 = interface{}
 
+// ServiceNameEW Must be a valid RFC 1035 label name. This defines the DNS name via which the component can be accessed via peer components. Access via serviceNameEW is open on all ports.   Platform shall not expose serviceNameEW externally outside edge.
+type ServiceNameEW = string
+
+// ServiceNameNB Must be a valid RFC 1035 label name. This defines the DNS name via which the component can be accessed over NBI. Access via     serviceNameNB is restricted on specific ports. Platform shall expose component access externally via this DNS name
+type ServiceNameNB = string
+
+// SourceSystemId defines model for SourceSystemId.
+type SourceSystemId struct {
+	// SourceSystemId Source system identity
+	SourceSystemId string `json:"sourceSystemId"`
+}
+
+// SpecificProblem defines model for SpecificProblem.
+type SpecificProblem struct {
+	// SpecificProblem Specific information related to the alarm
+	SpecificProblem string `json:"specificProblem"`
+}
+
+// State defines model for State.
+type State struct {
+	// AlarmState Defines the alarm state during its life cycle (raised | updated | cleared).
+	AlarmState StateAlarmState `json:"alarmState"`
+}
+
+// StateAlarmState Defines the alarm state during its life cycle (raised | updated | cleared).
+type StateAlarmState string
+
 // Status defines model for Status.
 type Status string
 
+// StringRuleOperatorType Operations that can be applied on Parameter e.g., String Operation” EQ(EQual), NOTEQ(Not Equal)
+type StringRuleOperatorType string
+
+// SubscriptionIdentifier defines model for SubscriptionIdentifier.
+type SubscriptionIdentifier struct {
+	// SubsId Generic subscription identifier
+	SubsId openapi_types.UUID `json:"subsId"`
+}
+
+// TransactionId A unique transaction id for this request in UUID format. It is used for tracking the request
+type TransactionId = openapi_types.UUID
+
+// UpdatedAlarmParameters defines model for UpdatedAlarmParameters.
+type UpdatedAlarmParameters struct {
+	AlarmId AlarmIdentifier `json:"alarmId"`
+
+	// UpdateParams List of alarm parameters to be updated in an update operation
+	UpdateParams []UpdatedParam `json:"updateParams"`
+}
+
+// UpdatedParam defines model for UpdatedParam.
+type UpdatedParam struct {
+	// AlarmUpdateOps Operations that can be performed to update the parameters of an alarm
+	AlarmUpdateOps AlarmUpdateOps `json:"alarmUpdateOps"`
+
+	// PatchValue Value to be replaced for the alarm parameter being updated
+	PatchValue     string          `json:"patchValue"`
+	PatchableParam PatchableParams `json:"patchableParam"`
+}
+
 // Uri defines model for Uri.
 type Uri = string
+
+// UserPlaneMgmtEvtCap defines model for UserPlaneMgmtEvtCap.
+type UserPlaneMgmtEvtCap struct {
+	// CapabilityId The enumerated list of network capabilities that an OP can use for various services via SBI-NR.
+	CapabilityId CapabilityID `json:"capabilityId"`
+
+	// MaxUserPlaneLatency Indicates the maximum user plane latency in units of milliseconds to decide whether edge relocation is needed to ascertain latency remain in this range.
+	MaxUserPlaneLatency string `json:"maxUserPlaneLatency"`
+}
 
 // Vcpu Number of vcpus in whole, decimal up to millivcpu, or millivcpu format.
 type Vcpu = string
@@ -881,7 +1914,7 @@ type ZoneDetails struct {
 	GeographyDetails string `json:"geographyDetails"`
 
 	// Geolocation Latitude,Longitude as decimal fraction up to 4 digit precision
-	Geolocation GeoLocation `json:"geolocation"`
+	Geolocation *GeoLocation `json:"geolocation,omitempty"`
 
 	// ZoneId Human readable name of the zone.
 	ZoneId ZoneIdentifier `json:"zoneId"`
@@ -889,6 +1922,15 @@ type ZoneDetails struct {
 
 // ZoneIdentifier Human readable name of the zone.
 type ZoneIdentifier = string
+
+// ZoneLevelApplEventsList defines model for ZoneLevelApplEventsList.
+type ZoneLevelApplEventsList struct {
+	// AppsEventsList Applications instance events list in a availability zone
+	AppsEventsList []ApplInstEventsList `json:"appsEventsList"`
+
+	// ZoneId Human readable name of the zone.
+	ZoneId ZoneIdentifier `json:"zoneId"`
+}
 
 // ZoneRegisteredData defines model for ZoneRegisteredData.
 type ZoneRegisteredData struct {
@@ -914,12 +1956,35 @@ type ZoneRegisteredData struct {
 
 	// ZoneId Human readable name of the zone.
 	ZoneId ZoneIdentifier `json:"zoneId"`
+
+	// ZoneServiceLevelObjsInfo It is a measure of the actual amount of data that is being sent over a network per unit of time and indicates máximum supported value for a zone
+	ZoneServiceLevelObjsInfo *struct {
+		JitterRanges struct {
+			// MaxJitter The maximum limit of network jitter between UC and Edge App in milli seconds.
+			MaxJitter *int32 `json:"maxJitter,omitempty"`
+			MinJitter *int32 `json:"minJitter,omitempty"`
+		} `json:"jitterRanges"`
+		LatencyRanges struct {
+			// MaxLatency The maximum limit of latency between UC and Edge App in milli seconds.
+			MaxLatency *int32 `json:"maxLatency,omitempty"`
+
+			// MinLatency The time for data/packet to reach from UC to edge application. It represent mínimum latency in milli seconds that may exist between UCs and edge apps in this zone but it can be higher in actual.
+			MinLatency *int32 `json:"minLatency,omitempty"`
+		} `json:"latencyRanges"`
+		ThroughputRanges struct {
+			// MaxThroughput The maximum limit of network throughput between UC and Edge App in Mega bits per seconds (Mbps).
+			MaxThroughput *int32 `json:"maxThroughput,omitempty"`
+
+			// MinThroughput The minimum limit of network throughput between UC and Edge App in Mega bits per seconds (Mbps).
+			MinThroughput *int32 `json:"minThroughput,omitempty"`
+		} `json:"throughputRanges"`
+	} `json:"zoneServiceLevelObjsInfo,omitempty"`
 }
 
 // ZoneRegistrationRequestData defines model for ZoneRegistrationRequestData.
 type ZoneRegistrationRequestData struct {
 	AcceptedAvailabilityZones []ZoneIdentifier `json:"acceptedAvailabilityZones"`
-	AvailZoneNotifLink        Uri              `json:"availZoneNotifLink"`
+	AvailZoneNotifLink        *Uri             `json:"availZoneNotifLink,omitempty"`
 }
 
 // ZoneRegistrationResponseData defines model for ZoneRegistrationResponseData.
@@ -927,14 +1992,399 @@ type ZoneRegistrationResponseData struct {
 	AcceptedZoneResourceInfo []ZoneRegisteredData `json:"acceptedZoneResourceInfo"`
 }
 
+// ApiContentType Indicate the Service API body schema in JSON format
+type ApiContentType string
+
+// AppAggrResUtil defines model for appAggrResUtil.
+type AppAggrResUtil struct {
+	// AppId Identifier used to refer to an application.
+	AppId        AppIdentifier        `json:"appId"`
+	AppInstances []InstanceIdentifier `json:"appInstances"`
+
+	// AppProvId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProvId AppProviderId   `json:"appProvId"`
+	CpuUtil   CpuUtilization  `json:"cpuUtil"`
+	DiskUtil  DiskUtilization `json:"diskUtil"`
+
+	// FlavourUtil List of compute flavours metrics per zone
+	FlavourUtil FlavourUtilization `json:"flavourUtil"`
+	MemUtil     MemUtilization     `json:"memUtil"`
+	NetworkUtil NetworkUtilization `json:"networkUtil"`
+
+	// NoOfAppInstances No of application instances of appId in a zone
+	NoOfAppInstances int `json:"noOfAppInstances"`
+}
+
+// AppMetrics List of edge cloud resource metrics per zone
+type AppMetrics = []AppAggrResUtil
+
+// AppsResUtilizeInfo defines model for appsResUtilizeInfo.
+type AppsResUtilizeInfo struct {
+	// AppMetrics List of edge cloud resource metrics per zone
+	AppMetrics []AppsResUtilizeMetrics `json:"appMetrics"`
+
+	// FederationContextId This identifier shall be provided by the partner OP on successful verification and validation of the federation create request and is used by partner op to identify this newly created federation context. Originating OP shall provide this identifier in any subsequent request towards the partner op.
+	FederationContextId *FederationContextId `json:"federationContextId,omitempty"`
+
+	// SequenceNum Monotonically increasing counter for sequencing app monitoring reports
+	SequenceNum int `json:"sequenceNum"`
+}
+
+// AppsResUtilizeMetrics defines model for appsResUtilizeMetrics.
+type AppsResUtilizeMetrics struct {
+	// AppZoneMetrics List of edge cloud resource metrics per zone
+	AppZoneMetrics AppMetrics `json:"appZoneMetrics"`
+
+	// EndTime Date and Time zone info format
+	EndTime DateAndTimeZoneObject `json:"endTime"`
+
+	// StartTime Date and Time zone info format
+	StartTime DateAndTimeZoneObject `json:"startTime"`
+
+	// ZoneId Human readable name of the zone.
+	ZoneId ZoneIdentifier `json:"zoneId"`
+}
+
+// ConnectID An identifier generated by the Partner OP to represent the end user identity in the Service API request.
+type ConnectID = string
+
+// CpuUtilization defines model for cpuUtilization.
+type CpuUtilization struct {
+	// AverageUtilization Indicate the resource measurement Unit
+	AverageUtilization UtilizationValue `json:"averageUtilization"`
+
+	// CpuType Denotes types of edge resources, faults and events at partner OP to be reported to Originating OP.
+	CpuType MonitoringSubsType `json:"cpuType"`
+
+	// EffectiveUtilization Indicate the resource measurement Unit
+	EffectiveUtilization UtilizationValue `json:"effectiveUtilization"`
+
+	// MaxUtilization Indicate the resource measurement Unit
+	MaxUtilization UtilizationValue `json:"maxUtilization"`
+
+	// MinUtilization Indicate the resource measurement Unit
+	MinUtilization UtilizationValue `json:"minUtilization"`
+
+	// NoOfSamples Number of samples used for calculating metrics.
+	NoOfSamples string `json:"noOfSamples"`
+}
+
+// CustomerID Leading OP managed identifier associated to API Provider of the Leading OP.
+type CustomerID = openapi_types.UUID
+
+// DateAndTimeZoneObject Date and Time zone info format
+type DateAndTimeZoneObject = time.Time
+
+// DetectedEvent defines model for detectedEvent.
+type DetectedEvent struct {
+	// EndTime Date and Time zone info format
+	EndTime      DateAndTimeZoneObject `json:"endTime"`
+	EventId      string                `json:"eventId"`
+	NumOccurance int                   `json:"numOccurance"`
+
+	// StartTime Date and Time zone info format
+	StartTime DateAndTimeZoneObject `json:"startTime"`
+
+	// ZoneId Human readable name of the zone.
+	ZoneId ZoneIdentifier `json:"zoneId"`
+}
+
+// DiskUtilization defines model for diskUtilization.
+type DiskUtilization struct {
+	// AverageUtilization Indicate the resource measurement Unit
+	AverageUtilization UtilizationValue `json:"averageUtilization"`
+
+	// EffectiveUtilization Indicate the resource measurement Unit
+	EffectiveUtilization *UtilizationValue `json:"effectiveUtilization,omitempty"`
+
+	// MaxUtilization Indicate the resource measurement Unit
+	MaxUtilization UtilizationValue `json:"maxUtilization"`
+
+	// MinUtilization Indicate the resource measurement Unit
+	MinUtilization UtilizationValue `json:"minUtilization"`
+
+	// NoOfSamples Number of samples used for calculating metrics.
+	NoOfSamples string `json:"noOfSamples"`
+}
+
+// EdgeComputeMetrics defines model for edgeComputeMetrics.
+type EdgeComputeMetrics struct {
+	CpuUtil  CpuUtilization  `json:"cpuUtil"`
+	DiskUtil DiskUtilization `json:"diskUtil"`
+
+	// EndTime Date and Time zone info format
+	EndTime DateAndTimeZoneObject `json:"endTime"`
+
+	// FlavourUtil List of compute flavours metrics per zone
+	FlavourUtil FlavourUtilization `json:"flavourUtil"`
+	MemUtil     MemUtilization     `json:"memUtil"`
+	NetworkUtil NetworkUtilization `json:"networkUtil"`
+
+	// StartTime Date and Time zone info format
+	StartTime DateAndTimeZoneObject `json:"startTime"`
+
+	// ZoneId Human readable name of the zone.
+	ZoneId ZoneIdentifier `json:"zoneId"`
+}
+
+// EdgeResUtilizeMetrics defines model for edgeResUtilizeMetrics.
+type EdgeResUtilizeMetrics struct {
+	// EdgeMetrics List of edge cloud resource metrics per zone
+	EdgeMetrics []EdgeComputeMetrics `json:"edgeMetrics"`
+
+	// FederationContextId This identifier shall be provided by the partner OP on successful verification and validation of the federation create request and is used by partner op to identify this newly created federation context. Originating OP shall provide this identifier in any subsequent request towards the partner op.
+	FederationContextId *FederationContextId `json:"federationContextId,omitempty"`
+
+	// SequenceNum Monotonically increasing counter for sequencing resource monitoring reports
+	SequenceNum int `json:"sequenceNum"`
+}
+
+// EventCriterion defines model for eventCriterion.
+type EventCriterion struct {
+	MonitorDuration PeriodicityInterval `json:"monitorDuration"`
+
+	// NumOccurance Number of times the trigger condition is detected
+	NumOccurance int `json:"numOccurance"`
+
+	// ResUsageType Indicate the type of resource
+	ResUsageType ResourceType `json:"resUsageType"`
+	ThresholdVal ThresholdVal `json:"thresholdVal"`
+
+	// TriggerCondition The condition evaluation operator to compare threashold value of a resource for event detection.
+	TriggerCondition EventCriterionTriggerCondition `json:"triggerCondition"`
+}
+
+// EventCriterionTriggerCondition The condition evaluation operator to compare threashold value of a resource for event detection.
+type EventCriterionTriggerCondition string
+
+// EventInfo defines model for eventInfo.
+type EventInfo struct {
+	EventCriterion EventCriterion `json:"eventCriterion"`
+	EventId        string         `json:"eventId"`
+}
+
+// EventTypeList List of event criterion
+type EventTypeList = []EventCriterion
+
+// ExpiryInterval defines model for expiryInterval.
+type ExpiryInterval struct {
+	// NumHours Number of Hours for Expiry (0-23)
+	NumHours int32 `json:"numHours"`
+
+	// NumMins Number of Minutes for Expiry (0-59)
+	NumMins int32 `json:"numMins"`
+
+	// NumSecs Number of Seconds for Expiry (0-59)
+	NumSecs int32 `json:"numSecs"`
+}
+
+// FlavourMetrics defines model for flavourMetrics.
+type FlavourMetrics struct {
+	// AverageThroughput Indicate the resource measurement Unit
+	AverageThroughput *UtilizationValue `json:"averageThroughput,omitempty"`
+
+	// AverageUtilization Indicate the resource measurement Unit
+	AverageUtilization UtilizationValue `json:"averageUtilization"`
+
+	// FlavourId An identifier to refer to a specific combination of compute resources
+	FlavourId FlavourId `json:"flavourId"`
+
+	// MaxUtilization Indicate the resource measurement Unit
+	MaxUtilization UtilizationValue `json:"maxUtilization"`
+
+	// MinUtilization Indicate the resource measurement Unit
+	MinUtilization UtilizationValue `json:"minUtilization"`
+
+	// NoOfSamples Number of samples used for calculating metrics.
+	NoOfSamples string `json:"noOfSamples"`
+}
+
+// FlavourUtilization List of compute flavours metrics per zone
+type FlavourUtilization = []FlavourMetrics
+
+// MemUtilization defines model for memUtilization.
+type MemUtilization struct {
+	// AverageUtilization Indicate the resource measurement Unit
+	AverageUtilization UtilizationValue `json:"averageUtilization"`
+
+	// EffectiveUtilization Indicate the resource measurement Unit
+	EffectiveUtilization *UtilizationValue `json:"effectiveUtilization,omitempty"`
+
+	// MaxUtilization Indicate the resource measurement Unit
+	MaxUtilization UtilizationValue `json:"maxUtilization"`
+
+	// MinUtilization Indicate the resource measurement Unit
+	MinUtilization UtilizationValue `json:"minUtilization"`
+
+	// NoOfSamples Number of samples used for calculating metrics.
+	NoOfSamples string `json:"noOfSamples"`
+}
+
+// MonitoringSubsType Denotes types of edge resources, faults and events at partner OP to be reported to Originating OP.
+type MonitoringSubsType string
+
+// NetworkUtilization defines model for networkUtilization.
+type NetworkUtilization struct {
+	// AverageThroughput Indicate the resource measurement Unit
+	AverageThroughput UtilizationValue `json:"averageThroughput"`
+
+	// EgressUsage Indicate the resource measurement Unit
+	EgressUsage UtilizationValue `json:"egressUsage"`
+
+	// IngressUsage Indicate the resource measurement Unit
+	IngressUsage UtilizationValue `json:"ingressUsage"`
+
+	// MaxThroughput Indicate the resource measurement Unit
+	MaxThroughput UtilizationValue `json:"maxThroughput"`
+
+	// MinThroughput Indicate the resource measurement Unit
+	MinThroughput UtilizationValue `json:"minThroughput"`
+
+	// NoOfSamples Number of samples used for calculating metrics.
+	NoOfSamples string `json:"noOfSamples"`
+}
+
+// NodeDiscoveryResponse Candidate availability zones and details of already running instances of the given application
+type NodeDiscoveryResponse struct {
+	DiscoveredAppInsts DiscoveredAppInsts `json:"discoveredAppInsts"`
+
+	// EdgeNodes List of candidate zones where application instance could be created. LatencyServiceEndpoint is responsible for responding to latency measurement request from client
+	EdgeNodes DiscoveredEdgeNodes `json:"edgeNodes"`
+}
+
+// PeriodicNotifConfig defines model for periodicNotifConfig.
+type PeriodicNotifConfig struct {
+	NotificationListner *Uri                 `json:"notificationListner,omitempty"`
+	Periodicity         *PeriodicityInterval `json:"periodicity,omitempty"`
+}
+
+// PeriodicityInterval defines model for periodicityInterval.
+type PeriodicityInterval struct {
+	// NumHours Number of Hours for Expiry (0-23)
+	NumHours int32 `json:"numHours"`
+
+	// NumMins Number of Minutes for Expiry (0-59)
+	NumMins int32 `json:"numMins"`
+}
+
+// ResourceSubscriptionInfo defines model for resourceSubscriptionInfo.
+type ResourceSubscriptionInfo struct {
+	// DateAndTime Date and Time zone info format
+	DateAndTime DateAndTimeZoneObject `json:"dateAndTime"`
+
+	// MonitoringType Denotes types of edge resources, faults and events at partner OP to be reported to Originating OP.
+	MonitoringType MonitoringSubsType `json:"monitoringType"`
+
+	// SubscriptionId Partner OP managed identifier for new subscription.
+	SubscriptionId openapi_types.UUID `json:"subscriptionId"`
+}
+
+// ResourceType Indicate the type of resource
+type ResourceType string
+
+// ServiceAPIContent defines model for serviceAPIContent.
+type ServiceAPIContent struct {
+	// APIContent Refer to CAMARA project specifications: https://github.com/camaraproject
+	APIContent map[string]interface{} `json:"APIContent"`
+
+	// MediaType Indicate the Service API body schema in JSON format
+	MediaType ApiContentType `json:"mediaType"`
+}
+
+// ServiceAPIEventDef defines model for serviceAPIEventDef.
+type ServiceAPIEventDef struct {
+	// NetworkEventDef Refer to CAMARA project specifications: https://github.com/camaraproject
+	NetworkEventDef map[string]interface{} `json:"NetworkEventDef"`
+}
+
+// ServiceAPINameVal Name of the Service API
+type ServiceAPINameVal string
+
+// ServiceAPINames List of Service API capability names an OP supports and offers to other OPs "quality_on_demand", "device_location" etc.
+type ServiceAPINames = []string
+
+// ServiceAPINetworkEvent defines model for serviceAPINetworkEvent.
+type ServiceAPINetworkEvent struct {
+	EventType SvcEventType `json:"EventType"`
+
+	// ConnectID An identifier generated by the Partner OP to represent the end user identity in the Service API request.
+	ConnectID ConnectID `json:"connectID"`
+
+	// CustomerID Leading OP managed identifier associated to API Provider of the Leading OP.
+	CustomerID         CustomerID          `json:"customerID"`
+	ExpiryDuration     *ExpiryInterval     `json:"expiryDuration,omitempty"`
+	ServiceAPIEventDef *ServiceAPIEventDef `json:"serviceAPIEventDef,omitempty"`
+}
+
+// ServiceAPIResponse defines model for serviceAPIResponse.
+type ServiceAPIResponse struct {
+	// ApiResponse Leading OP managed identifier associated to API Provider of the Leading OP.
+	ApiResponse CustomerID `json:"apiResponse"`
+
+	// CustomerID Leading OP managed identifier associated to API Provider of the Leading OP.
+	CustomerID        CustomerID        `json:"customerID"`
+	TargetUserContext TargetUserContext `json:"targetUserContext"`
+
+	// TxnIdentifier A API transaction identifier generated by the Partner OP for each API request
+	TxnIdentifier TxnIdentifier `json:"txnIdentifier"`
+}
+
+// ServiceRoutingInfo List of public IP addresses MNO manages for UEs to connect with public data networks
+type ServiceRoutingInfo = []string
+
+// ServiceType An identifier to refer to partner OP capabilities for application providers.
+type ServiceType string
+
+// SvcEventType defines model for svcEventType.
+type SvcEventType string
+
+// TargetUserContext defines model for targetUserContext.
+type TargetUserContext struct {
+	// ConnectID An identifier generated by the Partner OP to represent the end user identity in the Service API request.
+	ConnectID      ConnectID      `json:"connectID"`
+	ExpiryDuration ExpiryInterval `json:"expiryDuration"`
+}
+
+// ThresholdVal defines model for thresholdVal.
+type ThresholdVal struct {
+	// Unit The unit of resources measurement e.g. number of cores, mega bits per seconds etc.
+	Unit  ThresholdValUnit `json:"unit"`
+	Value string           `json:"value"`
+}
+
+// ThresholdValUnit The unit of resources measurement e.g. number of cores, mega bits per seconds etc.
+type ThresholdValUnit string
+
+// TxnIdentifier A API transaction identifier generated by the Partner OP for each API request
+type TxnIdentifier = string
+
+// UtilizationValue Indicate the resource measurement Unit
+type UtilizationValue struct {
+	// ResType Indicate the type of resource
+	ResType ResourceType         `json:"resType"`
+	Unit    UtilizationValueUnit `json:"unit"`
+
+	// Value Whole number that represent the value of given resource type.
+	Value string `json:"value"`
+}
+
+// UtilizationValueUnit defines model for UtilizationValue.Unit.
+type UtilizationValueUnit string
+
 // N400 defines model for 400.
 type N400 = ProblemDetails
+
+// N400BadRequest defines model for 400BadRequest.
+type N400BadRequest = ProblemDetails
 
 // N401 defines model for 401.
 type N401 = ProblemDetails
 
 // N404 defines model for 404.
 type N404 = ProblemDetails
+
+// N404NotFound defines model for 404NotFound.
+type N404NotFound = ProblemDetails
 
 // N409 defines model for 409.
 type N409 = ProblemDetails
@@ -1083,13 +2533,13 @@ type PartnerStatusLinkJSONBodyOperationType string
 
 // ResourceReservationCallbackLinkJSONBody defines parameters for ResourceReservationCallbackLink.
 type ResourceReservationCallbackLinkJSONBody struct {
-	// AppProviderId UserId of the app provider. Identifier is relevant only in context of this federation.
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
 	AppProviderId AppProviderId `json:"appProviderId"`
 
 	// FederationContextId This identifier shall be provided by the partner OP on successful verification and validation of the federation create request and is used by partner op to identify this newly created federation context. Originating OP shall provide this identifier in any subsequent request towards the partner op.
 	FederationContextId *FederationContextId `json:"federationContextId,omitempty"`
 	GrantedFlavours     []struct {
-		// FlavourId An identifier to refer to a specific combination of compute resources.
+		// FlavourId An identifier to refer to a specific combination of compute resources
 		FlavourId FlavourId `json:"flavourId"`
 
 		// NumFlavour Count of flavour
@@ -1103,28 +2553,101 @@ type ResourceReservationCallbackLinkJSONBody struct {
 	ZoneId ZoneIdentifier `json:"zoneId"`
 }
 
+// CreateAlarmReportingSubscriptionJSONBody defines parameters for CreateAlarmReportingSubscription.
+type CreateAlarmReportingSubscriptionJSONBody struct {
+	AlarmListnerCallback *Uri `json:"alarmListnerCallback,omitempty"`
+}
+
+// APIForwardingJSONBody defines parameters for APIForwarding.
+type APIForwardingJSONBody struct {
+	ServiceAPIBody ServiceAPIContent `json:"ServiceAPIBody"`
+
+	// CustomerID Leading OP managed identifier associated to API Provider of the Leading OP.
+	CustomerID            CustomerID `json:"customerID"`
+	EventNotificationDest *Uri       `json:"eventNotificationDest,omitempty"`
+
+	// TxnIdentifier A API transaction identifier generated by the Partner OP for each API request
+	TxnIdentifier TxnIdentifier `json:"txnIdentifier"`
+}
+
+// RetrieveApplicationPolicyParams defines parameters for RetrieveApplicationPolicy.
+type RetrieveApplicationPolicyParams struct {
+	PolicySearchType *RetrieveApplicationPolicyParamsPolicySearchType `form:"policy-search-type,omitempty" json:"policy-search-type,omitempty"`
+
+	// PolicySearchValue Refers to either application provider identifier or the application identifier
+	PolicySearchValue *string `form:"policy-search-value,omitempty" json:"policy-search-value,omitempty"`
+}
+
+// RetrieveApplicationPolicyParamsPolicySearchType defines parameters for RetrieveApplicationPolicy.
+type RetrieveApplicationPolicyParamsPolicySearchType string
+
+// CreateApplicationEventSubscriptionJSONBody defines parameters for CreateApplicationEventSubscription.
+type CreateApplicationEventSubscriptionJSONBody struct {
+	ApplEventSubscriptionConfig *PeriodicNotifConfig `json:"applEventSubscriptionConfig,omitempty"`
+
+	// NumEvtsPerNotif The number of applications events that the Partner OP should include in a notification
+	NumEvtsPerNotif *int `json:"numEvtsPerNotif,omitempty"`
+}
+
+// RetrieveApplSubsMetaInfoParams defines parameters for RetrieveApplSubsMetaInfo.
+type RetrieveApplSubsMetaInfoParams struct {
+	InfoType RetrieveApplSubsMetaInfoParamsInfoType `form:"info-type" json:"info-type"`
+}
+
+// RetrieveApplSubsMetaInfoParamsInfoType defines parameters for RetrieveApplSubsMetaInfo.
+type RetrieveApplSubsMetaInfoParamsInfoType string
+
+// ModifyApplEventNotifSubscriptionJSONBody defines parameters for ModifyApplEventNotifSubscription.
+type ModifyApplEventNotifSubscriptionJSONBody struct {
+	ApplEventSubscriptionConfig *PeriodicNotifConfig `json:"applEventSubscriptionConfig,omitempty"`
+
+	// NumEvtsPerNotif The number of applications events that the Partner OP should include in a notification
+	NumEvtsPerNotif *int `json:"numEvtsPerNotif,omitempty"`
+}
+
+// SubscribeApplsEvtNotifJSONBody defines parameters for SubscribeApplsEvtNotif.
+type SubscribeApplsEvtNotifJSONBody struct {
+	AddAppsForNotif AddAppsForNotif `json:"addAppsForNotif"`
+}
+
+// SubscribeApplsEvtNotifParams defines parameters for SubscribeApplsEvtNotif.
+type SubscribeApplsEvtNotifParams struct {
+	IdempotencyKey TransactionId `json:"Idempotency-Key"`
+}
+
+// RetrieveAppsEventsInfoJSONBody defines parameters for RetrieveAppsEventsInfo.
+type RetrieveAppsEventsInfoJSONBody = []AppsForNotif
+
+// RegisterApplicationPolicyJSONBody defines parameters for RegisterApplicationPolicy.
+type RegisterApplicationPolicyJSONBody struct {
+	// ApplConcretePolicy Application policy id and policy parameter value limits registered by the Originating OP
+	ApplConcretePolicy *ApplConcretePolicy `json:"applConcretePolicy,omitempty"`
+}
+
+// RetrieveAppPolicyTemplatesParams defines parameters for RetrieveAppPolicyTemplates.
+type RetrieveAppPolicyTemplatesParams struct {
+	ApplPolicyType *ApplPolicyType `form:"appl-policy-type,omitempty" json:"appl-policy-type,omitempty"`
+}
+
 // InstallAppJSONBody defines parameters for InstallApp.
 type InstallAppJSONBody struct {
 	// AppId Identifier used to refer to an application.
 	AppId               AppIdentifier `json:"appId"`
 	AppInstCallbackLink Uri           `json:"appInstCallbackLink"`
 
-	// AppInstanceId Unique identifier generated by the partner OP to identify an instance of the application on a specific zone.
-	AppInstanceId InstanceIdentifier `json:"appInstanceId"`
-
-	// AppProviderId UserId of the app provider. Identifier is relevant only in context of this federation.
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
 	AppProviderId AppProviderId `json:"appProviderId"`
 
 	// AppVersion Version info of the application
 	AppVersion string `json:"appVersion"`
 	ZoneInfo   struct {
-		// FlavourId An identifier to refer to a specific combination of compute resources.
+		// FlavourId An identifier to refer to a specific combination of compute resources
 		FlavourId FlavourId `json:"flavourId"`
 
-		// ResPool Resource pool to be used for application instantiation on this zone. Valid only if IE 'resourceConsumption' is set to 'RESERVED_RES_SHALL' or 'RESERVED_RES_PREFER'
+		// ResPool Resource pool to be used for application instantiation on this zone.  Valid only if IE 'resourceConsumption' is set to 'RESERVED_RES_SHALL' or 'RESERVED_RES_PREFER'
 		ResPool *string `json:"resPool,omitempty"`
 
-		// ResourceConsumption Specifies if the application can be instantiated using pre-reserved resource or not. App provider can pre-reserve a pool of compute resource on each zone. 'RESERVED_RES_SHALL' instruct OP to use only the pre-reserved resources. 'RESERVED_RES_PREFER' instruct to first try using pre-reserved resource, if none available go for non-reserved resources. 'RESERVED_RES_AVOID' instruct OP not to use pre-reserved resource if possible, it is a choice depending upon circumstances 'RESERVED_RES_FORBID' instruct OP not to use pre-reserved resources.
+		// ResourceConsumption Specifies if the application can be instantiated using pre-reserved resource or not.  App provider can pre-reserve a pool of compute resource on each zone.  'RESERVED_RES_SHALL' instruct OP to use only the pre-reserved resources. 'RESERVED_RES_PREFER' instruct to first try using pre-reserved resource, if none available go for non-reserved resources. 'RESERVED_RES_AVOID' instruct OP not to use pre-reserved resource if possible, it is a choice depending upon circumstances 'RESERVED_RES_FORBID' instruct OP not to use pre-reserved resources.
 		ResourceConsumption *InstallAppJSONBodyZoneInfoResourceConsumption `json:"resourceConsumption,omitempty"`
 
 		// ZoneId Human readable name of the zone.
@@ -1132,12 +2655,17 @@ type InstallAppJSONBody struct {
 	} `json:"zoneInfo"`
 }
 
+// InstallAppParams defines parameters for InstallApp.
+type InstallAppParams struct {
+	IdempotencyKey TransactionId `json:"Idempotency-Key"`
+}
+
 // InstallAppJSONBodyZoneInfoResourceConsumption defines parameters for InstallApp.
 type InstallAppJSONBodyZoneInfoResourceConsumption string
 
 // OnboardApplicationJSONBody defines parameters for OnboardApplication.
 type OnboardApplicationJSONBody struct {
-	// AppComponentSpecs An application may consist of more than one component. Each component is associated with a descriptor and may exposes its services externally or internally. App providers are required to provide details about all these components, their associated descriptors and their DNS names.
+	// AppComponentSpecs An application may consist of more than one component. Each component is associated with a descriptor and may exposes its services externally or internally.  App providers are required to provide details about all these components, their associated descriptors and their DNS names.
 	AppComponentSpecs AppComponentSpecs `json:"appComponentSpecs"`
 
 	// AppDeploymentZones Details about partner OP zones where the application should be made available;  This field when specified will instruct the OP to restrict application instantiation only on the listed zones.
@@ -1149,53 +2677,25 @@ type OnboardApplicationJSONBody struct {
 	// AppMetaData Application metadata details
 	AppMetaData AppMetaData `json:"appMetaData"`
 
-	// AppProviderId UserId of the app provider. Identifier is relevant only in context of this federation.
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
 	AppProviderId AppProviderId `json:"appProviderId"`
 
 	// AppQoSProfile Parameters corresponding to the performance constraints, tenancy details etc.
 	AppQoSProfile         AppQoSProfile `json:"appQoSProfile"`
-	AppStatusCallbackLink Uri           `json:"appStatusCallbackLink"`
+	AppStatusCallbackLink *Uri          `json:"appStatusCallbackLink,omitempty"`
+
+	// EdgeAppFQDN DNS FQDN assigned to application instances in an availability zone. User Clients can resolve the FQDN to communicate with the edge instances of the application
+	EdgeAppFQDN *EdgeAppFQDN `json:"edgeAppFQDN,omitempty"`
 }
 
 // UpdateApplicationJSONBody defines parameters for UpdateApplication.
 type UpdateApplicationJSONBody struct {
-	// AppComponentSpecs An application may consist of more than one component. Each component is associated with a descriptor and may exposes its services externally or internally. App providers are required to provide details about all these components, their associated descriptors and their DNS names.
-	AppComponentSpecs *[]UpdateApplicationJSONBody_AppComponentSpecs_Item `json:"appComponentSpecs,omitempty"`
+	// AppComponents An application may consist of more than one component. Each component is associated with a descriptor and may exposes its services externally or internally.  App providers are required to provide details about all these components, their associated descriptors and their DNS names.
+	AppComponents *AppComponents `json:"appComponents,omitempty"`
 
 	// AppUpdQoSProfile Parameters corresponding to the performance constraints, tenancy details etc.
 	AppUpdQoSProfile *UpdateApplicationJSONBody_AppUpdQoSProfile `json:"appUpdQoSProfile,omitempty"`
 }
-
-// UpdateApplicationJSONBodyAppComponentSpecs0 defines parameters for UpdateApplication.
-type UpdateApplicationJSONBodyAppComponentSpecs0 = interface{}
-
-// UpdateApplicationJSONBodyAppComponentSpecs1 defines parameters for UpdateApplication.
-type UpdateApplicationJSONBodyAppComponentSpecs1 = interface{}
-
-// UpdateApplicationJSONBodyAppComponentSpecs2 defines parameters for UpdateApplication.
-type UpdateApplicationJSONBodyAppComponentSpecs2 = interface{}
-
-// UpdateApplicationJSONBody_AppComponentSpecs_Item defines parameters for UpdateApplication.
-type UpdateApplicationJSONBody_AppComponentSpecs_Item struct {
-	// ArtefactId A globally unique identifier associated with the artefact. Originating OP generates this identifier when artefact is submitted over NBI.
-	ArtefactId *ArtefactId `json:"artefactId,omitempty"`
-
-	// ComponentName Must be a valid RFC 1123 label name. Component name must be unique with an application
-	ComponentName string `json:"componentName"`
-
-	// ServiceNameEW Must be a valid RFC 1123 label name. This defines the DNS name via which the component can be accessed via peer components. Access via serviceNameEW is open on all ports. Platform shall not expose serviceNameEW externally outside edge.
-	ServiceNameEW *string `json:"serviceNameEW,omitempty"`
-
-	// ServiceNameNB Must be a valid RFC 1123 label name. This defines the DNS name via which the component can be accessed over NBI. Access via serviceNameNB is restricted on specific ports. Platform shall expose component access externally via this DNS name
-	ServiceNameNB *string `json:"serviceNameNB,omitempty"`
-	union         json.RawMessage
-}
-
-// UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraints defines parameters for UpdateApplication.
-type UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraints string
-
-// UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClients defines parameters for UpdateApplication.
-type UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClients string
 
 // UpdateApplicationJSONBodyAppUpdQoSProfile0 defines parameters for UpdateApplication.
 type UpdateApplicationJSONBodyAppUpdQoSProfile0 = interface{}
@@ -1215,22 +2715,22 @@ type UpdateApplicationJSONBodyAppUpdQoSProfile4 = interface{}
 // UpdateApplicationJSONBody_AppUpdQoSProfile defines parameters for UpdateApplication.
 type UpdateApplicationJSONBody_AppUpdQoSProfile struct {
 	// AppProvisioning Define if application can be instantiated or not
-	AppProvisioning *bool `json:"appProvisioning,omitempty"`
+	AppProvisioning *AppProvisioning `json:"appProvisioning,omitempty"`
 
 	// BandwidthRequired Data transfer bandwidth requirement (minimum limit) for the application. It should in Mbits/sec
-	BandwidthRequired *int32 `json:"bandwidthRequired,omitempty"`
+	BandwidthRequired *BandwidthRequired `json:"bandwidthRequired,omitempty"`
 
-	// LatencyConstraints Latency requirements for the application. Allowed values (non-standardized) are none, low and ultra-low. Ultra-Low may corresponds to range 15 - 30 msec, Low correspond to range 30 - 50 msec. None means 51 and above
-	LatencyConstraints *UpdateApplicationJSONBodyAppUpdQoSProfileLatencyConstraints `json:"latencyConstraints,omitempty"`
+	// LatencyConstraints Latency requirements for the application.Allowed values (non-standardized) are none, low and ultra-low. Ultra-Low may corresponds to range 15 - 30 msec, Low correspond to range 30 - 50 msec. None means 51 and above
+	LatencyConstraints *LatencyConstraints `json:"latencyConstraints,omitempty"`
 
 	// MobilitySupport Indicates if an application is sensitive to user mobility and can be relocated. Default is “FALSE”
-	MobilitySupport *bool `json:"mobilitySupport,omitempty"`
+	MobilitySupport *MobilitySupport `json:"mobilitySupport,omitempty"`
 
 	// MultiUserClients Single user type application are designed to serve just one client. Multi user type application is designed to serve multiple clients
-	MultiUserClients *UpdateApplicationJSONBodyAppUpdQoSProfileMultiUserClients `json:"multiUserClients,omitempty"`
+	MultiUserClients *MultiUserClients `json:"multiUserClients,omitempty"`
 
 	// NoOfUsersPerAppInst Maximum no of clients that can connect to an instance of this application. This parameter is relevant only for application of type multi user
-	NoOfUsersPerAppInst *int `json:"noOfUsersPerAppInst,omitempty"`
+	NoOfUsersPerAppInst *NoOfUsersPerAppInst `json:"noOfUsersPerAppInst,omitempty"`
 	union               json.RawMessage
 }
 
@@ -1242,23 +2742,23 @@ type LockUnlockApplicationZoneJSONBody = []map[string]interface{}
 
 // UploadArtefactMultipartBody defines parameters for UploadArtefact.
 type UploadArtefactMultipartBody struct {
-	// AppProviderId UserId of the app provider. Identifier is relevant only in context of this federation.
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
 	AppProviderId AppProviderId `json:"appProviderId"`
 
 	// ArtefactDescription Brief description of the artefact by the application provider
-	ArtefactDescription *string `json:"artefactDescription,omitempty"`
+	ArtefactDescription *ArtefactDescription `json:"artefactDescription,omitempty"`
 
-	// ArtefactDescriptorType Type of descriptor present in the artefact. App provider can either define either a Helm chart or a Terraform script or container spec.
-	ArtefactDescriptorType UploadArtefactMultipartBodyArtefactDescriptorType `json:"artefactDescriptorType"`
+	// ArtefactDescriptorType Type of descriptor present in the artefact.  App provider can either define either a Helm chart or a Terraform script or container spec.
+	ArtefactDescriptorType ArtefactDescriptorType `json:"artefactDescriptorType"`
 
 	// ArtefactFile Helm archive/Terraform archive/container spec file or Binary image associated with an application component.
 	ArtefactFile *openapi_types.File `json:"artefactFile,omitempty"`
 
 	// ArtefactFileFormat Artefacts like Helm charts or Terraform scripts may need compressed format.
-	ArtefactFileFormat *UploadArtefactMultipartBodyArtefactFileFormat `json:"artefactFileFormat,omitempty"`
+	ArtefactFileFormat *ArtefactFileFormat `json:"artefactFileFormat,omitempty"`
 
 	// ArtefactFileName Name of the file.
-	ArtefactFileName *string `json:"artefactFileName,omitempty"`
+	ArtefactFileName *ArtefactFileName `json:"artefactFileName,omitempty"`
 
 	// ArtefactId A globally unique identifier associated with the artefact. Originating OP generates this identifier when artefact is submitted over NBI.
 	ArtefactId ArtefactId `json:"artefactId"`
@@ -1268,43 +2768,52 @@ type UploadArtefactMultipartBody struct {
 	ArtefactRepoLocation *ObjectRepoLocation `json:"artefactRepoLocation,omitempty"`
 
 	// ArtefactVersionInfo Artefact version information
-	ArtefactVersionInfo string                                      `json:"artefactVersionInfo"`
-	ArtefactVirtType    UploadArtefactMultipartBodyArtefactVirtType `json:"artefactVirtType"`
+	ArtefactVersionInfo ArtefactVersionInfo `json:"artefactVersionInfo"`
+	ArtefactVirtType    ArtefactVirtType    `json:"artefactVirtType"`
+	ComponentSpec       []ComponentSpec     `json:"componentSpec"`
 
-	// ComponentSpec Details about compute, networking and storage requirements for each component of the application. App provider should define all information needed to instantiate the component. If artefact is being defined at component level this section should have information just about the component. In case the artefact is being defined at application level the section should provide details about all the components.
-	ComponentSpec []ComponentSpec `json:"componentSpec"`
-
-	// RepoType Artefact or file repository location. PUBLICREPO is used of public URLs like GitHub, Helm repo, docker registry etc., PRIVATEREPO is used for private repo managed by the application developer, UPLOAD is for the case when artefact/file is uploaded from MEC web portal. OP should pull the image from ‘repoUrl' immediately after receiving the request and then send back the response. In case the repoURL corresponds to a docker registry, use docker v2 http api to do the pull.
-	RepoType *UploadArtefactMultipartBodyRepoType `json:"repoType,omitempty"`
+	// RepoType Artefact or file repository location. PUBLICREPO is used of public URLs like GitHub, Helm repo, docker registry etc., PRIVATEREPO is used for private repo managed by the application developer, UPLOAD is for the case when artefact/file is uploaded from MEC web portal.  OP should pull the image from ‘repoUrl' immediately after receiving the request and then send back the response. In case the repoURL corresponds to a docker registry, use docker v2 http api to do the pull.
+	RepoType *RepoType `json:"repoType,omitempty"`
 }
-
-// UploadArtefactMultipartBodyArtefactDescriptorType defines parameters for UploadArtefact.
-type UploadArtefactMultipartBodyArtefactDescriptorType string
-
-// UploadArtefactMultipartBodyArtefactFileFormat defines parameters for UploadArtefact.
-type UploadArtefactMultipartBodyArtefactFileFormat string
-
-// UploadArtefactMultipartBodyArtefactVirtType defines parameters for UploadArtefact.
-type UploadArtefactMultipartBodyArtefactVirtType string
-
-// UploadArtefactMultipartBodyRepoType defines parameters for UploadArtefact.
-type UploadArtefactMultipartBodyRepoType string
 
 // GetCandidateZonesJSONBody defines parameters for GetCandidateZones.
 type GetCandidateZonesJSONBody struct {
 	// AppId Identifier used to refer to an application.
 	AppId AppIdentifier `json:"appId"`
 
-	// AppProviderId UserId of the app provider. Identifier is relevant only in context of this federation.
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
 	AppProviderId        AppProviderId `json:"appProviderId"`
 	EdgeDiscoveryFilters *struct {
 		Location *ClientLocation `json:"location,omitempty"`
 	} `json:"edgeDiscoveryFilters,omitempty"`
 }
 
+// CreateEventSubscriptionJSONBody defines parameters for CreateEventSubscription.
+type CreateEventSubscriptionJSONBody struct {
+	EventSubscriptionConfig *EventSubscription `json:"eventSubscriptionConfig,omitempty"`
+}
+
+// GetAlarmsListParams defines parameters for GetAlarmsList.
+type GetAlarmsListParams struct {
+	AlarmType *AlarmType `form:"alarm_type,omitempty" json:"alarm_type,omitempty"`
+}
+
+// GetEventsListParams defines parameters for GetEventsList.
+type GetEventsListParams struct {
+	EventType *GetEventsListParamsEventType `form:"event_type,omitempty" json:"event_type,omitempty"`
+}
+
+// GetEventsListParamsEventType defines parameters for GetEventsList.
+type GetEventsListParamsEventType string
+
+// CreateEventCriterionJSONBody defines parameters for CreateEventCriterion.
+type CreateEventCriterionJSONBody struct {
+	EventCriterion *EventCriterion `json:"eventCriterion,omitempty"`
+}
+
 // UploadFileMultipartBody defines parameters for UploadFile.
 type UploadFileMultipartBody struct {
-	// AppProviderId UserId of the app provider. Identifier is relevant only in context of this federation.
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
 	AppProviderId AppProviderId `json:"appProviderId"`
 
 	// Checksum MD5 checksum for VM and file-based images, sha256 digest for containers
@@ -1314,38 +2823,35 @@ type UploadFileMultipartBody struct {
 	File *openapi_types.File `json:"file,omitempty"`
 
 	// FileDescription Brief description about the image file.
-	FileDescription *string `json:"fileDescription,omitempty"`
+	FileDescription *FileDescription `json:"fileDescription,omitempty"`
 
 	// FileId A globally unique identifier associated with the image file. Originating OP generates this identifier when file is uploaded over NBI.
 	FileId FileId `json:"fileId"`
 
-	// FileName Name of the image file.
+	// FileName Name of the image file.   App provides specifies this name when image is uploaded on originating OP over NBI.
 	FileName         FileName            `json:"fileName"`
 	FileRepoLocation *ObjectRepoLocation `json:"fileRepoLocation,omitempty"`
 
 	// FileType Indicate if the file is Container image or VM image (QCOW2, OVA)
 	FileType VirtImageType `json:"fileType"`
 
-	// FileVersionInfo File version information
-	FileVersionInfo string `json:"fileVersionInfo"`
+	// FileVersionInfo File version information.
+	FileVersionInfo FileVersionInfo `json:"fileVersionInfo"`
 
 	// ImgInsSetArch CPU Instruction Set Architecture (ISA) E.g., Intel, Arm etc.
 	ImgInsSetArch CPUArchType `json:"imgInsSetArch"`
 	ImgOSType     OSType      `json:"imgOSType"`
 
-	// RepoType Artefact or file repository location. PUBLICREPO is used of public URLs like GitHub, Helm repo, docker registry etc., PRIVATEREPO is used for private repo managed by the application developer, UPLOAD is for the case when artefact/file is uploaded from MEC web portal. OP should pull the image from ‘repoUrl' immediately after receiving the request and then send back the response. In case the repoURL corresponds to a docker registry, use docker v2 http api to do the pull.
-	RepoType *UploadFileMultipartBodyRepoType `json:"repoType,omitempty"`
+	// RepoType Artefact or file repository location. PUBLICREPO is used of public URLs like GitHub, Helm repo, docker registry etc., PRIVATEREPO is used for private repo managed by the application developer, UPLOAD is for the case when artefact/file is uploaded from MEC web portal.  OP should pull the image from ‘repoUrl' immediately after receiving the request and then send back the response. In case the repoURL corresponds to a docker registry, use docker v2 http api to do the pull.
+	RepoType *RepoType `json:"repoType,omitempty"`
 }
-
-// UploadFileMultipartBodyRepoType defines parameters for UploadFile.
-type UploadFileMultipartBodyRepoType string
 
 // CreateResourcePoolsJSONBody defines parameters for CreateResourcePools.
 type CreateResourcePoolsJSONBody struct {
 	// ResRequest Compute flavours to be reserved and their time duration
 	ResRequest struct {
 		Flavours []struct {
-			// FlavourId An identifier to refer to a specific combination of compute resources.
+			// FlavourId An identifier to refer to a specific combination of compute resources
 			FlavourId FlavourId `json:"flavourId"`
 
 			// MinNumOfFlavours If specified, indicate the minimum numbers of flavours to be reserved up to maximum as given in “count” member. If partner OP cannot reserve the minimum number of flavours, then the request shall fail.
@@ -1354,9 +2860,6 @@ type CreateResourcePoolsJSONBody struct {
 			// NumFlavour Total number of flavours to be reserved
 			NumFlavour int32 `json:"numFlavour"`
 		} `json:"flavours"`
-
-		// PoolId OP defined Identifier for the pool reserved for the ISV. It should be unique with an OP.
-		PoolId PoolId `json:"poolId"`
 
 		// PoolName ISV defined name of the resource pool.
 		PoolName PoolName `json:"poolName"`
@@ -1372,24 +2875,91 @@ type UpdateISVResPoolJSONBody = []struct {
 	// Count Total number of flavours to be reserved
 	Count int32 `json:"count"`
 
-	// FlavourId An identifier to refer to a specific combination of compute resources.
+	// FlavourId An identifier to refer to a specific combination of compute resources
 	FlavourId FlavourId `json:"flavourId"`
 
 	// ReserveDuration Time period for which resources are to be reserved starting from now
 	ReserveDuration *ResourceReservationDuration `json:"reserveDuration,omitempty"`
 
-	// UpdateType Specify if resource corresponding this flavour needs to added or removed. Field 'count' gives the final total no of such flavours that should be reserved. count 0 means remove all the resources.
+	// UpdateType Specify if resource corresponding this flavour needs to added or removed. Field 'count' gives the final total no of such flavours that should be reserved.  count 0 means remove all the resources.
 	UpdateType UpdateISVResPoolJSONBodyUpdateType `json:"updateType"`
 }
 
 // UpdateISVResPoolJSONBodyUpdateType defines parameters for UpdateISVResPool.
 type UpdateISVResPoolJSONBodyUpdateType string
 
+// SubscribeMonitoringInfoJSONBody defines parameters for SubscribeMonitoringInfo.
+type SubscribeMonitoringInfoJSONBody struct {
+	Periodicity               *PeriodicityInterval `json:"periodicity,omitempty"`
+	ResMonNotificationListner *Uri                 `json:"resMonNotificationListner,omitempty"`
+}
+
+// SubscribeMonitoringInfoParams defines parameters for SubscribeMonitoringInfo.
+type SubscribeMonitoringInfoParams struct {
+	MonType MonitoringSubsType `form:"monType" json:"monType"`
+}
+
+// CreateNetworkCapsEventSubscriptionJSONBody defines parameters for CreateNetworkCapsEventSubscription.
+type CreateNetworkCapsEventSubscriptionJSONBody struct {
+	NetworkCapsEventSubscriptionConfig PeriodicNotifConfig `json:"networkCapsEventSubscriptionConfig"`
+}
+
+// CreateNetworkCapEventJSONBody defines parameters for CreateNetworkCapEvent.
+type CreateNetworkCapEventJSONBody struct {
+	// AppId Identifier used to refer to an application.
+	AppId AppIdentifier `json:"appId"`
+
+	// AppProviderId UserId of the app provider.  Identifier is relevant only in context of this federation.
+	AppProviderId AppProviderId `json:"appProviderId"`
+
+	// TxnIdentifier A API transaction identifier generated by the Partner OP for each API request
+	TxnIdentifier *TxnIdentifier `json:"txnIdentifier,omitempty"`
+}
+
+// CreateNetworkCapEventParams defines parameters for CreateNetworkCapEvent.
+type CreateNetworkCapEventParams struct {
+	NwCapId CapabilityID `form:"nw-cap-id" json:"nw-cap-id"`
+}
+
+// DeleteNetworkCapSubscriptionParams defines parameters for DeleteNetworkCapSubscription.
+type DeleteNetworkCapSubscriptionParams struct {
+	NwEventId string `form:"nw-event-id" json:"nw-event-id"`
+}
+
+// GetNetworkCapsSubscribedListParams defines parameters for GetNetworkCapsSubscribedList.
+type GetNetworkCapsSubscribedListParams struct {
+	NwEventType string `form:"nw-event-type" json:"nw-event-type"`
+}
+
+// RegisterOperationPolicyJSONBody defines parameters for RegisterOperationPolicy.
+type RegisterOperationPolicyJSONBody struct {
+	// OpsConcretePolicy Application policy id and policy parameter value limits registered by the Originating OP
+	OpsConcretePolicy *OpsConcretePolicy `json:"opsConcretePolicy,omitempty"`
+}
+
+// RetrieveOpsPolicyTemplatesParams defines parameters for RetrieveOpsPolicyTemplates.
+type RetrieveOpsPolicyTemplatesParams struct {
+	OpsPolicyType *OpsPolicyType `form:"ops-policy-type,omitempty" json:"ops-policy-type,omitempty"`
+}
+
+// RetrieveOperationPolicyParams defines parameters for RetrieveOperationPolicy.
+type RetrieveOperationPolicyParams struct {
+	PolicySearchType *RetrieveOperationPolicyParamsPolicySearchType `form:"policy-search-type,omitempty" json:"policy-search-type,omitempty"`
+
+	// PolicySearchValue Refers to availability zone identifier
+	PolicySearchValue *string `form:"policy-search-value,omitempty" json:"policy-search-value,omitempty"`
+}
+
+// RetrieveOperationPolicyParamsPolicySearchType defines parameters for RetrieveOperationPolicy.
+type RetrieveOperationPolicyParamsPolicySearchType string
+
 // UpdateFederationJSONBody defines parameters for UpdateFederation.
 type UpdateFederationJSONBody struct {
 	// AddFixedNetworkIds List of network identifier associated with the fixed line network of the operator platform.
-	AddFixedNetworkIds  *FixedNetworkIds  `json:"addFixedNetworkIds,omitempty"`
-	AddMobileNetworkIds *MobileNetworkIds `json:"addMobileNetworkIds,omitempty"`
+	AddFixedNetworkIds  *FixedNetworkIds   `json:"addFixedNetworkIds,omitempty"`
+	AddMobileNetworkIds *MobileNetworkIds  `json:"addMobileNetworkIds,omitempty"`
+	AssocAppPolicies    *AssocApplPolicies `json:"assocAppPolicies,omitempty"`
+	AssocOpsPolicies    *AssocOpsPolicies  `json:"assocOpsPolicies,omitempty"`
 
 	// ModificationDate Date and time of the federation modification by the originating partner OP
 	ModificationDate time.Time                             `json:"modificationDate"`
@@ -1406,6 +2976,16 @@ type UpdateFederationJSONBodyObjectType string
 
 // UpdateFederationJSONBodyOperationType defines parameters for UpdateFederation.
 type UpdateFederationJSONBodyOperationType string
+
+// GetPlatformCapabilitiesParams defines parameters for GetPlatformCapabilities.
+type GetPlatformCapabilitiesParams struct {
+	CapType *CapabilityID `form:"capType,omitempty" json:"capType,omitempty"`
+}
+
+// GetZoneDataParams defines parameters for GetZoneData.
+type GetZoneDataParams struct {
+	ZoneId *ZoneIdentifier `form:"zoneId,omitempty" json:"zoneId,omitempty"`
+}
 
 // CreateFederationJSONRequestBody defines body for CreateFederation for application/json ContentType.
 type CreateFederationJSONRequestBody = FederationRequestData
@@ -1431,6 +3011,39 @@ type PartnerStatusLinkJSONRequestBody PartnerStatusLinkJSONBody
 // ResourceReservationCallbackLinkJSONRequestBody defines body for ResourceReservationCallbackLink for application/json ContentType.
 type ResourceReservationCallbackLinkJSONRequestBody ResourceReservationCallbackLinkJSONBody
 
+// CreateAlarmReportingSubscriptionJSONRequestBody defines body for CreateAlarmReportingSubscription for application/json ContentType.
+type CreateAlarmReportingSubscriptionJSONRequestBody CreateAlarmReportingSubscriptionJSONBody
+
+// APIForwardingJSONRequestBody defines body for APIForwarding for application/json ContentType.
+type APIForwardingJSONRequestBody APIForwardingJSONBody
+
+// ModifyApplicationPolicyJSONRequestBody defines body for ModifyApplicationPolicy for application/json ContentType.
+type ModifyApplicationPolicyJSONRequestBody = AssocApplPolicies
+
+// ApplyApplicationPolicyJSONRequestBody defines body for ApplyApplicationPolicy for application/json ContentType.
+type ApplyApplicationPolicyJSONRequestBody = AssocApplPolicies
+
+// RemoveApplicationPoliciesJSONRequestBody defines body for RemoveApplicationPolicies for application/json ContentType.
+type RemoveApplicationPoliciesJSONRequestBody = AssocApplPolicies
+
+// CreateApplicationEventSubscriptionJSONRequestBody defines body for CreateApplicationEventSubscription for application/json ContentType.
+type CreateApplicationEventSubscriptionJSONRequestBody CreateApplicationEventSubscriptionJSONBody
+
+// ModifyApplEventNotifSubscriptionJSONRequestBody defines body for ModifyApplEventNotifSubscription for application/json ContentType.
+type ModifyApplEventNotifSubscriptionJSONRequestBody ModifyApplEventNotifSubscriptionJSONBody
+
+// SubscribeApplsEvtNotifJSONRequestBody defines body for SubscribeApplsEvtNotif for application/json ContentType.
+type SubscribeApplsEvtNotifJSONRequestBody SubscribeApplsEvtNotifJSONBody
+
+// RetrieveAppsEventsInfoJSONRequestBody defines body for RetrieveAppsEventsInfo for application/json ContentType.
+type RetrieveAppsEventsInfoJSONRequestBody = RetrieveAppsEventsInfoJSONBody
+
+// RemoveAppsEventSubscriptionJSONRequestBody defines body for RemoveAppsEventSubscription for application/json ContentType.
+type RemoveAppsEventSubscriptionJSONRequestBody = RemoveAppsForNotif
+
+// RegisterApplicationPolicyJSONRequestBody defines body for RegisterApplicationPolicy for application/json ContentType.
+type RegisterApplicationPolicyJSONRequestBody RegisterApplicationPolicyJSONBody
+
 // InstallAppJSONRequestBody defines body for InstallApp for application/json ContentType.
 type InstallAppJSONRequestBody InstallAppJSONBody
 
@@ -1452,6 +3065,12 @@ type UploadArtefactMultipartRequestBody UploadArtefactMultipartBody
 // GetCandidateZonesJSONRequestBody defines body for GetCandidateZones for application/json ContentType.
 type GetCandidateZonesJSONRequestBody GetCandidateZonesJSONBody
 
+// CreateEventSubscriptionJSONRequestBody defines body for CreateEventSubscription for application/json ContentType.
+type CreateEventSubscriptionJSONRequestBody CreateEventSubscriptionJSONBody
+
+// CreateEventCriterionJSONRequestBody defines body for CreateEventCriterion for application/json ContentType.
+type CreateEventCriterionJSONRequestBody CreateEventCriterionJSONBody
+
 // UploadFileMultipartRequestBody defines body for UploadFile for multipart/form-data ContentType.
 type UploadFileMultipartRequestBody UploadFileMultipartBody
 
@@ -1461,11 +3080,194 @@ type CreateResourcePoolsJSONRequestBody CreateResourcePoolsJSONBody
 // UpdateISVResPoolJSONRequestBody defines body for UpdateISVResPool for application/json ContentType.
 type UpdateISVResPoolJSONRequestBody = UpdateISVResPoolJSONBody
 
+// SubscribeMonitoringInfoJSONRequestBody defines body for SubscribeMonitoringInfo for application/json ContentType.
+type SubscribeMonitoringInfoJSONRequestBody SubscribeMonitoringInfoJSONBody
+
+// CreateNetworkCapsEventSubscriptionJSONRequestBody defines body for CreateNetworkCapsEventSubscription for application/json ContentType.
+type CreateNetworkCapsEventSubscriptionJSONRequestBody CreateNetworkCapsEventSubscriptionJSONBody
+
+// CreateNetworkCapEventJSONRequestBody defines body for CreateNetworkCapEvent for application/json ContentType.
+type CreateNetworkCapEventJSONRequestBody CreateNetworkCapEventJSONBody
+
+// RemoveOperationPoliciesJSONRequestBody defines body for RemoveOperationPolicies for application/json ContentType.
+type RemoveOperationPoliciesJSONRequestBody = AssocOpsPolicies
+
+// RegisterOperationPolicyJSONRequestBody defines body for RegisterOperationPolicy for application/json ContentType.
+type RegisterOperationPolicyJSONRequestBody RegisterOperationPolicyJSONBody
+
+// ModifyOperationPolicyJSONRequestBody defines body for ModifyOperationPolicy for application/json ContentType.
+type ModifyOperationPolicyJSONRequestBody = AssocOpsPolicies
+
+// ApplyOperationPolicyJSONRequestBody defines body for ApplyOperationPolicy for application/json ContentType.
+type ApplyOperationPolicyJSONRequestBody = AssocOpsPolicies
+
 // UpdateFederationJSONRequestBody defines body for UpdateFederation for application/json ContentType.
 type UpdateFederationJSONRequestBody UpdateFederationJSONBody
 
 // ZoneSubscribeJSONRequestBody defines body for ZoneSubscribe for application/json ContentType.
 type ZoneSubscribeJSONRequestBody = ZoneRegistrationRequestData
+
+// AsAppComponents0 returns the union data inside the AppComponents_Item as a AppComponents0
+func (t AppComponents_Item) AsAppComponents0() (AppComponents0, error) {
+	var body AppComponents0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAppComponents0 overwrites any union data inside the AppComponents_Item as the provided AppComponents0
+func (t *AppComponents_Item) FromAppComponents0(v AppComponents0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAppComponents0 performs a merge with any union data inside the AppComponents_Item, using the provided AppComponents0
+func (t *AppComponents_Item) MergeAppComponents0(v AppComponents0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAppComponents1 returns the union data inside the AppComponents_Item as a AppComponents1
+func (t AppComponents_Item) AsAppComponents1() (AppComponents1, error) {
+	var body AppComponents1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAppComponents1 overwrites any union data inside the AppComponents_Item as the provided AppComponents1
+func (t *AppComponents_Item) FromAppComponents1(v AppComponents1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAppComponents1 performs a merge with any union data inside the AppComponents_Item, using the provided AppComponents1
+func (t *AppComponents_Item) MergeAppComponents1(v AppComponents1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAppComponents2 returns the union data inside the AppComponents_Item as a AppComponents2
+func (t AppComponents_Item) AsAppComponents2() (AppComponents2, error) {
+	var body AppComponents2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAppComponents2 overwrites any union data inside the AppComponents_Item as the provided AppComponents2
+func (t *AppComponents_Item) FromAppComponents2(v AppComponents2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAppComponents2 performs a merge with any union data inside the AppComponents_Item, using the provided AppComponents2
+func (t *AppComponents_Item) MergeAppComponents2(v AppComponents2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t AppComponents_Item) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if t.ArtefactId != nil {
+		object["artefactId"], err = json.Marshal(t.ArtefactId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'artefactId': %w", err)
+		}
+	}
+
+	object["componentName"], err = json.Marshal(t.ComponentName)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'componentName': %w", err)
+	}
+
+	if t.ServiceNameEW != nil {
+		object["serviceNameEW"], err = json.Marshal(t.ServiceNameEW)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'serviceNameEW': %w", err)
+		}
+	}
+
+	if t.ServiceNameNB != nil {
+		object["serviceNameNB"], err = json.Marshal(t.ServiceNameNB)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'serviceNameNB': %w", err)
+		}
+	}
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *AppComponents_Item) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["artefactId"]; found {
+		err = json.Unmarshal(raw, &t.ArtefactId)
+		if err != nil {
+			return fmt.Errorf("error reading 'artefactId': %w", err)
+		}
+	}
+
+	if raw, found := object["componentName"]; found {
+		err = json.Unmarshal(raw, &t.ComponentName)
+		if err != nil {
+			return fmt.Errorf("error reading 'componentName': %w", err)
+		}
+	}
+
+	if raw, found := object["serviceNameEW"]; found {
+		err = json.Unmarshal(raw, &t.ServiceNameEW)
+		if err != nil {
+			return fmt.Errorf("error reading 'serviceNameEW': %w", err)
+		}
+	}
+
+	if raw, found := object["serviceNameNB"]; found {
+		err = json.Unmarshal(raw, &t.ServiceNameNB)
+		if err != nil {
+			return fmt.Errorf("error reading 'serviceNameNB': %w", err)
+		}
+	}
+
+	return err
+}
 
 // AsServiceEndpoint0 returns the union data inside the ServiceEndpoint as a ServiceEndpoint0
 func (t ServiceEndpoint) AsServiceEndpoint0() (ServiceEndpoint0, error) {
@@ -1633,295 +3435,500 @@ func (t *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"///w/haYTKsBAA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

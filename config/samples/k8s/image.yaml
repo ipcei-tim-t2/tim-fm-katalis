@@ -1,0 +1,21 @@
+apiVersion: opg.ewbi.katalis.com/v1beta1
+kind: Image
+metadata:
+  namespace: guest
+  name: file-k8s
+spec:
+  relationType: GUEST
+  federationContextId: c02456b8f-f53e-5894-921e-03c7db7e0ec6
+  imageId: 123e4567-e89b-12d3-a456-426614174000
+  imageBody:
+    appProviderId: nearbycomputing
+    imageName: "nginx_latest"
+    imageDescription: "nginx_latest"
+    imageType: DOCKER
+    imageVersionInfo: "latest"
+    imgOSType:
+      architecture: x86_64
+      distribution: UBUNTU
+      license: OS_LICENSE_TYPE_FREE
+      version: OS_VERSION_UBUNTU_2204_LTS
+    imgInsSetArch: ISA_X86_64

@@ -21,10 +21,12 @@ import (
 	"errors"
 
 	"github.com/go-logr/logr"
+	"github.com/google/uuid"
 	opgmodels "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/multipart"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
+	uu "github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -49,14 +51,22 @@ const (
 func (r *ArtefactReconciler) CreateArtefact(ctx context.Context, a *v1beta1.Artefact, feder *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 	components := []opgmodels.ComponentSpec{}
-	for _, c := range a.Spec.ComponentSpec {
+	for _, c := range a.Spec.ArtefactBody.ComponentSpec {
+		imagesIds := []opgmodels.FileId{}
+		for _, i := range c.Images {
+			imageId, err := uuid.Parse(i)
+			if err != nil {
+				return err
+			}
+			imagesIds = append(imagesIds, opgmodels.FileId(imageId))
+		}
 		components = append(components, opgmodels.ComponentSpec{
 			CommandLineParams: &opgmodels.CommandLineParams{
 				Command:     c.CommandLineParams.Command,
-				CommandArgs: &c.CommandLineParams.Args,
+				CommandArgs: &c.CommandLineParams.CommandArgs,
 			},
 			// CompEnvParams:          &[]opgmodels.CompEnvParams{},
-			ComponentName: c.Name,
+			ComponentName: c.ComponentName,
 			ComputeResourceProfile: opgmodels.ComputeResourceInfo{
 				CpuArchType:    opgmodels.ComputeResourceInfoCpuArchType(c.ComputeResourceProfile.CPUArchType),
 				CpuExclusivity: &c.ComputeResourceProfile.CPUExclusivity,
@@ -70,22 +80,25 @@ func (r *ArtefactReconciler) CreateArtefact(ctx context.Context, a *v1beta1.Arte
 			},
 			// DeploymentConfig:  &opgmodels.DeploymentConfig{},
 			ExposedInterfaces: &[]opgmodels.InterfaceDetails{},
-			Images:            c.Images,
+			Images:            imagesIds,
 			NumOfInstances:    int32(c.NumOfInstances),
 			// PersistentVolumes: &[]opgmodels.PersistentVolumeDetails{},
 			RestartPolicy: opgmodels.ComponentSpecRestartPolicy(c.RestartPolicy),
 		})
 	}
-
+	artefactId, err := uuid.Parse("art-" + uu.V5(a.Spec.FederationContextId+a.Spec.ArtefactBody.AppProviderId+a.Spec.ArtefactId))
+	if err != nil {
+		return err
+	}
 	reqBody := opgmodels.UploadArtefactMultipartBody{
-		AppProviderId:          a.Spec.AppProviderId,
-		ArtefactDescriptorType: opgmodels.UploadArtefactMultipartBodyArtefactDescriptorType(a.Spec.DescriptorType),
-		ArtefactId:             a.Labels[v1beta1.ExternalIdLabel],
-		ArtefactName:           a.Spec.ArtefactName,
+		AppProviderId:          a.Spec.ArtefactBody.AppProviderId,
+		ArtefactDescriptorType: opgmodels.ArtefactDescriptorType(a.Spec.ArtefactBody.ArtefactDescriptorType),
+		ArtefactId:             artefactId,
+		ArtefactName:           a.Spec.ArtefactBody.ArtefactName,
 		// ArtefactRepoLocation:   &opgmodels.ObjectRepoLocation{}
 		// RepoType:            &"",
-		ArtefactVersionInfo: a.Spec.ArtefactVersion,
-		ArtefactVirtType:    opgmodels.UploadArtefactMultipartBodyArtefactVirtType(a.Spec.VirtType),
+		ArtefactVersionInfo: a.Spec.ArtefactBody.ArtefactVersionInfo,
+		ArtefactVirtType:    opgmodels.ArtefactVirtType(a.Spec.ArtefactBody.ArtefactVirtType),
 		ComponentSpec:       components,
 	}
 
@@ -94,14 +107,17 @@ func (r *ArtefactReconciler) CreateArtefact(ctx context.Context, a *v1beta1.Arte
 		log.Error(err, ">>> [Artefact][REST] Error serializing multipart body")
 		return err
 	}
-
+	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
+	if err != nil {
+		return err
+	}
 	res, err := r.GetOPGClient(
-		feder.Labels[v1beta1.ExternalIdLabel],
-		feder.Spec.GuestPartnerCredentials.TokenUrl,
-		feder.Spec.GuestPartnerCredentials.ClientId,
+		fedId.String(),
+		feder.Spec.FederationData.RestOptions.TokenUrl,
+		feder.Spec.FederationData.ClientId,
 	).UploadArtefactWithBodyWithResponse(
 		context.TODO(),
-		feder.Status.FederationContextId,
+		a.Spec.FederationContextId,
 		contentType,
 		body)
 
@@ -158,14 +174,22 @@ func (r *ArtefactReconciler) DeleteArtefact(ctx context.Context, a *v1beta1.Arte
 	log := log.FromContext(ctx)
 	log.Info(">>> [Artefact][REST] Deleting external Artefact")
 	// we should delete the Artefact
+	artefactId, err := uuid.Parse("art-" + uu.V5(a.Spec.FederationContextId+a.Spec.ArtefactBody.AppProviderId+a.Spec.ArtefactId))
+	if err != nil {
+		return err
+	}
+	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
+	if err != nil {
+		return err
+	}
 	res, err := r.GetOPGClient(
-		feder.Labels[v1beta1.ExternalIdLabel],
-		feder.Spec.GuestPartnerCredentials.TokenUrl,
-		feder.Spec.GuestPartnerCredentials.ClientId,
+		fedId.String(),
+		feder.Spec.FederationData.RestOptions.TokenUrl,
+		feder.Spec.FederationData.ClientId,
 	).RemoveArtefactWithResponse(
 		context.TODO(),
 		feder.Status.FederationContextId,
-		a.Labels[v1beta1.ExternalIdLabel],
+		artefactId,
 	)
 	if err != nil {
 		log.Error(err, ">>> [Artefact][REST] Error deleting artefact")
@@ -216,29 +240,34 @@ func (r *ArtefactReconciler) DeleteArtefact(ctx context.Context, a *v1beta1.Arte
 	return nil
 }
 
-func (r *ArtefactReconciler) CallbackArtefact(ctx context.Context, a *v1beta1.Artefact, feder *v1beta1.Federation) error {
+func (r *ArtefactReconciler) UpdateArtefactStatus(ctx context.Context, a *v1beta1.Artefact, feder *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 	// Check if callback is configured
-	if feder.Spec.Partner.StatusLink == "" {
-		log.Info(">>> [Artefact][REST] No callback StatusLink configured in Federation, skipping App callback")
+	if a.Spec.ArtefactNotifLink == "" {
+		log.Info(">>> [Artefact][REST] No callback StatusLink configured in Artefact, skipping App callback")
 		return nil
 	}
-	log.Info(">>> [Artefact][REST] Sending App callback to Guest",
-		"appId", a.Labels[v1beta1.ExternalIdLabel],
-		"state", a.Status.State,
-		"statusLink", feder.Spec.Partner.StatusLink)
+	log.Info(">>> [Artefact][REST] Sending App callback to Guest")
+	artefactId, err := uuid.Parse("art-" + uu.V5(a.Spec.FederationContextId+a.Spec.ArtefactBody.AppProviderId+a.Spec.ArtefactId))
+	if err != nil {
+		return err
+	}
 	callbackBody := opgmodels.ArtefactStatusCallbackLinkJSONRequestBody{
-		ArtefactId:   a.Labels[v1beta1.ExternalIdLabel],
+		ArtefactId:   artefactId,
 		UpdateStatus: opgmodels.ArtefactStatusCallbackLinkJSONBodyUpdateStatus(a.Status.State),
+	}
+	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
+	if err != nil {
+		return err
 	}
 	// Get callback client (pointing to Guest's callback URL via Federation.spec.partner.statusLink)
 	res, err := r.GetOPGClient(
-		feder.Labels[v1beta1.ExternalIdLabel],
-		feder.Spec.Partner.StatusLink,
-		feder.Spec.Partner.CallbackCredentials.ClientId,
+		fedId.String(),
+		a.Spec.ArtefactNotifLink,
+		feder.Spec.FederationData.ClientId,
 	).ArtefactStatusCallbackLinkWithResponse(
 		context.TODO(),
-		feder.Spec.Partner.CallbackCredentials.ClientId,
+		feder.Spec.FederationData.ClientId,
 		callbackBody)
 
 	if err != nil {

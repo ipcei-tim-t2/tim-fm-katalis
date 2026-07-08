@@ -18,16 +18,13 @@ package k8s
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8stypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // FederationReconciler reconciles a Federation object
@@ -37,200 +34,96 @@ type FederationReconciler struct {
 	opg.OPGClientsMapInterface
 }
 
-func (r *FederationReconciler) CreateFederation(ctx context.Context, f *v1beta1.Federation) (statusChanged bool, err error) {
-	log := log.FromContext(ctx)
-	log.Info(">>> [Federation][K8s] Using Kubernetes API to create federation")
-	log.Info(">>> [Federation][K8s] Retrieving kubeconfig from secret")
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r.Client, f.Labels[v1beta1.FederationSecretNameLabel], f.Namespace)
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error getting kubeconfig from secret")
-		return false, err
-	}
-	log.Info(">>> [Federation][K8s] Building dynamic client with kubeconfig")
-	hostClient, err := BuildClientWithKubeconfig(kubeconfigBytes, f.Labels[v1beta1.FederationHostOPLabel])
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error building client with kubeconfig")
-		return false, err
-	}
-	fedPatch, err := json.Marshal(map[string]interface{}{
-		"spec": map[string]interface{}{
-			"initialDate": f.Spec.InitialDate.Format("2006-01-02T15:04:05Z"),
-			"originOP": map[string]interface{}{
-				"countryCode":       f.Spec.OriginOP.CountryCode,
-				"fixedNetworkCodes": f.Spec.OriginOP.FixedNetworkCodes,
-				"mobileNetworkCodes": map[string]interface{}{
-					"mcc":  f.Spec.OriginOP.MobileNetworkCodes.MCC,
-					"mncs": f.Spec.OriginOP.MobileNetworkCodes.MNC,
-				},
-			},
-			"partner": map[string]interface{}{
-				"callbackCredentials": map[string]interface{}{
-					"clientId": f.Spec.Partner.CallbackCredentials.ClientId,
-				},
-				"statusLink": f.Spec.Partner.StatusLink,
+func (r *FederationReconciler) CreateFederation(ctx context.Context, fed *v1beta1.Federation) error {
+	fedHost := &v1beta1.Federation{
+		TypeMeta: fed.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()),
+			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+			Labels: map[string]string{
+				v1beta1.FederationPolicyLabel: fed.Labels[v1beta1.FederationPolicyLabel],
 			},
 		},
-	})
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error marshaling federation patch")
-		return false, err
+		Spec: v1beta1.FederationSpec{
+			FederationData: &v1beta1.FederationData{
+				OrigOPFederationId: fed.Spec.FederationData.OrigOPFederationId,
+				InitialDate:        fed.Spec.FederationData.InitialDate,
+				RelationType:       string(v1beta1.FederationRelationHost),
+				TechnologyType:     string(v1beta1.FederationTechnologyK8s),
+				K8sOptions: &v1beta1.K8sOptions{
+					Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+				},
+			},
+		},
 	}
-	log.Info(">>> [Federation][K8s] Patching Federation resource in host cluster")
-	err = PatchK8sResource(ctx, hostClient, "opg.ewbi.nby.one", "v1beta1", "federations", f.Labels[v1beta1.FederationNamespaceLabel], f.Labels[v1beta1.FederationHostIdLabel], k8stypes.PatchType("application/merge-patch+json"), fedPatch)
+	err := ApplyRemoteResource(ctx, r.Client, r.Scheme, fed, fedHost, &v1beta1.Federation{}, fed.Name, fed.Namespace, v1beta1.GroupVersion.Group, v1beta1.GroupVersion.Version, v1beta1.PluralFederation, "federation-controller", "[Federation][K8s]")
 	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Failed to apply patch to target cluster resource")
-		return false, err
-	}
-	log.Info(">>> [Federation][K8s] Successfully patched Federation resource in host cluster")
-	StartRemoteResourceWatcher(ctx, hostClient, f.Labels[v1beta1.FederationNamespaceLabel], f.Name, f.Namespace, "opg.ewbi.nby.one", "v1beta1", "federations")
-	return true, nil
-}
-
-func (r *FederationReconciler) SyncStatusWithHost(ctx context.Context, f *v1beta1.Federation) error {
-	log := log.FromContext(ctx)
-	log.Info(">>> [Federation][K8s] Syncing federation status with host cluster")
-	log.Info(">>> [Federation][K8s] Retrieve current state from host federation")
-	log.Info(">>> [Federation][K8s] Using Kubernetes API to create federation")
-	log.Info(">>> [Federation][K8s] Retrieving kubeconfig from secret")
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r.Client, f.Labels[v1beta1.FederationSecretNameLabel], f.Namespace)
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error getting kubeconfig from secret")
 		return err
-	}
-	log.Info(">>> [Federation][K8s] Building dynamic client with kubeconfig")
-	hostClient, err := BuildClientWithKubeconfig(kubeconfigBytes, f.Labels[v1beta1.FederationHostOPLabel])
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error building client with kubeconfig")
-		return err
-	}
-	hostFed, err := GetK8sResource(ctx, hostClient, "opg.ewbi.nby.one", "v1beta1", "federations", f.Labels[v1beta1.FederationNamespaceLabel], f.Labels[v1beta1.FederationHostIdLabel])
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Failed to get federation resource from target cluster")
-		return err // Errore di rete, riproviamo
-	}
-	offeredAZs, azFound, _ := unstructured.NestedSlice(hostFed.Object, "spec", "offeredAvailabilityZones")
-	// log.Info(">>> [Federation][K8s] Zones:", "offeredAZs", offeredAZs)
-	federationContextId, ctxFound, _ := unstructured.NestedString(hostFed.Object, "status", "federationContextId")
-	if !azFound || !ctxFound {
-		log.Info(">>> [Federation][K8s] Remote data not yet ready. Waiting for watch events...")
-		return nil
-	}
-
-	zones := []v1beta1.ZoneDetails{}
-	for _, zRaw := range offeredAZs {
-		// Il parsing da interface{} dipende dalla struttura esatta della tua AZ
-		zMap := zRaw.(map[string]interface{})
-		zones = append(zones, v1beta1.ZoneDetails{
-			// Estrai i dati mappandoli correttamente, es:
-			// ZoneId: zMap["zoneId"].(string),
-			ZoneId:           zMap["zoneId"].(string),
-			Geolocation:      zMap["geolocation"].(string),
-			GeographyDetails: zMap["geographyDetails"].(string),
-		})
-	}
-
-	if compareSameAZs(f.Status.OfferedAvailabilityZones, zones) &&
-		f.Status.State == v1beta1.FederationStateAvailable {
-		return nil // Tutto è già allineato
-	}
-
-	f.Status.OfferedAvailabilityZones = zones
-	f.Status.State = v1beta1.FederationStateAvailable
-	f.Status.FederationContextId = federationContextId
-
-	upErr := r.Status().Update(ctx, f.DeepCopy())
-	if upErr != nil {
-		log.Error(upErr, ">>> [Federation][K8s] Error Updating resource status", "federation", f.Name)
-		return upErr
 	}
 	return nil
 }
 
-func compareSameAZs(s1, s2 []v1beta1.ZoneDetails) bool {
-	if len(s1) != len(s2) {
-		return false
+func (r *FederationReconciler) PatchFederation(ctx context.Context, fed *v1beta1.Federation) error {
+	fedHost := &v1beta1.Federation{
+		TypeMeta: fed.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()),
+			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+		},
 	}
+	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
 
-	set := make(map[string]bool)
-	for _, v := range s1 {
-		set[v.ZoneId] = true
+	if err := PatchRemoteResource(
+		ctx, r.Client, r.Scheme, fed, fedHost,
+		fed.Name, fed.Namespace,
+		v1beta1.GroupVersion.Group, v1beta1.GroupVersion.Version, v1beta1.PluralFederation,
+		"[Federation][K8s]",
+	); err != nil {
+		return err
 	}
+	return nil
+}
 
-	for _, v := range s2 {
-		if !set[v.ZoneId] {
-			return false
+func (r *FederationReconciler) GetHealthFederation(ctx context.Context, fed *v1beta1.Federation) error {
+	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	return nil
+}
+
+func (r *FederationReconciler) GetPlatformCapsFederation(ctx context.Context, fed *v1beta1.Federation) error {
+	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	return nil
+}
+
+func (r *FederationReconciler) GetServiceAPIFederation(ctx context.Context, fed *v1beta1.Federation) error {
+
+	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	return nil
+}
+
+func (r *FederationReconciler) RenewalFederation(ctx context.Context, fed *v1beta1.Federation) error {
+
+	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	return nil
+}
+
+// WATCHER
+func (r *FederationReconciler) UpdateFederationStatus(ctx context.Context, fed *v1beta1.Federation) error {
+	fedHost := &v1beta1.Federation{}
+	remoteName := "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String())
+	if err := GetRemoteResource(ctx, r.Client, r.Scheme, fed, fedHost, remoteName, fed.Name, fed.Namespace, "[Federation][K8s]"); err != nil {
+		return err
+	}
+	if len(fedHost.Status.ZoneDetails) != 0 {
+		if CompareSameAZs(fed.Status.ZoneDetails, fedHost.Status.ZoneDetails) && fed.Status.State == v1beta1.FederationStateAvailable {
+			return nil
 		}
 	}
-
-	return true
-}
-
-func (r *FederationReconciler) AcceptExternalAZ(ctx context.Context, f *v1beta1.Federation) error {
-	log := log.FromContext(ctx)
-	if len(f.Status.OfferedAvailabilityZones) == 0 {
-		log.Info(">>> [Federation][K8s] No offered AZs discovered from host yet, skipping acceptance for now")
-		return nil
-	}
-	az := f.Status.OfferedAvailabilityZones[0].ZoneId
-	if len(f.Spec.AcceptedAvailabilityZones) > 0 && f.Spec.AcceptedAvailabilityZones[0] == az {
-		log.Info(">>> [Federation][K8s] AZ already accepted locally, skipping patch")
-		return nil
-	}
-	log.Info(">>> [Federation][K8s] Accepting AZ in Kubernetes federation via cross-cluster patch", "az", az)
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r.Client, f.Labels[v1beta1.FederationSecretNameLabel], f.Namespace)
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error getting kubeconfig from secret")
-		return err
-	}
-	log.Info(">>> [Federation][K8s] Building dynamic client with kubeconfig")
-	hostClient, err := BuildClientWithKubeconfig(kubeconfigBytes, f.Labels[v1beta1.FederationHostOPLabel])
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error building client with kubeconfig")
-		return err
-	}
-	fedPatch, err := json.Marshal(map[string]interface{}{
-		"spec": map[string]interface{}{
-			"acceptedAvailabilityZones": []string{az},
-		},
-	})
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error marshaling patch")
-		return err
-	}
-	err = PatchK8sResource(ctx, hostClient, "opg.ewbi.nby.one", "v1beta1", "federations", f.Labels[v1beta1.FederationNamespaceLabel], f.Labels[v1beta1.FederationHostIdLabel], k8stypes.PatchType("application/merge-patch+json"), fedPatch)
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Failed to apply patch to target cluster resource")
-		return err
-	}
-	log.Info(">>> [Federation][K8s] Successfully patched Federation resource in host cluster")
-	f.Spec.AcceptedAvailabilityZones = []string{az}
-	if err := r.Update(ctx, f.DeepCopy()); err != nil {
-		log.Error(err, ">>> [Federation][K8s] Failed to update local spec with accepted AZ")
-		return err
-	}
+	fed.Status = fedHost.Status
 	return nil
 }
 
-func (r *FederationReconciler) DeleteFederation(ctx context.Context, f *v1beta1.Federation) error {
-	log := log.FromContext(ctx)
-	log.Info(">>> [Federation][K8s] Deleting external federation via Kubernetes API")
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r.Client, f.Labels[v1beta1.FederationSecretNameLabel], f.Namespace)
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error getting kubeconfig from secret")
-		return err
-	}
-	log.Info(">>> [Federation][K8s] Building dynamic client with kubeconfig")
-	hostClient, err := BuildClientWithKubeconfig(kubeconfigBytes, f.Labels[v1beta1.FederationHostOPLabel])
-	if err != nil {
-		log.Error(err, ">>> [Federation][K8s] Error building client with kubeconfig")
-		return err
-	}
-	err = DeleteK8sResource(ctx, hostClient, "opg.ewbi.nby.one", "v1beta1", "federations", f.Labels[v1beta1.FederationNamespaceLabel], f.Labels[v1beta1.FederationHostIdLabel])
-	if err != nil && !apierrors.IsNotFound(err) {
-		log.Error(err, ">>> [Federation][K8s] Failed to delete federation resource from target cluster")
-		return err
-	}
-	log.Info(">>> [Federation][K8s] Stopping background watcher for remote host")
-	StopRemoteResourceWatcher(f.Labels[v1beta1.FederationHostIdLabel], f.Name)
-	return nil
+// DeleteFederation
+func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta1.Federation) error {
+	remoteName := "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String())
+	return DeleteRemoteResource(ctx, r.Client, r.Scheme, fed, &v1beta1.Federation{}, remoteName, fed.Name, fed.Namespace, "[Federation][K8s]")
 }
