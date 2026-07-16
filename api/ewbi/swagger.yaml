@@ -146,7 +146,6 @@ components:
       description: UserId of the app provider.  Identifier is relevant only in context of this federation.
     ArtefactId:
       type: string
-      format: uuid
       description: A globally unique identifier associated with the artefact. Originating OP generates this identifier when artefact is submitted over NBI.
     CountryCode:
       type: string
@@ -174,7 +173,6 @@ components:
     TransactionId:
       description: A unique transaction id for this request in UUID format. It is used for tracking the request
       example: ab1d6gh5-79c2-3256-7hvb-d897549x40f7
-      format: uuid
       type: string
     Ipv4Addr:
       type: string
@@ -210,7 +208,6 @@ components:
       description: Globally unique identifier allocated to an operator platform. This is valid and used only in context of MEC federation interface.
     FileId:
       type: string
-      format: uuid
       description: A globally unique identifier associated with the image file. Originating OP generates this identifier when file is uploaded over NBI.
     FileName:
       type: string
@@ -397,7 +394,6 @@ components:
           $ref: '#/components/schemas/dateAndTimeZoneObject'
         subscriptionId:
           type: string
-          format: uuid
           description: Partner OP managed identifier for new subscription.
     utilizationValue:
       type: object
@@ -708,7 +704,6 @@ components:
           $ref: '#/components/schemas/periodicityInterval'
         subscriptionId:
           type: string
-          format: uuid
     eventCriterion:
       type: object
       required:
@@ -885,7 +880,6 @@ components:
       properties:
         networkEventId:
           type: string
-          format: uuid
           description: Unique identifier allocated for a network event
         capabilityId:
           $ref: '#/components/schemas/CapabilityID'
@@ -922,11 +916,9 @@ components:
       description: List of events detected
     EventSubscriptionIdentifier:
       type: string
-      format: uuid
       description: Event subscription identifier allocated for enabling event reporting
     EventIdentifier:
       type: string
-      format: uuid
       description: Event identifier allocated for event detected
     SubscriptionIdentifier:
       type: object
@@ -935,7 +927,6 @@ components:
       properties:
         subsId:
           type: string
-          format: uuid
           description: Generic subscription identifier
     AlarmObjectInfo:
       type: object
@@ -1170,7 +1161,6 @@ components:
       description: List of public IP addresses MNO manages for UEs to connect with public data networks
     customerID:
       type: string
-      format: uuid
       description: Leading OP managed identifier associated to API Provider of the Leading OP.
     txnIdentifier:
       type: string
