@@ -21,6 +21,7 @@ import (
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,11 +36,10 @@ type ZoneReconciler struct {
 
 // Accept/Create
 func (r *ZoneReconciler) AcceptZone(ctx context.Context, zone *v1beta1.AvailabilityZone, fed *v1beta1.Federation) error {
-
 	zoneHome := &v1beta1.AvailabilityZone{
 		TypeMeta: zone.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      zone.Name,
+			Name:      "zone-" + uuid.V5(zone.Spec.ZoneId+zone.Spec.FederationContextId),
 			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
 		},
 		Spec: v1beta1.AvailabilityZoneSpec{
@@ -48,17 +48,41 @@ func (r *ZoneReconciler) AcceptZone(ctx context.Context, zone *v1beta1.Availabil
 			ZoneId:              zone.Spec.ZoneId,
 		},
 	}
-	if err := ApplyRemoteResource(ctx, r.Client, r.Scheme, fed, zoneHome, &v1beta1.AvailabilityZone{}, zone.Name, zone.Namespace, v1beta1.GroupVersion.Group, v1beta1.GroupVersion.Version, v1beta1.PluralAvailabilityZone, "availabilityzone-controller", "[AvailabilityZone][K8s]"); err != nil {
+	if err := ApplyRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		zoneHome,
+		&v1beta1.AvailabilityZone{},
+		zone.Name,
+		zone.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralAvailabilityZone,
+		"availabilityzone-controller",
+		"[AZ][K8s]",
+	); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Delete
-func (r *ZoneReconciler) DeleteZone(ctx context.Context, zone *v1beta1.AvailabilityZone, fed *v1beta1.Federation) error {
+// Update
+func (r *ZoneReconciler) UpdateZoneStatus(ctx context.Context, zone *v1beta1.AvailabilityZone, fed *v1beta1.Federation) error {
 	zoneHost := &v1beta1.AvailabilityZone{}
-	remoteName := zone.Name
-	if err := GetRemoteResource(ctx, r.Client, r.Scheme, fed, zoneHost, remoteName, zone.Name, zone.Namespace, "[AvailabilityZone][K8s]"); err != nil {
+	remoteName := "zone-" + uuid.V5(zone.Spec.ZoneId+zone.Spec.FederationContextId)
+	if err := GetRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		zoneHost,
+		remoteName,
+		zone.Name,
+		zone.Namespace,
+		"[AZ][K8s]",
+	); err != nil {
 		return err
 	}
 	zone.Status = zoneHost.Status
@@ -66,8 +90,17 @@ func (r *ZoneReconciler) DeleteZone(ctx context.Context, zone *v1beta1.Availabil
 }
 
 // Update (Watcher)
-func (r *ZoneReconciler) UpdateZoneStatus(ctx context.Context, zone *v1beta1.AvailabilityZone, fed *v1beta1.Federation) error {
-	// remoteName := zone.Name
-	// return DeleteRemoteResource(ctx, r.Client, r.Scheme, fed, &v1beta1.AvailabilityZone{}, remoteName, zone.Name, zone.Namespace, "[AvailabilityZone][K8s]")
-	return nil
+func (r *ZoneReconciler) DeleteZone(ctx context.Context, zone *v1beta1.AvailabilityZone, fed *v1beta1.Federation) error {
+	remoteName := "zone-" + uuid.V5(zone.Spec.ZoneId+zone.Spec.FederationContextId)
+	return DeleteRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed, &v1beta1.AvailabilityZone{},
+		remoteName,
+		zone.Name,
+		zone.Namespace,
+		"[AZ][K8s]",
+	)
+
 }

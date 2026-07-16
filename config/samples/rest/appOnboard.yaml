@@ -1,0 +1,20 @@
+apiVersion: opg.ewbi.katalis.com/v1beta1
+kind: ApplicationOnboarding
+metadata:
+  namespace: guest
+  name: apponboard-45559f1bre564rhr54fe 
+spec:
+  relationType: GUEST
+  federationContextId: 3d559f1b-f008-58c2-a2f8-0596892a0f7a # get this from Federation's status
+  appInfo:
+    appStatusCallbackLink:  "http://tim-fm-api.host.svc.cluster.local:6443"
+    appId: 3e559f1b-f008-58c2-a2f8-0596892a0f7a
+    appProviderId: nearbycomputing
+    appDeploymentZones:
+      - zoneId: 2344e4567-e89b-12d3-a456-426614174000
+        countryCode: IT
+    appMetaData:
+      appName: appName
+      version: 1.0.0
+      accessToken: accessToken
+      appDescription: This is a sample application for onboarding

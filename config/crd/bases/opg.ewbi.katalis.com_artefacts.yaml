@@ -17,6 +17,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.relationType
+      name: relationType
+      type: string
     - jsonPath: .spec.federationContextId
       name: federationContextId
       type: string
@@ -25,9 +28,6 @@ spec:
       type: string
     - jsonPath: .status.state
       name: state
-      type: string
-    - jsonPath: .status.lastUpdated
-      name: lastUpdated
       type: string
     name: v1beta1
     schema:
@@ -192,11 +192,6 @@ spec:
                               type: integer
                             numCPU:
                               type: string
-                          required:
-                          - cpuArchType
-                          - cpuExclusivity
-                          - memory
-                          - numCPU
                           type: object
                         deploymentConfig:
                           description: Configuration used when deploying a component.
@@ -236,11 +231,6 @@ spec:
                                 type: string
                               visibilityType:
                                 type: string
-                            required:
-                            - interfaceId
-                            - port
-                            - protocol
-                            - visibilityType
                             type: object
                           minItems: 1
                           type: array
@@ -385,13 +375,11 @@ spec:
               state:
                 description: Current state of the artefact upload
                 enum:
-                - Pending
-                - Uploading
-                - Uploaded
-                - Failed
+                - PENDING
+                - READY
+                - ERROR
+                - UNKNOWN
                 type: string
-            required:
-            - state
             type: object
         required:
         - spec

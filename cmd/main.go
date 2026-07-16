@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	unableToCreateControllerMsg = "Unable to create controller"
+	unableToCreateControllerMsg = ">>> [MAIN]Unable to create controller"
 )
 
 var (
@@ -61,7 +61,6 @@ func init() {
 	utilruntime.Must(opgewbiv1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
-
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -107,7 +106,7 @@ func main() {
 	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
 	// - https://github.com/advisories/GHSA-4374-p667-p6c8
 	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("Disabling http/2")
+		setupLog.Info(">>> [MAIN] Disabling http/2")
 		c.NextProtos = []string{"http/1.1"}
 	}
 
@@ -173,13 +172,13 @@ func main() {
 	})
 
 	if err != nil {
-		setupLog.Error(err, "Unable to start manager")
+		setupLog.Error(err, ">>> [MAIN] Unable to start manager")
 		os.Exit(1)
 	}
 
 	opgClientOpts := []opg.OPGClientsMapOpt{}
 	if opgInsecureSkipVerify {
-		setupLog.Info("INSECURE: disabling CA cert verification in https requests to federation partners")
+		setupLog.Info(">>> [MAIN] INSECURE: disabling CA cert verification in https requests to federation partners")
 		opgClientOpts = append(opgClientOpts, opg.WithInsecureSkipVerify())
 	}
 	opgClients := opg.NewOPGClientsMap(opgClientOpts...)
@@ -200,6 +199,24 @@ func main() {
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, unableToCreateControllerMsg, "controller", "Federation")
+		os.Exit(1)
+	}
+	if err = (&controller.ZoneReconciler{
+		Client:                 mgr.GetClient(),
+		Scheme:                 mgr.GetScheme(),
+		OPGClientsMapInterface: opgClients,
+		K8sClient: &k8s.ZoneReconciler{
+			Client:                 mgr.GetClient(),
+			Scheme:                 mgr.GetScheme(),
+			OPGClientsMapInterface: opgClients,
+		},
+		RestClient: &rest.ZoneReconciler{
+			Client:                 mgr.GetClient(),
+			Scheme:                 mgr.GetScheme(),
+			OPGClientsMapInterface: opgClients,
+		},
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, unableToCreateControllerMsg, "controller", "Zone")
 		os.Exit(1)
 	}
 	if err = (&controller.ImageReconciler{
@@ -274,27 +291,20 @@ func main() {
 		setupLog.Error(err, unableToCreateControllerMsg, "controller", "ApplicationDeployment")
 		os.Exit(1)
 	}
-	if err = (&controller.AvailabilityZoneReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, unableToCreateControllerMsg, "controller", "AvailabilityZone")
-		os.Exit(1)
-	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "Unable to set up health check")
+		setupLog.Error(err, ">>> [MAIN] Unable to set up health check")
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "Unable to set up ready check")
+		setupLog.Error(err, ">>> [MAIN] Unable to set up ready check")
 		os.Exit(1)
 	}
 
 	setupLog.Info("Starting manager", "namespace", monitoredNamespace)
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "Problem running manager")
+		setupLog.Error(err, ">>> [MAIN] Problem running manager")
 		os.Exit(1)
 	}
 }

@@ -88,7 +88,7 @@ func TestFileReconciler(t *testing.T) {
 			resp: response{
 				wantResult:       ctrl.Result{Requeue: false},
 				wantReconcileErr: false,
-				wantStatusState:  v1beta1.ImageStateUploaded,
+				wantStatusState:  v1beta1.ImageStateReady,
 				wantFinalizer:    v1beta1.ImageFinalizer,
 			},
 		},
@@ -110,7 +110,7 @@ func TestFileReconciler(t *testing.T) {
 			resp: response{
 				wantResult:       ctrl.Result{Requeue: false},
 				wantReconcileErr: false,
-				wantStatusState:  v1beta1.ImageStateUploaded,
+				wantStatusState:  v1beta1.ImageStateReady,
 				wantFinalizer:    v1beta1.ImageFinalizer,
 			},
 		},
@@ -128,7 +128,7 @@ func TestFileReconciler(t *testing.T) {
 			resp: response{
 				wantResult:       ctrl.Result{Requeue: false},
 				wantReconcileErr: false,
-				wantStatusState:  v1beta1.ImageStateUploaded,
+				wantStatusState:  v1beta1.ImageStateReady,
 				wantFinalizer:    v1beta1.ImageFinalizer,
 				wantAPIImages:    []string{testFileExternalId},
 			},
@@ -138,7 +138,7 @@ func TestFileReconciler(t *testing.T) {
 			fields: fields{
 				resources: []client.Object{
 					feder,
-					makeTestImage(testFederationContextId, imageWithFinalizer(), imageWithState(v1beta1.ImageStateUploaded))},
+					makeTestImage(testFederationContextId, imageWithFinalizer(), imageWithState(v1beta1.ImageStateReady))},
 				mockOpgFederations: []*v1beta1.Federation{feder},
 				mockOpgImages:      []*v1beta1.Image{makeTestImage(testFederationContextId)},
 			},
@@ -148,7 +148,7 @@ func TestFileReconciler(t *testing.T) {
 			resp: response{
 				wantResult:       ctrl.Result{Requeue: false},
 				wantReconcileErr: false,
-				wantStatusState:  v1beta1.ImageStateUploaded,
+				wantStatusState:  v1beta1.ImageStateReady,
 				wantFinalizer:    v1beta1.ImageFinalizer,
 				wantAPIImages:    []string{testFileExternalId},
 			},
@@ -240,20 +240,20 @@ func makeTestImage(fedCtxId string, opts ...imageOpt) *v1beta1.Image {
 		},
 		Spec: v1beta1.ImageSpec{
 			FederationContextId: fedCtxId,
-			ImageBody: v1beta1.ImageBody{
+			ImageBody: &v1beta1.ImageBody{
 				AppProviderId:    testAppProvider,
 				ImageName:        testFileFileName,
 				ImageVersionInfo: testFileFileVersion,
 				ImageType:        "CONTAINER",
 				RepoType:         "private",
-				ImageRepoLocation: v1beta1.ImageRepoLocation{
+				ImageRepoLocation: &v1beta1.ImageRepoLocation{
 					RepoURL:  "https://harbor.example.com/repo",
 					Password: "pass",
 					Token:    "token",
 					UserName: "foo",
 				},
 				ImgInsSetArch: "ISA_X86_64",
-				ImgOSType: v1beta1.ImgOSType{
+				ImgOSType: &v1beta1.ImgOSType{
 					Architecture: "x86_64",
 					Distribution: "UBUNTU",
 					License:      "OS_LICENSE_TYPE_FREE",

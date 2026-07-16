@@ -27,17 +27,17 @@ type FederationTechnology string
 const (
 	FederationRenewalAnnotation = "opg.ewbi.katalis.com/renew-federation"
 	GetHealthInfoAnnotation     = "opg.ewbi.katalis.com/get-health-info"
+	GetServiceAPIsAnnotation    = "opg.ewbi.katalis.com/get-service-apis"
 	GetUpdateDetailsAnnotation  = "opg.ewbi.katalis.com/get-update-details"
 	GetPlatformCapsAnnotation   = "opg.ewbi.katalis.com/get-platform-caps"
 	UpdateDataAnnotation        = "opg.ewbi.katalis.com/update-data-revision"
+
 	FederationPolicyAnnotation  = "opg.ewbi.katalis.com/federation-policy"
 	FederationWatcherAnnotation = "opg.ewbi.katalis.com/federation-stop-watcher"
+
+	ResourceIdLabel = "opg.ewbi.katalis.com/id"
 	// finalizers
 	FederationFinalizer = "katalis.com/federation.opg.ewbi.finalizer"
-
-	// // labels
-	// FederationPolicyLabel  = "opg.ewbi.katalis.com/federation-policy"
-	// FederationWatcherLabel = "opg.ewbi.katalis.com/federation-stop-watcher"
 
 	// constants
 	FederationRelationGuest  FederationRelation   = "GUEST"
@@ -412,26 +412,17 @@ type FederationStatus struct {
 
 	// +kubebuilder:validation:Optional
 	Service *Service `json:"service,omitempty"`
-
-	// // +kubebuilder:validation:Optional
-	// LastUpdateDataRevision int `json:"lastUpdateDataRevision,omitempty"`
-	// // +kubebuilder:validation:Optional
-	// LastCapTypeRevision int `json:"lastCapTypeRevision,omitempty"`
-	// // Use to enable or disable the health information reporting for the federation. If set to true, the federation will report health information.
-	// // +kubebuilder:validation:Optional
-	// LastHealthCheckRevision int `json:"lastHealthCheckRevision,omitempty"`
-
-	// // Use to restablish the federation after it has been locked due to the expiry date being reached. If set to true, the federation will be renewed and the expiry date will be extended.
-	// // +kubebuilder:validation:Optional
-	// LastFederationDateRevision int `json:"lastFederationDateRevision,omitempty"`
-
-	// // +kubebuilder:validation:Optional
-	// LastSupportedServerAPIRevision int `json:"lastSupportedServerAPIRevision,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=fed,scope=Namespaced
+// +kubebuilder:printcolumn:name="relationType",type="string",JSONPath=".spec.federationData.relationType"
+// +kubebuilder:printcolumn:name="technologyType",type="string",JSONPath=".spec.federationData.technologyType"
+// +kubebuilder:printcolumn:name="initialDate",type="string",JSONPath=".spec.federationData.initialDate"
+// +kubebuilder:printcolumn:name="federationContextId",type="string",JSONPath=".status.federationContextId"
+// +kubebuilder:printcolumn:name="partnerOPFederationId",type="string",JSONPath=".status.partnerOPFederationId"
+// +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.state"
 
 // Federation is the Schema for the federations API
 type Federation struct {
@@ -448,7 +439,7 @@ type Federation struct {
 }
 
 // +kubebuilder:object:root=true
-
+// +kubebuilder:subresource:status
 // FederationList contains a list of Federation
 type FederationList struct {
 	metav1.TypeMeta `json:",inline"`

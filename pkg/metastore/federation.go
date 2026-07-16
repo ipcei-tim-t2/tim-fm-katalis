@@ -4,10 +4,9 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/google/uuid"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	v1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
-	uu "github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,29 +28,28 @@ type Federation struct {
 // 	return false
 // }
 
-func (c *k8sClient) searchFederation(ctx context.Context, federationContextId string, role string, listObj client.ObjectList) (*v1beta1.Federation, error) {
-	fields := map[string]string{
-		FedContextIdIndex: federationContextId,
-		RelationTypeIndex: role,
-	}
-	obj, err := c.getResourceByFields(ctx, &v1beta1.FederationList{}, fields)
-	if err != nil {
+func (c *k8sClient) searchFederation(ctx context.Context, federationContextId string, role string) (*v1beta1.Federation, error) {
+	var fedList v1beta1.FederationList
+	if err := c.kubernetes.List(ctx, &fedList, client.InNamespace(c.namespace)); err != nil {
 		return nil, err
 	}
-	fed, ok := obj.(*v1beta1.Federation)
-	if !ok {
-		return nil, missMatchErr("federation", federationContextId, federationContextId, &v1beta1.Federation{}, obj)
+	if len(fedList.Items) == 0 {
+		return nil, errors.Errorf("Federation not found for federationContextId: %s and role: %s", federationContextId, role)
 	}
-	return fed, nil
+	for i := range fedList.Items {
+		fed := fedList.Items[i]
+		if fed.Spec.FederationData.RelationType == role && fed.Status.FederationContextId == federationContextId {
+			return &fed, nil
+		}
+	}
+	return nil, errors.Errorf("Federation not found for federationContextId: %s and role: %s", federationContextId, role)
 }
+
 func (c *k8sClient) CreateFederation(ctx context.Context, fed *Federation) (*v1beta1.Federation, error) {
-	fedId, err := uuid.Parse(uu.V5(*fed.OrigOPFederationId + fed.InitialDate.String() + *fed.OrigOPCountryCode))
-	if err != nil {
-		return nil, err
-	}
+	fedId := uuid.V5(*fed.OrigOPFederationId + *fed.OrigOPCountryCode)
 	fedHost := &v1beta1.Federation{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fed-" + fedId.String(),
+			Name:      "fed-" + fedId,
 			Namespace: c.namespace,
 		},
 		Spec: v1beta1.FederationSpec{
@@ -85,8 +83,9 @@ func (c *k8sClient) CreateFederation(ctx context.Context, fed *Federation) (*v1b
 	}
 	return fedHost, nil
 }
+
 func (c *k8sClient) GetFederation(ctx context.Context, federationContextID string) (*Federation, error) {
-	fed, err := c.searchFederation(ctx, federationContextID, "HOST", &v1beta1.FederationList{})
+	fed, err := c.searchFederation(ctx, federationContextID, "HOST")
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +114,7 @@ func (c *k8sClient) GetFederation(ctx context.Context, federationContextID strin
 	}, nil
 }
 func (c *k8sClient) UpdateFederationStatus(ctx context.Context, federationCallbackID string, updates *models.PartnerStatusLinkJSONRequestBody) error {
-	fed, err := c.searchFederation(ctx, federationCallbackID, "GUEST", &v1beta1.FederationList{})
+	fed, err := c.searchFederation(ctx, federationCallbackID, "GUEST")
 	if err != nil {
 		return err
 	}
@@ -210,13 +209,12 @@ func (c *k8sClient) UpdateFederationStatus(ctx context.Context, federationCallba
 		ObjectType:    string(updates.ObjectType),
 		OperationType: string(updates.OperationType),
 	}
-	// if isValidFederationStatus(string(*updates.FederationStatus)) {
 	return c.patchK8sStatus(originalFed, fed)
-	// }
-	// return nil
+
 }
+
 func (c *k8sClient) RemoveFederation(ctx context.Context, federationContextID string) error {
-	fed, err := c.searchFederation(ctx, federationContextID, "HOST", &v1beta1.FederationList{})
+	fed, err := c.searchFederation(ctx, federationContextID, "HOST")
 	if err != nil {
 		return err
 	}
@@ -225,8 +223,9 @@ func (c *k8sClient) RemoveFederation(ctx context.Context, federationContextID st
 	}
 	return nil
 }
+
 func (c *k8sClient) AddAvailabilityZones(ctx context.Context, federationContextId string, azs []string) error {
-	fed, err := c.searchFederation(ctx, federationContextId, "HOST", &v1beta1.FederationList{})
+	fed, err := c.searchFederation(ctx, federationContextId, "HOST")
 	if err != nil {
 		return err
 	}

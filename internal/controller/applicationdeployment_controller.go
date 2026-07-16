@@ -18,6 +18,9 @@ package controller
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
+	"reflect"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +35,7 @@ import (
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 )
 
 // ApplicationDeploymentReconciler reconciles a ApplicationDeployment object
@@ -88,28 +92,54 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 	//Helper function to set the status to NotAvailable and update the resource
-	skipStatusPatch := false
 	originalAppDeploy := appDeploy.DeepCopy()
 	defer func() {
-		if skipStatusPatch {
-			return
-		}
-		if err != nil {
+		isDeleting := !appDeploy.GetDeletionTimestamp().IsZero()
+		if err != nil && !isDeleting {
 			log.Error(err, ">>> [AppDeploy] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStateFailed
-
 		}
+
+		// Metadata Patch (Annotations, Labels, Finalizers)
+		metaChanged := !reflect.DeepEqual(appDeploy.Annotations, originalAppDeploy.Annotations) ||
+			!reflect.DeepEqual(appDeploy.Labels, originalAppDeploy.Labels) ||
+			!reflect.DeepEqual(appDeploy.Finalizers, originalAppDeploy.Finalizers)
+
+		if metaChanged {
+			currentStatus := appDeploy.Status.DeepCopy()
+			// Using Patch instead of Update to avoid overwriting changes made by other controllers
+			if patchErr := r.Patch(ctx, &appDeploy, client.MergeFrom(originalAppDeploy)); patchErr != nil {
+				if !apierrors.IsNotFound(patchErr) {
+					log.Error(patchErr, ">>> [AppDeploy] UNEXPECTED ERROR during ApplicationDeployment Metadata UPDATE.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
+				}
+				if err == nil {
+					err = patchErr
+				}
+				return // If there's an error patching metadata, we return early to avoid patching status with potentially inconsistent data
+			}
+			if currentStatus != nil {
+				appDeploy.Status = *currentStatus
+			}
+			// Alignment of the resource version after patching metadata
+			originalAppDeploy.SetResourceVersion(appDeploy.GetResourceVersion())
+		}
+
+		if isDeleting {
+			return
+		}
+		// Status Update
 		if patchErr := r.Status().Patch(ctx, &appDeploy, client.MergeFrom(originalAppDeploy)); patchErr != nil {
 			if !apierrors.IsNotFound(patchErr) {
-				log.Error(patchErr, ">>> [AppDeploy] UNEXPECTED ERROR during AppDeploy UPDATE.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
+				log.Error(patchErr, ">>> [AppDeploy] UNEXPECTED ERROR during ApplicationDeployment Status UPDATE.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 			}
 			if err == nil {
 				err = patchErr
 			}
 		} else {
-			log.Info(">>> [AppDeploy] SUCCESSFULLY.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
+			log.Info(">>> [AppDeploy] SUCCESSFULLY Reconciled.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 		}
 	}()
+
 	isGuest := IsGuestResource(appDeploy.Spec.RelationType)
 	fed, isRest, err := GetFederation(ctx, isGuest, r.Client, appDeploy.Spec.FederationContextId, appDeploy.Namespace)
 	extClient := r.getExternalClient(isRest)
@@ -134,33 +164,27 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		}
 		if controllerutil.RemoveFinalizer(&appDeploy, v1beta1.ApplicationDeploymentFinalizer) {
 			log.Info(">>> [AppDeploy] Removed basic finalizer for ApplicationDeployment, exiting...", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
-			if err := r.Update(ctx, appDeploy.DeepCopy()); err != nil {
-				log.Error(err, ">>> [AppDeploy] Unable to update ApplicationDeployment while removing finalizers.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
-				return ctrl.Result{}, err
-			}
-			log.Info(">>> [AppDeploy] Successfully removed finalizer from ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 		}
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
 	// Handle creation/finalizer
 	if controllerutil.AddFinalizer(&appDeploy, v1beta1.ApplicationDeploymentFinalizer) {
 		log.Info(">>> [AppDeploy] Added finalizer to ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
-		if err := r.Update(ctx, appDeploy.DeepCopy()); err != nil {
-			log.Error(err, ">>> [AppDeploy] Unable to Update ApplicationDeployment with finalizer.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
-			return ctrl.Result{}, err
-		}
-		log.Info(">>> [AppDeploy] Successfully added finalizer to ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
+	if appDeploy.Labels == nil {
+		appDeploy.Labels = make(map[string]string)
+	}
 	isNewAppDeploy := appDeploy.Status.AppInstanceInfo.AppInstanceState == ""
 	if !isGuest {
 		// Host ApplicationDeployment handling
 		if isNewAppDeploy {
+			// Deve rispettare il pattern: [A-Za-z0-9][A-Za-z0-9_]{6,62}[A-Za-z0-9]$`
+			appDeploy.Status.AppInstanceInfo.AppInstIdentifier = fmt.Sprintf("%x", md5.Sum([]byte(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId+appDeploy.Spec.ZoneId)))
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
+			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
 		} else {
 			if isRest {
 				if err := extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed); err != nil {
@@ -174,19 +198,47 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 	} else {
 		// Guest ApplicationDeployment handling
 		if isNewAppDeploy {
-			appId := appDeploy.Spec.AppId
-			appObj := &v1beta1.ApplicationOnboarding{}
-			if err := r.Get(ctx, client.ObjectKey{Name: appId, Namespace: appObj.Namespace}, appObj); err != nil {
-				if apierrors.IsNotFound(err) {
-					log.Error(err, ">>> [AppOnboard] ApplicationOnboarding not found for ApplicationDeployment.", "name", appObj.Name, "namespace", appObj.Namespace, "appId", appId)
-					return ctrl.Result{}, err
-				}
-				log.Error(err, ">>> [AppOnboard] Error getting ApplicationOnboarding for ApplicationDeployment.", "name", appObj.Name, "namespace", appObj.Namespace, "appId", appId)
+			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
+			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
+
+			// Check if the ZONE si AVAILABLE
+			zoneObj := &v1beta1.AvailabilityZone{}
+			zoneList := &v1beta1.AvailabilityZoneList{}
+			if err := r.List(
+				ctx,
+				zoneList,
+				client.InNamespace(appDeploy.Namespace),
+				client.MatchingLabels{
+					v1beta1.ResourceIdLabel: "zone-" + uuid.V5(appDeploy.Spec.ZoneId+appDeploy.Spec.FederationContextId),
+				}); err != nil {
 				return ctrl.Result{}, err
 			}
-			if appObj.Status.State != v1beta1.ApplicationOnboardingStateOnboarded {
-				log.Info(">>> [AppOnboard] ApplicationOnboarding is not ONBOARDED for ApplicationDeployment.", "name", appObj.Name, "namespace", appObj.Namespace, "appId", appId, "state", appObj.Status.State)
-				skipStatusPatch = true
+			if len(zoneList.Items) == 0 {
+				log.Info(">>> [AppOnboard] No Zone found for AppDeploy ", "name", appDeploy.Name, "naemspace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId)
+			}
+			zoneObj = &zoneList.Items[0]
+			if zoneObj.Status.State != v1beta1.ZoneStateAvailable {
+				log.Info(">>> [AppOnboard] Zone is not AVAILABLE for ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "appId", appDeploy.Spec.ZoneId, "state", zoneObj.Status.State)
+				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+			}
+			// checking if Application is Onboarded
+			appOnboardObj := &v1beta1.ApplicationOnboarding{}
+			appOnboardList := &v1beta1.ApplicationOnboardingList{}
+			if err := r.List(
+				ctx,
+				appOnboardList,
+				client.InNamespace(appDeploy.Namespace),
+				client.MatchingLabels{
+					v1beta1.ResourceIdLabel: "apponboard-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId),
+				}); err != nil {
+				return ctrl.Result{}, err
+			}
+			if len(appOnboardList.Items) == 0 {
+				log.Info(">>> [AppOnboard] No AppOnboard found for AppDeploy ", "name", appDeploy.Name, "naemspace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId)
+			}
+			appOnboardObj = &appOnboardList.Items[0]
+			if appOnboardObj.Status.State != v1beta1.ApplicationOnboardingStateOnboarded {
+				log.Info(">>> [AppOnboard] ApplicationOnboarding is not ONBOARDED for ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId, "state", appOnboardObj.Status.State)
 				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 			}
 			if err := extClient.CreateApplicationDeployment(ctx, &appDeploy, fed); err != nil {
@@ -195,7 +247,7 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 			}
 		} else {
 			if isRest {
-				log.Info(">>> [AppDeploy] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
+				log.Info(">>> [AppDeploy][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 			} else {
 				if err := extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed); err != nil {
 					log.Error(err, ">>> [AppDeploy] Error updating ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
@@ -203,7 +255,6 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 				}
 			}
 		}
-
 	}
 	return ctrl.Result{}, nil
 }

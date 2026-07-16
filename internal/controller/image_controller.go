@@ -18,12 +18,14 @@ package controller
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/indexer"
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -89,27 +91,56 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 		log.Error(err, ">>> [Image] Error getting object.", "name", req.Name, "namespace", req.Namespace)
 		return ctrl.Result{}, err
 	}
+
 	//Helper function to set the status to NotAvailable and update the resource
-	skipStatusPatch := false
 	originalImage := image.DeepCopy()
 	defer func() {
-		if skipStatusPatch {
-			return
-		}
-		if err != nil {
+		isDeleting := !image.GetDeletionTimestamp().IsZero()
+		if err != nil && !isDeleting {
 			log.Error(err, ">>> [Image] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", image.Name, "namespace", image.Namespace)
 			image.Status.State = v1beta1.ImageStateError
-
 		}
+
+		// Metadata Patch (Annotations, Labels, Finalizers)
+		metaChanged := !reflect.DeepEqual(image.Annotations, originalImage.Annotations) ||
+			!reflect.DeepEqual(image.Labels, originalImage.Labels) ||
+			!reflect.DeepEqual(image.Finalizers, originalImage.Finalizers)
+
+		if metaChanged {
+			currentStatus := image.Status.DeepCopy()
+			// Using Patch instead of Update to avoid overwriting changes made by other controllers
+			if patchErr := r.Patch(ctx, &image, client.MergeFrom(originalImage)); patchErr != nil {
+				if !apierrors.IsNotFound(patchErr) {
+					log.Error(patchErr, ">>> [Image] UNEXPECTED ERROR during Image Metadata UPDATE.", "name", image.Name, "namespace", image.Namespace)
+				}
+				if err == nil {
+					err = patchErr
+				}
+				return // If there's an error patching metadata, we return early to avoid patching status with potentially inconsistent data
+			}
+			if currentStatus != nil {
+				image.Status = *currentStatus
+			}
+			// Alignment of the resource version after patching metadata
+			originalImage.SetResourceVersion(image.GetResourceVersion())
+		}
+
+		if isDeleting {
+			return
+		}
+
+		// Status Update
 		if patchErr := r.Status().Patch(ctx, &image, client.MergeFrom(originalImage)); patchErr != nil {
 			if !apierrors.IsNotFound(patchErr) {
-				log.Error(patchErr, ">>> [Image] UNEXPECTED ERROR during Image UPDATE.", "name", image.Name, "namespace", image.Namespace)
+				log.Error(patchErr, ">>> [Image] UNEXPECTED ERROR during Image Status UPDATE.", "name", image.Name, "namespace", image.Namespace)
 			}
 			if err == nil {
 				err = patchErr
 			}
 		} else {
-			log.Info(">>> [Image] SUCCESSFULLY.", "name", image.Name, "namespace", image.Namespace)
+			if image.GetDeletionTimestamp().IsZero() {
+				log.Info(">>> [Image] SUCCESSFULLY Reconciled.", "name", image.Name, "namespace", image.Namespace)
+			}
 		}
 	}()
 
@@ -137,43 +168,35 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 		}
 		if controllerutil.RemoveFinalizer(&image, v1beta1.ImageFinalizer) {
 			log.Info(">>> [Image] Removed basic finalizer for Image, exiting...", "name", image.Name, "namespace", image.Namespace)
-			if err := r.Update(ctx, image.DeepCopy()); err != nil {
-				log.Error(err, ">>> [Image] Unable to update Image while removing finalizers.", "name", image.Name, "namespace", image.Namespace)
-				return ctrl.Result{}, err
-			}
-			log.Info(">>> [Image] Successfully removed finalizer from Image.", "name", image.Name, "namespace", image.Namespace)
 		}
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
 	// Handle creation/finalizer
 	if controllerutil.AddFinalizer(&image, v1beta1.ImageFinalizer) {
 		log.Info(">>> [Image] Added finalizer to Image.", "name", image.Name, "namespace", image.Namespace)
-		if err := r.Update(ctx, image.DeepCopy()); err != nil {
-			log.Error(err, ">>> [Image] Unable to Update Image with finalizer.", "name", image.Name, "namespace", image.Namespace)
-			return ctrl.Result{}, err
-		}
-		log.Info(">>> [Image] Successfully added finalizer to Image.", "name", image.Name, "namespace", image.Namespace)
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
-	isNewImage := image.Status.State == ""
+	if image.Labels == nil {
+		image.Labels = make(map[string]string)
+	}
 
+	isNewImage := image.Status.State == ""
 	if !isGuest {
 		// Host IMAGE handling
 		if isNewImage {
 			image.Status.State = v1beta1.ImageStatePending
+			image.Labels[v1beta1.ResourceIdLabel] = "image-" + uuid.V5(image.Spec.ImageId+image.Spec.FederationContextId)
 		} else {
 			// Callback for REST and GET for K8s
 			if isRest {
 				if err := extClient.UpdateImageStatus(ctx, &image, fed); err != nil {
-					log.Error(err, ">>> [Image] Error during CALLBACK OPERATION via OPG EWBI API.", "name", image.Name, "namespace", image.Namespace)
+					log.Error(err, ">>> [Image][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", image.Name, "namespace", image.Namespace)
 					return ctrl.Result{}, err
 				}
 			} else {
-				log.Info(">>> [Image] Resource updated (GUEST via watcher update through the resource)", "name", image.Name, "namespace", image.Namespace)
+				log.Info(">>> [Image][K8s] Resource updated (GUEST via watcher update through the resource)", "name", image.Name, "namespace", image.Namespace)
 			}
 
 		}
@@ -181,6 +204,8 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 	} else {
 		// Guest IMAGE handling
 		if isNewImage {
+			image.Status.State = v1beta1.ImageStatePending
+			image.Labels[v1beta1.ResourceIdLabel] = "image-" + uuid.V5(image.Spec.ImageId+image.Spec.FederationContextId)
 			if err := extClient.CreateImage(ctx, &image, fed); err != nil {
 				log.Error(err, ">>> [Image] Error APPLYING/UPDATING SPEC Image.", "name", image.Name, "namespace", image.Namespace)
 				return ctrl.Result{}, err
@@ -188,10 +213,10 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 			log.Info(">>> [Image] SUCCESSFULLY APPLIED SPEC AND SET INITIAL STATUS.", "name", image.Name, "namespace", image.Namespace)
 		} else {
 			if isRest {
-				log.Info(">>> [Image] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", image.Name, "namespace", image.Namespace)
+				log.Info(">>> [Image][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", image.Name, "namespace", image.Namespace)
 			} else {
 				if err := extClient.UpdateImageStatus(ctx, &image, fed); err != nil {
-					log.Error(err, ">>> [Image] Error updating Image.", "name", image.Name, "namespace", image.Namespace)
+					log.Error(err, ">>> [Image][K8s] Error updating Image.", "name", image.Name, "namespace", image.Namespace)
 					return ctrl.Result{}, err
 				}
 			}

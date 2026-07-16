@@ -22,7 +22,7 @@ import (
 
 // finalizers
 const (
-	ApplicationOnboardingFinalizer = "applicationonboarding.opg.ewbi.finalizer.katalis.com"
+	ApplicationOnboardingFinalizer = "katalis.com/applicationonboarding.opg.ewbi.finalizer"
 )
 
 type ApplicationOnboardingState string
@@ -36,8 +36,8 @@ const (
 	ApplicationOnboardingStateFailed     ApplicationOnboardingState = "FAILED"
 	ApplicationOnboardingStateRemoved    ApplicationOnboardingState = "REMOVED"
 
-	PluralApplicationOnboarding = "applications"
-	KindApplicationOnboarding   = "Application"
+	PluralApplicationOnboarding = "applicationonboardings"
+	KindApplicationOnboarding   = "ApplicationOnboarding"
 )
 
 // const (
@@ -170,11 +170,11 @@ type AppInfo struct {
 
 	// +kubebuilder:validation:Optional
 	// Application metadata details
-	AppMetaData AppMetaData `json:"appMetaData,omitempty"`
+	AppMetaData *AppMetaData `json:"appMetaData,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// Parameters corresponding to the performance constraints, tenancy details etc.
-	AppQoSProfile AppQoSProfile `json:"appQoSProfile,omitempty"`
+	AppQoSProfile *AppQoSProfile `json:"appQoSProfile,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
@@ -208,13 +208,13 @@ type ApplicationOnboardingSpec struct {
 	ZoneSettings []ZoneSetting `json:"zoneSettings,omitempty"`
 
 	// +kubebuilder:validation:Required
-	AppInfo AppInfo `json:"appInfo"`
+	AppInfo *AppInfo `json:"appInfo"`
 }
 
 // ApplicationOnboardingStatus defines the observed state of ApplicationOnboarding.
 type ApplicationOnboardingStatus struct {
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=Pending;Uploading;Uploaded;Failed
+	// +kubebuilder:validation:Enum=PENDING;ONBOARDED;REMOVED;FAILED
 	// Current state of the artefact upload
 	State ApplicationOnboardingState `json:"state,omitempty"`
 
@@ -231,6 +231,12 @@ type ApplicationOnboardingStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=apponb,scope=Namespaced
+// +kubebuilder:printcolumn:name="relationType",type="string",JSONPath=".spec.relationType"
+// +kubebuilder:printcolumn:name="federationContextId",type="string",JSONPath=".spec.federationContextId"
+// +kubebuilder:printcolumn:name="appId",type="string",JSONPath=".spec.appInfo.appId"
+// +kubebuilder:printcolumn:name="appProvider",type="string",JSONPath=".spec.appInfo.appProviderId"
+// +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.state"
+
 // ApplicationOnboarding is the Schema for the applicationonboardings API
 type ApplicationOnboarding struct {
 	metav1.TypeMeta `json:",inline"`
@@ -243,7 +249,6 @@ type ApplicationOnboarding struct {
 }
 
 // +kubebuilder:object:root=true
-
 // ApplicationOnboardingList contains a list of ApplicationOnboarding
 type ApplicationOnboardingList struct {
 	metav1.TypeMeta `json:",inline"`

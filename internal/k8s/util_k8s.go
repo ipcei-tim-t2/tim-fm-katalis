@@ -109,13 +109,27 @@ func BuildClientWithKubeconfig(kubeconfigBytes []byte, contextName string, schem
 }
 
 // ApplyRemoteResource applies or updates a remote Kubernetes resource in the host cluster based on the provided object, and starts a watcher if it's a new resource.
-func ApplyRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, remoteObj client.Object, emptyCheckObj client.Object, localName string, localNamespace string, group string, version string, plural string, fieldOwner string, logPrefix string) error {
+func ApplyRemoteResource(
+	ctx context.Context,
+	localClient client.Client,
+	scheme *runtime.Scheme,
+	fed *v1beta1.Federation,
+	remoteObj client.Object,
+	emptyCheckObj client.Object,
+	localName string,
+	localNamespace string,
+	group string,
+	version string,
+	plural string,
+	fieldOwner string,
+	logPrefix string,
+) error {
 	log := ctrl.Log
 	remoteNamespace := remoteObj.GetNamespace()
-	log.Info(">>> "+logPrefix+" APPLYING SPEC... Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
+	log.Info(">>> "+logPrefix+"[APPLY] Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
 	k8sClient, dynClient, err := buildHostClient(ctx, fed, localClient, scheme)
 	if err != nil {
-		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		log.Error(err, ">>> "+logPrefix+"[APPLY] Error building K8s Client.", "name", localName, "namespace", localNamespace)
 		return err
 	}
 	reqKey := types.NamespacedName{
@@ -128,101 +142,183 @@ func ApplyRemoteResource(ctx context.Context, localClient client.Client, scheme 
 		if apierrors.IsNotFound(checkErr) {
 			isNewResource = true
 		} else {
-			log.Error(checkErr, ">>> "+logPrefix+" Failed to check remote resource existence via GET.", "name", localName, "namespace", localNamespace)
+			log.Error(checkErr, ">>> "+logPrefix+"[APPLY] Failed to check remote resource existence via GET.", "name", localName, "namespace", localNamespace)
 			return checkErr
 		}
 	}
 	if err := k8sClient.Patch(ctx, remoteObj, client.Apply, client.ForceOwnership, client.FieldOwner(fieldOwner)); err != nil {
-		log.Error(err, ">>> "+logPrefix+" Failed to APPLY/UPDATE.", "name", localName, "namespace", localNamespace)
+		log.Error(err, ">>> "+logPrefix+"[APPLY] Failed to APPLY/UPDATE.", "name", localName, "namespace", localNamespace)
 		return err
 	}
-	log.Info(">>> "+logPrefix+" SUCCESSFULLY APPLIED/UPDATED.", "name", localName, "namespace", localNamespace)
+	log.Info(">>> "+logPrefix+"[APPLY] SUCCESSFULLY APPLIED/UPDATED.", "name", localName, "namespace", localNamespace)
 	if isNewResource {
 		StartRemoteResourceWatcher(ctx, dynClient, remoteNamespace, localName, localNamespace, group, version, plural)
-		log.Info(">>> "+logPrefix+" SUCCESSFULLY STARTED background WATCHER.", "name", localName, "namespace", localNamespace)
+		log.Info(">>> "+logPrefix+"[APPLY] SUCCESSFULLY STARTED background WATCHER.", "name", localName, "namespace", localNamespace)
 	}
 	return nil
 }
 
 // GetRemoteResource retrieves a remote Kubernetes resource from the host cluster based on the provided object and updates the local object with its status.
-func GetRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, remoteObj client.Object, remoteName string, localName string, localNamespace string, logPrefix string) error {
+func GetRemoteResource(
+	ctx context.Context,
+	localClient client.Client,
+	scheme *runtime.Scheme,
+	fed *v1beta1.Federation,
+	remoteObj client.Object,
+	remoteName string,
+	localName string,
+	localNamespace string,
+	logPrefix string,
+) error {
 	log := ctrl.Log
-	remoteNamespace := fed.Spec.FederationData.K8sOptions.Namespace
-	log.Info(">>> "+logPrefix+" UPDATING STATUS... Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
+	log.Info(">>> "+logPrefix+"[GET] Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
 	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
 	if err != nil {
-		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		log.Error(err, ">>> "+logPrefix+"[GET] Error building K8s Client.", "name", localName, "namespace", localNamespace)
 		return err
 	}
 	reqKey := types.NamespacedName{
 		Name:      remoteName,
-		Namespace: remoteNamespace,
+		Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
 	}
 	if err := k8sClient.Get(ctx, reqKey, remoteObj); err != nil {
-		log.Error(err, ">>> "+logPrefix+" Failed to GET remote resource.", "name", localName, "namespace", localNamespace)
+		log.Error(err, ">>> "+logPrefix+"[GET] Failed to GET remote resource.", "name", localName, "namespace", localNamespace)
 		return err
 	}
 	return nil
 }
 
 // PatchRemoteResource applies or updates a remote Kubernetes resource using a MergePatch.
-func PatchRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, targetObj client.Object, localName string, localNamespace string, group string, version string, plural string, logPrefix string) error {
+func PatchRemoteResource(
+	ctx context.Context,
+	localClient client.Client,
+	scheme *runtime.Scheme,
+	fed *v1beta1.Federation,
+	targetObj client.Object,
+	localName string,
+	localNamespace string,
+	group string,
+	version string,
+	plural string,
+	logPrefix string,
+) error {
 	log := ctrl.Log
-	remoteNamespace := targetObj.GetNamespace()
-	log.Info(">>> "+logPrefix+" UPDATING SPEC... Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
+	log.Info(">>> "+logPrefix+"[PATCH] Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
 	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
 	if err != nil {
-		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		log.Error(err, ">>> "+logPrefix+"[PATCH] Error building K8s Client.", "name", localName, "namespace", localNamespace)
 		return err
 	}
 	reqKey := types.NamespacedName{
 		Name:      targetObj.GetName(),
+		Namespace: targetObj.GetNamespace(),
+	}
+	// Download the CURRENT state of the remote object from the cluster
+	if err := k8sClient.Get(ctx, reqKey, targetObj); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info(">>> "+logPrefix+"[PATCH] Remote resource not found.", "name", localName, "namespace", localNamespace)
+		} else {
+			log.Error(err, ">>> "+logPrefix+"[PATCH] Failed to check remote resource existence.", "name", localName, "namespace", localNamespace)
+			return err
+		}
+	}
+	// Prepare the base for the Patch (save an exact copy of the current state)
+	var patchBase = client.MergeFrom(targetObj.DeepCopyObject().(client.Object))
+	// Execute the Mutator function!
+	// This function will modify `targetObj` by adding or changing ONLY the fields you care about.
+	// Perform a standard MergePatch. K8s will understand exactly which fields you changed by comparing targetObj with patchBase.
+	if err := k8sClient.Patch(ctx, targetObj, patchBase); err != nil {
+		log.Error(err, ">>> "+logPrefix+"[PATCH] Failed to PATCH the SPEC.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	log.Info(">>> "+logPrefix+"[PATCH] SUCCESSFULLY PATCHED the SPEC.", "name", localName, "namespace", localNamespace)
+	return nil
+}
+
+// DeleteRemoteResource deletes a remote Kubernetes resource from the host cluster based on the provided object and stops the watcher if it was running.
+func DeleteRemoteResource(
+	ctx context.Context,
+	localClient client.Client,
+	scheme *runtime.Scheme,
+	fed *v1beta1.Federation,
+	targetObj client.Object,
+	remoteName string,
+	localName string,
+	localNamespace string,
+	logPrefix string,
+) error {
+	log := ctrl.Log
+	remoteNamespace := fed.Spec.FederationData.K8sOptions.Namespace
+	log.Info(">>> "+logPrefix+"[DELETE] Retrieving KUBECONFIG", "name", localName, "namespace", localNamespace)
+	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
+	if err != nil {
+		log.Error(err, ">>> "+logPrefix+"[DELETE] Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	targetObj.SetName(remoteName)
+	targetObj.SetNamespace(remoteNamespace)
+	if err := k8sClient.Delete(ctx, targetObj); err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, ">>> "+logPrefix+"[DELETE] Failed to DELETE.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	log.Info(">>> "+logPrefix+"[DELETE] SUCCESSFULLY DELETED.", "name", localName, "namespace", localNamespace)
+	if !StopRemoteResourceWatcher(remoteNamespace, localName) {
+		log.Error(nil, ">>> "+logPrefix+"[DELETE] Problem during the stopping of the WATCHER.", "name", localName, "namespace", localNamespace)
+	} else {
+		log.Info(">>> "+logPrefix+"[DELETE] SUCCESSFULLY STOPPED background WATCHER.", "name", localName, "namespace", localNamespace)
+	}
+	return nil
+}
+
+func AddRemoteAnnotation(
+	ctx context.Context,
+	localClient client.Client,
+	scheme *runtime.Scheme,
+	fed *v1beta1.Federation,
+	targetObj client.Object,
+	localName string,
+	localNamespace string,
+	group string,
+	version string,
+	plural string,
+	logPrefix string,
+	annotationKey string,
+	annotationValue string,
+) error {
+	log := ctrl.Log
+	remoteNamespace := targetObj.GetNamespace()
+	remoteName := targetObj.GetName()
+	log.Info(">>> "+logPrefix+"[ANNOTATE] Retrieving KUBECONFIG.", "name", localName, "namespace", localNamespace)
+	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
+	if err != nil {
+		log.Error(err, ">>> "+logPrefix+"[ANNOTATE] Error building K8s Client.", "name", localName, "namespace", localNamespace)
+		return err
+	}
+	reqKey := types.NamespacedName{
+		Name:      remoteName,
 		Namespace: remoteNamespace,
 	}
 	// Download the CURRENT state of the remote object from the cluster
 	if err := k8sClient.Get(ctx, reqKey, targetObj); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info(">>> "+logPrefix+" Remote resource not found.", "name", localName, "namespace", localNamespace)
+			log.Info(">>> "+logPrefix+"[ANNOTATE] Remote resource not found.", "name", localName, "namespace", localNamespace)
 		} else {
-			log.Error(err, ">>> "+logPrefix+" Failed to check remote resource existence.", "name", localName, "namespace", localNamespace)
+			log.Error(err, ">>> "+logPrefix+"[ANNOTATE] Failed to check remote resource existence.", "name", localName, "namespace", localNamespace)
 			return err
 		}
 	}
 	// Prepare the base for the Patch (save an exact copy of the current state)
-	var patchBase client.Patch
-	patchBase = client.MergeFrom(targetObj.DeepCopyObject().(client.Object))
-	// Execute the Mutator function!
-	// This function will modify `targetObj` by adding or changing ONLY the fields you care about.
-	// Perform a standard MergePatch. K8s will understand exactly which fields you changed by comparing targetObj with patchBase.
+	var patchBase = client.MergeFrom(targetObj.DeepCopyObject().(client.Object))
+	currentAnnotations := targetObj.GetAnnotations()
+	if currentAnnotations == nil {
+		currentAnnotations = make(map[string]string)
+	}
+	currentAnnotations[annotationKey] = annotationValue
+	targetObj.SetAnnotations(currentAnnotations)
 	if err := k8sClient.Patch(ctx, targetObj, patchBase); err != nil {
-		log.Error(err, ">>> "+logPrefix+" Failed to PATCH the SPEC.", "name", localName, "namespace", localNamespace)
+		log.Error(err, ">>> "+logPrefix+"[ANNOTATE] Failed to PATCH remote resource.", "name", localName, "namespace", localNamespace)
 		return err
 	}
-	log.Info(">>> "+logPrefix+" SUCCESSFULLY PATCHED the SPEC.", "name", localName, "namespace", localNamespace)
-	return nil
-}
-
-// DeleteRemoteResource deletes a remote Kubernetes resource from the host cluster based on the provided object and stops the watcher if it was running.
-func DeleteRemoteResource(ctx context.Context, localClient client.Client, scheme *runtime.Scheme, fed *v1beta1.Federation, obj client.Object, remoteName string, localName string, localNamespace string, logPrefix string) error {
-	log := ctrl.Log
-	remoteNamespace := fed.Spec.FederationData.K8sOptions.Namespace
-	log.Info(">>> "+logPrefix+" DELETING... Retrieving KUBECONFIG", "name", localName, "namespace", localNamespace)
-	k8sClient, _, err := buildHostClient(ctx, fed, localClient, scheme)
-	if err != nil {
-		log.Error(err, ">>> "+logPrefix+" Error building K8s Client.", "name", localName, "namespace", localNamespace)
-		return err
-	}
-	obj.SetName(remoteName)
-	obj.SetNamespace(remoteNamespace)
-	if err := k8sClient.Delete(ctx, obj); err != nil && !apierrors.IsNotFound(err) {
-		log.Error(err, ">>> "+logPrefix+" Failed to DELETE.", "name", localName, "namespace", localNamespace)
-		return err
-	}
-	log.Info(">>> "+logPrefix+" SUCCESSFULLY DELETED.", "name", localName, "namespace", localNamespace)
-	if !StopRemoteResourceWatcher(remoteNamespace, localName) {
-		log.Error(nil, ">>> "+logPrefix+" Problem during the stopping of the WATCHER.", "name", localName, "namespace", localNamespace)
-	} else {
-		log.Info(">>> "+logPrefix+" SUCCESSFULLY STOPPED background WATCHER.", "name", localName, "namespace", localNamespace)
-	}
+	log.Info(">>> "+logPrefix+"[ANNOTATE] SUCCESSFULLY PATCHED remote resource.", "name", localName, "namespace", localNamespace)
 	return nil
 }

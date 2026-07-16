@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,10 +32,11 @@ import (
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 )
 
 // AvailabilityZoneReconciler reconciles a AvailabilityZone object
-type AvailabilityZoneReconciler struct {
+type ZoneReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	opg.OPGClientsMapInterface
@@ -48,7 +50,7 @@ type ExternalAzClient interface {
 	UpdateZoneStatus(ctx context.Context, az *v1beta1.AvailabilityZone, fed *v1beta1.Federation) error //Callback for REST and GET for K8s
 }
 
-func (r *AvailabilityZoneReconciler) getExternalClient(isRest bool) ExternalAzClient {
+func (r *ZoneReconciler) getExternalClient(isRest bool) ExternalAzClient {
 	if isRest {
 		return r.RestClient
 	}
@@ -56,7 +58,7 @@ func (r *AvailabilityZoneReconciler) getExternalClient(isRest bool) ExternalAzCl
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *AvailabilityZoneReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ZoneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1beta1.AvailabilityZone{}).
 		Named("availabilityzone").
@@ -73,7 +75,7 @@ func (r *AvailabilityZoneReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // +kubebuilder:rbac:groups=opg.ewbi.katalis.com,resources=availabilityzones/status,verbs=get;update;patch,namespace=foo
 // +kubebuilder:rbac:groups=opg.ewbi.katalis.com,resources=availabilityzones/finalizers,verbs=update,namespace=foo
 
-func (r *AvailabilityZoneReconciler) Reconcile(
+func (r *ZoneReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
 ) (res ctrl.Result, err error) {
@@ -90,26 +92,52 @@ func (r *AvailabilityZoneReconciler) Reconcile(
 		log.Error(err, ">>> [AZ] Error getting resource.", "name", req.Name, "namespace", req.Namespace)
 		return ctrl.Result{}, err
 	}
+
 	//Helper function to set the status to NotAvailable and update the resource
-	skipStatusPatch := false
 	originalZone := zone.DeepCopy()
 	defer func() {
-		if skipStatusPatch {
-			return
-		}
-		if err != nil {
+		isDeleting := !zone.GetDeletionTimestamp().IsZero()
+		if err != nil && !isDeleting {
 			log.Error(err, ">>> [AZ] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", zone.Name, "namespace", zone.Namespace)
 			zone.Status.State = v1beta1.ZoneStateFailed
 		}
+
+		// Metadata Patch (Annotations, Labels, Finalizers)
+		metaChanged := !reflect.DeepEqual(zone.Annotations, originalZone.Annotations) ||
+			!reflect.DeepEqual(zone.Labels, originalZone.Labels) ||
+			!reflect.DeepEqual(zone.Finalizers, originalZone.Finalizers)
+
+		if metaChanged {
+			currentStatus := zone.Status.DeepCopy()
+			// Using Patch instead of Update to avoid overwriting changes made by other controllers
+			if patchErr := r.Patch(ctx, &zone, client.MergeFrom(originalZone)); patchErr != nil {
+				if !apierrors.IsNotFound(patchErr) {
+					log.Error(patchErr, ">>> [AZ] UNEXPECTED ERROR during AZ Metadata UPDATE.", "name", zone.Name, "namespace", zone.Namespace)
+				}
+				if err == nil {
+					err = patchErr
+				}
+				return // If there's an error patching metadata, we return early to avoid patching status with potentially inconsistent data
+			}
+			if currentStatus != nil {
+				zone.Status = *currentStatus
+			}
+			// Alignment of the resource version after patching metadata
+			originalZone.SetResourceVersion(zone.GetResourceVersion())
+		}
+		if isDeleting {
+			return
+		}
+		// Status Update
 		if patchErr := r.Status().Patch(ctx, &zone, client.MergeFrom(originalZone)); patchErr != nil {
 			if !apierrors.IsNotFound(patchErr) {
-				log.Error(patchErr, ">>> [AZ] UNEXPECTED ERROR during AZ UPDATE.", "name", zone.Name, "namespace", zone.Namespace)
+				log.Error(patchErr, ">>> [AZ] UNEXPECTED ERROR during AZ Status UPDATE.", "name", zone.Name, "namespace", zone.Namespace)
 			}
 			if err == nil {
 				err = patchErr
 			}
 		} else {
-			log.Info(">>> [AZ] SUCCESSFULLY.", "name", zone.Name, "namespace", zone.Namespace)
+			log.Info(">>> [AZ] SUCCESSFULLY Reconciled.", "name", zone.Name, "namespace", zone.Namespace)
 		}
 	}()
 
@@ -128,53 +156,50 @@ func (r *AvailabilityZoneReconciler) Reconcile(
 
 	// Handle deletion of the AZ resource
 	if !zone.GetDeletionTimestamp().IsZero() {
-		if err := extClient.DeleteZone(ctx, &zone, fed); err != nil {
-			log.Error(err, ">>> [AZ] Error deleting external AZ.", "name", zone.Name, "namespace", zone.Namespace)
-			return ctrl.Result{}, err
-		}
-		if controllerutil.RemoveFinalizer(&zone, v1beta1.AvailabilityZoneFinalizer) {
-			log.Info(">>> [AZ] Removed basic finalizer for AZ, exiting...", "name", zone.Name, "namespace", zone.Namespace)
-			if err := r.Update(ctx, zone.DeepCopy()); err != nil {
-				log.Error(err, ">>> [AZ] Unable to update while removing finalizers.", "name", zone.Name, "namespace", zone.Namespace)
+		if isGuest {
+			if err := extClient.DeleteZone(ctx, &zone, fed); err != nil {
+				log.Error(err, ">>> [AZ] Error deleting external AZ.", "name", zone.Name, "namespace", zone.Namespace)
 				return ctrl.Result{}, err
 			}
-			log.Info(">>> [AZ] Successfully removed finalizer from AZ.", "name", zone.Name, "namespace", zone.Namespace)
+			if controllerutil.RemoveFinalizer(&zone, v1beta1.AvailabilityZoneFinalizer) {
+				log.Info(">>> [AZ] Removed basic finalizer for AZ, exiting...", "name", zone.Name, "namespace", zone.Namespace)
+			}
 		}
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
 	// Handle creation/finalizer
 	if controllerutil.AddFinalizer(&zone, v1beta1.AvailabilityZoneFinalizer) {
 		log.Info(">>> [AZ] Added finalizer to AZ", "name", zone.Name, "namespace", zone.Namespace)
-		if err := r.Update(ctx, zone.DeepCopy()); err != nil {
-			log.Info(">>> [AZ] Unable to Update AZ with finalizer", "name", zone.Name, "namespace", zone.Namespace)
-			return ctrl.Result{}, err
-		}
-		log.Info(">>> [AZ] Successfully added finalizer to AZ", "name", zone.Name, "namespace", zone.Namespace)
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
-	isNewZone := zone.Status.State == ""
+	if zone.Labels == nil {
+		zone.Labels = make(map[string]string)
+	}
 
+	isNewZone := zone.Status.State == ""
 	if !isGuest {
 		// Host AZ handling
 		if isNewZone {
 			zone.Status.State = v1beta1.ZoneStateNotAvailable
+			zone.Labels[v1beta1.ResourceIdLabel] = "zone-" + uuid.V5(zone.Spec.ZoneId+zone.Spec.FederationContextId)
 		} else {
 			if isRest {
+				//CALLBACK from REST
 				if err := extClient.UpdateZoneStatus(ctx, &zone, fed); err != nil {
-					log.Error(err, ">>> [AZ] Error during CALLBACK OPERATION via OPG EWBI API.", "name", zone.Name, "namespace", zone.Namespace)
+					log.Error(err, ">>> [AZ][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", zone.Name, "namespace", zone.Namespace)
 					return ctrl.Result{}, err
 				}
 			} else {
-				log.Info(">>> [AZ] Resource updated (GUEST via watcher update through the resource)", "name", zone.Name, "namespace", zone.Namespace)
+				log.Info(">>> [AZ][K8s] Resource updated (GUEST via watcher update through the resource)", "name", zone.Name, "namespace", zone.Namespace)
 			}
 		}
 	} else {
 		// Guest AZ handling
 		if isNewZone {
+			zone.Status.State = v1beta1.ZoneStateNotAvailable
+			zone.Labels[v1beta1.ResourceIdLabel] = "zone-" + uuid.V5(zone.Spec.ZoneId+zone.Spec.FederationContextId)
 			if err := extClient.AcceptZone(ctx, &zone, fed); err != nil {
 				log.Error(err, ">>> [AZ] Error accepting Zone", "name", zone.Name, "namespace", zone.Namespace)
 				return ctrl.Result{}, err
@@ -182,11 +207,11 @@ func (r *AvailabilityZoneReconciler) Reconcile(
 			log.Info(">>> [AZ] SUCCESSFULLY APPLIED SPEC AND SET INITIAL STATUS.", "name", zone.Name, "namespace", zone.Namespace)
 		} else {
 			if isRest {
-				log.Info(">>> [AZ] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API", "name", zone.Name, "namespace", zone.Namespace)
+				log.Info(">>> [AZ][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API", "name", zone.Name, "namespace", zone.Namespace)
 			} else {
-				// Watcher
+				// WATCHER for K8s
 				if err := extClient.UpdateZoneStatus(ctx, &zone, fed); err != nil {
-					log.Error(err, ">>> [AZ] Error updating Zone.", "name", zone.Name, "namespace", zone.Namespace)
+					log.Error(err, ">>> [AZ][K8s] Error updating Zone.", "name", zone.Name, "namespace", zone.Namespace)
 					return ctrl.Result{}, err
 				}
 			}

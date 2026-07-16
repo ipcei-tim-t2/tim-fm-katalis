@@ -128,8 +128,8 @@ func makeTestAvailabilityZoneReconciler(
 	client client.Client,
 	sch *runtime.Scheme,
 	opgClients opg.OPGClientsMapInterface,
-) *AvailabilityZoneReconciler {
-	r := &AvailabilityZoneReconciler{
+) *ZoneReconciler {
+	r := &ZoneReconciler{
 		Client:                 client,
 		Scheme:                 sch,
 		OPGClientsMapInterface: opgClients,

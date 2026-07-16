@@ -1,0 +1,9 @@
+apiVersion: opg.ewbi.katalis.com/v1beta1
+kind: AvailabilityZone
+metadata:
+  namespace: guest
+  name: zone-6f6458f2-a88e-58db-86d4-88c088a168b1 
+spec:
+  relationType: GUEST
+  federationContextId: b84838d5-4fd6-5a62-8e23-c71c9960c962
+  zoneId: 2344e4567-e89b-12d3-a456-426614174000

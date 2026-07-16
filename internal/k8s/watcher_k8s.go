@@ -86,7 +86,7 @@ func StartRemoteResourceWatcher(ctx context.Context, dynClient dynamic.Interface
 				targetChannel = ImageRemoteEvents
 			case "artefacts":
 				targetChannel = ArtefactRemoteEvents
-			case "applications":
+			case "applicationonboardings":
 				targetChannel = ApplicationOnboardingRemoteEvents
 			case "applicationdeployments":
 				targetChannel = ApplicationDeploymentRemoteEvents

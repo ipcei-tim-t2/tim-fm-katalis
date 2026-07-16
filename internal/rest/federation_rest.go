@@ -18,14 +18,13 @@ package rest
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	opgmodels "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
-	uu "github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -71,13 +70,9 @@ func (r *FederationReconciler) CreateFederation(ctx context.Context, fed *v1beta
 			}
 		}
 	}
-	fedId, err := uuid.Parse(uu.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	// Get the OPG client for the federation
 	opgClient := r.GetOPGClient(
-		"fed-"+fedId.String(),
+		fed.Status.FederationContextId,
 		tokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
@@ -194,7 +189,7 @@ func (r *FederationReconciler) CreateFederation(ctx context.Context, fed *v1beta
 				Mncs: *pmnc.Mncs,
 			}
 		}
-
+		fed.Status.FederationContextId = string(*federResponse.FederationContextId)
 		fed.Status.State = v1beta1.FederationStateAvailable
 	case statusCode == 400:
 		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON400)
@@ -205,6 +200,8 @@ func (r *FederationReconciler) CreateFederation(ctx context.Context, fed *v1beta
 	case statusCode == 404:
 		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON404)
 		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 408:
+		return fmt.Errorf("Federation %s not established (408 Timeout)", fed.Name)
 	case statusCode == 409:
 		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON409)
 		fed.Status.State = v1beta1.FederationStateFailed
@@ -230,12 +227,8 @@ func (r *FederationReconciler) PatchFederation(ctx context.Context, fed *v1beta1
 	log := ctrl.Log
 	log.Info(">>> [Federation][REST] Updating DATA for Federation.", "name", fed.Name, "namespace", fed.Namespace)
 	// Get the OPG client for the federation
-	fedId, err := uuid.Parse(uu.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	opgClient := r.GetOPGClient(
-		"fed-"+fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
@@ -346,12 +339,8 @@ func (r *FederationReconciler) GetHealthFederation(ctx context.Context, fed *v1b
 	log := ctrl.Log
 	log.Info(">>> [Federation][REST] Getting HEALTH INFO for Federation.", "name", fed.Name, "namespace", fed.Namespace)
 	// Get the OPG client for the federation
-	fedId, err := uuid.Parse(uu.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	opgClient := r.GetOPGClient(
-		"fed-"+fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
@@ -411,12 +400,8 @@ func (r *FederationReconciler) GetPlatformCapsFederation(ctx context.Context, fe
 	log := ctrl.Log
 	log.Info(">>> [Federation][REST] Getting PLATFORM CAPS for Federation.", "name", fed.Name, "namespace", fed.Namespace)
 	// Get the OPG client for the federation
-	fedId, err := uuid.Parse(uu.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	opgClient := r.GetOPGClient(
-		"fed-"+fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
@@ -497,12 +482,8 @@ func (r *FederationReconciler) GetServiceAPIFederation(ctx context.Context, fed 
 	log := ctrl.Log
 	log.Info(">>> [Federation][REST] Getting SERVICE APIs details.", "name", fed.Name, "namespace", fed.Namespace)
 	// Get the OPG client for the federation
-	fedId, err := uuid.Parse(uu.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	opgClient := r.GetOPGClient(
-		"fed-"+fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
@@ -562,12 +543,8 @@ func (r *FederationReconciler) RenewalFederation(ctx context.Context, fed *v1bet
 	log := ctrl.Log
 	log.Info(">>> [Federation][REST] Getting RENEW FEDERATION.", "name", fed.Name, "namespace", fed.Namespace)
 	// Get the OPG client for the federation
-	fedId, err := uuid.Parse("fed-" + uu.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()+fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	opgClient := r.GetOPGClient(
-		fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
@@ -625,12 +602,8 @@ func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta
 	log := ctrl.Log
 	log.Info(">>> [Federation][REST] Deleting external federation", "name", fed.Name, "namespace", fed.Namespace)
 	// Get the OPG client for the federation
-	fedId, err := uuid.Parse(uu.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	opgClient := r.GetOPGClient(
-		"fed-"+fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
@@ -686,7 +659,28 @@ func (r *FederationReconciler) UpdateFederationStatus(ctx context.Context, fed *
 	log := ctrl.Log
 	// Check if callback is configured
 	if fed.Spec.FederationData.RestOptions.PartnerStatusLink == "" {
-		log.Info(">>> [Federation][REST] No callback StatusLink configured in Federation, skipping App callback")
+		log.Info(">>> [Federation][REST] No callback StatusLink configured, skipping FEDERATION callback")
+		return nil
+	}
+
+	ud := fed.Status.UpdateDetails
+	if ud == nil {
+		log.Info(">>> [Federation][REST] No callback UpdateDetails configured, skipping FEDERATION callback")
+		return nil
+	}
+
+	if ud.OperationType == "" {
+		log.Info(">>> [Federation][REST] No callback OperationType configured, skipping FEDERATION callback")
+		return nil
+	}
+
+	if ud.ObjectType == "" {
+		log.Info(">>> [Federation][REST] No callback ObjectType configured, skipping FEDERATION callback")
+		return nil
+	}
+	// In Kubernetes si usa IsZero() per le date
+	if ud.UpdateDate.IsZero() {
+		log.Info(">>> [Federation][REST] No callback UpdateDate configured, skipping FEDERATION callback")
 		return nil
 	}
 	log.Info(">>> [Federation][REST] Sending App callback to Guest", "name", fed.Name, "namespace", fed.Namespace, "callbackURL", fed.Spec.FederationData.RestOptions.PartnerStatusLink)
@@ -705,15 +699,14 @@ func (r *FederationReconciler) UpdateFederationStatus(ctx context.Context, fed *
 		FederationContextId: &fed.Status.FederationContextId,
 		AddZones:            &zones,
 		FederationStatus:    (*opgmodels.Status)(&fed.Status.State),
-		// Add other fields as needed
+		OperationType:       (opgmodels.PartnerStatusLinkJSONBodyOperationType)(fed.Status.UpdateDetails.OperationType),
+		ObjectType:          (opgmodels.PartnerStatusLinkJSONBodyObjectType)(fed.Status.UpdateDetails.ObjectType),
+		ModificationDate:    fed.Status.UpdateDetails.UpdateDate.Time,
 	}
-	fedId, err := uuid.Parse(uu.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
+	log.Info(">>> [Federation][REST] Callback body", "body", callbackBody)
 	// Get callback client (pointing to Guest's callback URL via Federation.spec.partner.statusLink)
 	res, err := r.GetOPGClient(
-		"fed-"+fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.PartnerStatusLink,
 		fed.Spec.FederationData.ClientId,
 	).PartnerStatusLinkWithResponse(

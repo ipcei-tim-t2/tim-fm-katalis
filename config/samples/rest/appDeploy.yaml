@@ -1,0 +1,19 @@
+apiVersion: opg.ewbi.katalis.com/v1beta1
+kind: ApplicationInstance
+metadata:
+  namespace: guest
+  name: appdeply-67gx5fht632dty6543567yh43
+spec:
+  relationType: GUEST
+  federationContextId: 4d559f1b-f008-58c2-a2f8-0596892a0f7a # get this from Federation's status
+  appId: 4d559f1b-f008-58c2-a2f8-05d
+  appInstanceId: app-inst-k8s
+  zoneId: 2344e4567-e89b-12d3-a456-426614174000
+  appProviderId: katalis
+  appDetails:
+    appVersion: 1.23.3
+    zoneInfo:
+      flavourId: NOT_SPECIFIED
+      resPool: mock-res-pool
+      resourceConsumption: RESERVED_RES_AVOID
+    appInstCallbackLink: "http://tim-fm-api.host.svc.cluster.local:6443"

@@ -1,7 +1,7 @@
 # DO NOT EDIT - Source: https://github.com/edge-collab/federation-ewbi
 openapi: 3.0.3
 info:
-  version: 1.0.0
+  version: 1.4.0
   title: Federation Management Service
   description: |
     # Introduction
@@ -241,7 +241,7 @@ components:
       type: string
       enum:
         - PENDING
-        - ONBOARDED
+        - ONBOARDEDfc
         - DEBOARDING
         - REMOVED
         - FAILED
@@ -3776,6 +3776,8 @@ paths:
                 - artefactDescriptorType
                 - componentSpec
               properties:
+                artefactNotifLink:
+                  $ref: '#/components/schemas/Uri'
                 artefactId:
                   $ref: '#/components/schemas/ArtefactId'
                 appProviderId:
@@ -3968,6 +3970,8 @@ paths:
                 - imgOSType
                 - imgInsSetArch
               properties:
+                fileNotifLink:
+                  $ref: '#/components/schemas/Uri'
                 fileId:
                   $ref: '#/components/schemas/FileId'
                 appProviderId:

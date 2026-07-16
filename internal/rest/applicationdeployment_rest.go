@@ -64,7 +64,7 @@ func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx contex
 		ZoneInfo:            zone,
 	}
 	params := opgmodels.InstallAppParams{
-		IdempotencyKey: opgmodels.TransactionId(uuid.New()),
+		IdempotencyKey: "1",
 	}
 	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
 	if err != nil {

@@ -22,7 +22,7 @@ import (
 
 // finalizers
 const (
-	ApplicationDeploymentFinalizer = "applicationdeployment.opg.ewbi.finalizer.katalis.com"
+	ApplicationDeploymentFinalizer = "katalis.com/applicationdeployment.opg.ewbi.finalizer"
 )
 
 type ApplicationDeploymentState string
@@ -40,10 +40,6 @@ const (
 	ApplicationDeploymentStateFailed      ApplicationDeploymentState = "FAILED"
 	ApplicationDeploymentStateTerminating ApplicationDeploymentState = "TERMINATING"
 
-	// ErrorUpdatingApplicationDeploymentRestStatusMsg ApplicationDeploymentRestErrMsg  = ">>> [AppDep][REST] Error Updating resource status"
-	// UnexpectedStatusApplicationDeploymentRestMsg    ApplicationDeploymentRestErrMsg  = ">>> [AppDep][REST] Unexpected Status Code"
-	// ErrorUpdatingApplicationDeploymentK8sStatusMsg  ApplicationDeploymentK8sErrMsg   = ">>> [AppDep][K8s] Error Updating resource status"
-	// UnexpectedStatusApplicationDeploymentK8sMsg     ApplicationDeploymentK8sUnErrMsg = ">>> [AppDep][K8s] Unexpected Status Code"
 	PluralApplicationDeployment = "applicationdeployments"
 	KindApplicationDeployment   = "ApplicationDeployment"
 )
@@ -73,7 +69,7 @@ type AppDetails struct {
 	AppVersion string `json:"appVersion,omitempty"`
 
 	// +kubebuilder:validation:Required
-	ZoneInfo ZoneInfo `json:"zoneInfo,omitempty"`
+	ZoneInfo *ZoneInfo `json:"zoneInfo,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	AppInstCallbackLink string `json:"appInstCallbackLink,omitempty"`
@@ -107,7 +103,7 @@ type AccessPointInfo struct {
 	InterfaceId string `json:"interfaceId"`
 
 	// +kubebuilder:validation:Required
-	AccessPoints AccessPoints `json:"accessPoints"`
+	AccessPoints *AccessPoints `json:"accessPoints"`
 }
 
 type AppInstanceInfo struct {
@@ -159,7 +155,7 @@ type ApplicationDeploymentSpec struct {
 	AppProviderId string `json:"appProviderId,omitempty"`
 
 	// +kubebuilder:validation:Required
-	AppDetails AppDetails `json:"appDetails,omitempty"`
+	AppDetails *AppDetails `json:"appDetails,omitempty"`
 }
 
 // ApplicationDeploymentStatus defines the observed state of ApplicationDeployment.
@@ -176,6 +172,12 @@ type ApplicationDeploymentStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=appdep,scope=Namespaced
+// +kubebuilder:printcolumn:name="relationType",type="string",JSONPath=".spec.relationType"
+// +kubebuilder:printcolumn:name="federationContextId",type="string",JSONPath=".spec.federationContextId"
+// +kubebuilder:printcolumn:name="appId",type="string",JSONPath=".spec.appId"
+// +kubebuilder:printcolumn:name="zoneId",type="string",JSONPath=".spec.zoneId"
+// +kubebuilder:printcolumn:name="appInstanceId",type="string",JSONPath=".spec.appInstanceId"
+// +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.appInstanceInfo.appInstanceState"
 
 // ApplicationDeployment is the Schema for the applicationdeployments API
 type ApplicationDeployment struct {

@@ -2,14 +2,11 @@ package metastore
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/google/uuid"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	opgmodels "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	camara "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/server"
@@ -34,24 +31,13 @@ func (a *UploadArtefact) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&cp)
 }
 
-func (m *UploadArtefact) files() []string {
-	out := []string{}
-	for _, componentSpec := range m.ComponentSpec {
-		for _, img := range componentSpec.Images {
-			// Conversione esplicita di ogni elemento
-			out = append(out, string(img[:]))
-		}
+func isValidArtefactStatus(status string) bool {
+	switch v1beta1.ArtefactState(status) {
+	case v1beta1.ArtefactStatePending, v1beta1.ArtefactStateReady, v1beta1.ArtefactStateError, v1beta1.ArtefactStateUnknown:
+		return true
 	}
-	return out
+	return false
 }
-
-// func isValidArtefactStatus(status string) bool {
-// 	switch v1beta1.ArtefactState(status) {
-// 	case v1beta1.ArtefactStateReconciling, v1beta1.ArtefactStateReady, v1beta1.ArtefactStateError, v1beta1.ArtefactStateUnknown:
-// 		return true
-// 	}
-// 	return false
-// }
 
 func (m *UploadArtefact) componentSpec() []v1beta1.ComponentSpec {
 	out := make([]v1beta1.ComponentSpec, len(m.ComponentSpec))
@@ -68,19 +54,19 @@ func (m *UploadArtefact) componentSpec() []v1beta1.ComponentSpec {
 		}
 		images := []string{}
 		for _, image := range componentSpec.Images {
-			images = append(images, hex.EncodeToString(image[:]))
+			images = append(images, image)
 		}
 		out[i] = v1beta1.ComponentSpec{
 			ComponentName: componentSpec.ComponentName,
 			Images:        images,
-			CommandLineParams: v1beta1.CommandLineParams{
+			CommandLineParams: &v1beta1.CommandLineParams{
 				Command:     componentSpec.CommandLineParams.Command,
 				CommandArgs: defaultIfNil(componentSpec.CommandLineParams.CommandArgs),
 			},
 			NumOfInstances:    int32(componentSpec.NumOfInstances),
 			RestartPolicy:     string(componentSpec.RestartPolicy),
 			ExposedInterfaces: exposedInterfaces,
-			ComputeResourceProfile: v1beta1.ComputeResourceProfile{
+			ComputeResourceProfile: &v1beta1.ComputeResourceProfile{
 				CPUArchType:    string(componentSpec.ComputeResourceProfile.CpuArchType),
 				CPUExclusivity: defaultIfNil(componentSpec.ComputeResourceProfile.CpuExclusivity),
 				Memory:         componentSpec.ComputeResourceProfile.Memory,
@@ -91,48 +77,43 @@ func (m *UploadArtefact) componentSpec() []v1beta1.ComponentSpec {
 	return out
 }
 
-func (c *k8sClient) searchArtefact(ctx context.Context, federationContextId string, artefactId string, role string, listObj client.ObjectList) (*v1beta1.Artefact, error) {
-	fields := map[string]string{
-		FedIdIndex:      federationContextId,
-		RelationType:    role,
-		ArtefactIdIndex: artefactId,
-	}
-	obj, err := c.getResourceByFields(ctx, &v1beta1.ImageList{}, fields)
-	if err != nil {
+func (c *k8sClient) searchArtefact(ctx context.Context, federationContextId string, artefactId string, role string) (*v1beta1.Artefact, error) {
+	var artefactList v1beta1.ArtefactList
+	if err := c.kubernetes.List(ctx, &artefactList, &k8scli.ListOptions{Namespace: c.getNamespace()}); err != nil {
 		return nil, err
 	}
-	artefact, ok := obj.(*v1beta1.Artefact)
-	if !ok {
-		return nil, missMatchErr("artefact", federationContextId, artefactId, &v1beta1.Artefact{}, obj)
+	if len(artefactList.Items) == 0 {
+		return nil, errors.Errorf("Artefact not found for federationContextId: %s and artefactId: %s and role: %s", federationContextId, artefactId, role)
 	}
-	return artefact, nil
+	for i := range artefactList.Items {
+		artefact := artefactList.Items[i]
+		if artefact.Spec.ArtefactId == artefactId && artefact.Spec.FederationContextId == federationContextId && artefact.Spec.RelationType == role {
+			return &artefact, nil
+		}
+	}
+	return nil, errors.Errorf("Artefact not found for federationContextId: %s and artefactId: %s and role: %s", federationContextId, artefactId, role)
 }
 
 func (c *k8sClient) UploadArtefact(ctx context.Context, artefact *UploadArtefact) (*v1beta1.Artefact, error) {
-	// for _, image := range artefact.files() {
-	// 	if _, err := c.GetImage(ctx, artefact.FederationContextId, image); err != nil {
-	// 		if IsNotFoundError(err) {
-	// 			return nil, errors.Wrap(ErrBadRequest, err.Error())
-	// 		}
-	// 	}
-	// }
-	if _, err := c.searchFederation(ctx, artefact.FederationContextId, "HOST", &v1beta1.FederationList{}); err != nil {
+	if _, err := c.searchFederation(ctx, artefact.FederationContextId, "HOST"); err != nil {
 		return nil, err
 	}
-	artefactId, err := uuid.Parse("fed-" + uu.V5(artefact.FederationContextId+artefact.AppProviderId+string(artefact.ArtefactId[:])))
-	if err != nil {
-		return nil, err
+	var callbackLink string
+	if artefact.ArtefactNotifLink != nil {
+		callbackLink = string(*artefact.ArtefactNotifLink)
 	}
+	artefactId := "artefact-" + uu.V5(artefact.FederationContextId+artefact.AppProviderId+artefact.ArtefactId)
 	artefactHost := &v1beta1.Artefact{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      artefactId.String(),
+			Name:      artefactId,
 			Namespace: c.getNamespace(),
 		},
 		Spec: v1beta1.ArtefactSpec{
 			RelationType:        string(v1beta1.FederationRelationHost),
 			FederationContextId: artefact.FederationContextId,
-			ArtefactId:          artefact.ArtefactId.String(),
-			ArtefactBody: v1beta1.ArtefactBody{
+			ArtefactId:          artefact.ArtefactId,
+			ArtefactNotifLink:   callbackLink,
+			ArtefactBody: &v1beta1.ArtefactBody{
 				AppProviderId:       artefact.AppProviderId,
 				ArtefactName:        artefact.ArtefactName,
 				ArtefactVersionInfo: artefact.ArtefactVersionInfo,
@@ -149,21 +130,8 @@ func (c *k8sClient) UploadArtefact(ctx context.Context, artefact *UploadArtefact
 	return artefactHost, nil
 }
 
-func (c *k8sClient) UpdateArtefactStatus(ctx context.Context, federationCallbackID string, updates *models.ArtefactStatusCallbackLinkJSONRequestBody) error {
-	id := hex.EncodeToString(updates.ArtefactId[:])
-	artefact, err := c.searchArtefact(ctx, federationCallbackID, id, "GUEST", &v1beta1.ImageList{})
-	if err != nil {
-		return err
-	}
-	state := string(updates.UpdateStatus)
-	//if isValidArtefactStatus(state) {
-	return c.updateK8sObjectStatus(artefact, state)
-	// }
-	// return nil
-}
-
 func (c *k8sClient) GetArtefact(ctx context.Context, federationContextID, id string) (*Artefact, error) {
-	artefact, err := c.searchArtefact(ctx, federationContextID, id, "GUEST", &v1beta1.ImageList{})
+	artefact, err := c.searchArtefact(ctx, federationContextID, id, "GUEST")
 	if err != nil {
 		return nil, err
 	}
@@ -171,11 +139,7 @@ func (c *k8sClient) GetArtefact(ctx context.Context, federationContextID, id str
 	for i, cs := range artefact.Spec.ArtefactBody.ComponentSpec {
 		imagesIds := []opgmodels.FileId{}
 		for _, i := range cs.Images {
-			imageId, err := uuid.Parse(i)
-			if err != nil {
-				return nil, err
-			}
-			imagesIds = append(imagesIds, opgmodels.FileId(imageId))
+			imagesIds = append(imagesIds, opgmodels.FileId(i))
 		}
 		exposeInterfaces := make([]models.InterfaceDetails, len(cs.ExposedInterfaces))
 		for j, ei := range cs.ExposedInterfaces {
@@ -207,14 +171,10 @@ func (c *k8sClient) GetArtefact(ctx context.Context, federationContextID, id str
 	if err != nil {
 		return nil, err
 	}
-	parsedUUID, err := uuid.Parse(id)
-	if err != nil {
-		return nil, err
-	}
 	return &Artefact{
 		GetArtefact200JSONResponse: &camara.GetArtefact200JSONResponse{
 			AppProviderId:          artefact.Spec.ArtefactBody.AppProviderId,
-			ArtefactId:             models.ArtefactId(parsedUUID),
+			ArtefactId:             models.ArtefactId(id),
 			ArtefactName:           artefact.Spec.ArtefactBody.ArtefactName,
 			ArtefactDescriptorType: models.ArtefactDescriptorType(artefact.Spec.ArtefactBody.ArtefactDescriptorType),
 			ArtefactVirtType:       models.ArtefactVirtType(artefact.Spec.ArtefactBody.ArtefactVirtType),
@@ -224,13 +184,28 @@ func (c *k8sClient) GetArtefact(ctx context.Context, federationContextID, id str
 }
 
 func (c *k8sClient) RemoveArtefact(ctx context.Context, federationContextID, id string) error {
-	if err := c.kubernetes.Delete(context.TODO(), &v1beta1.Artefact{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      id,
-			Namespace: c.getNamespace(),
-		},
-	}, &k8scli.DeleteOptions{}); err != nil {
+	if _, err := c.searchFederation(ctx, federationContextID, "HOST"); err != nil {
+		return err
+	}
+	image, err := c.searchArtefact(ctx, federationContextID, id, "HOST")
+	if err != nil {
+		return err
+	}
+	if err := c.kubernetes.Delete(context.TODO(), image, &k8scli.DeleteOptions{}); err != nil {
 		return errors.Wrapf(err, "unable to remove artefact")
+	}
+	return nil
+}
+
+func (c *k8sClient) UpdateArtefactStatus(ctx context.Context, federationCallbackID string, updates *models.ArtefactStatusCallbackLinkJSONRequestBody) error {
+	art, err := c.searchArtefact(ctx, federationCallbackID, updates.ArtefactId, "GUEST")
+	if err != nil {
+		return err
+	}
+	originalArt := art.DeepCopy()
+	art.Status.State = v1beta1.ArtefactState(updates.UpdateStatus)
+	if isValidArtefactStatus(string(art.Status.State)) {
+		return c.patchK8sStatus(originalArt, art)
 	}
 	return nil
 }

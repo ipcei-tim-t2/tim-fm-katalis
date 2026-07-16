@@ -9,7 +9,7 @@ spec:
     technologyType: K8S
     origOPFederationId: "telecomitalia"
     origOPCountryCode: "IT"
-    initialDate: "2026-07-07T12:12:30+02:00"
+    initialDate: "2026-07-13T15:42:02+02:00"
     clientId: 3acde22c-d245-480d-b01e-24e38e01806d
     clientSecret: 4rr55445-d245-480d-b01e-24e38e01806d
     k8sOptions:

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Generate the code for the API and callbacks
-api=./swagger_v1.4.0.yaml
+api=./swagger.yaml
 
 cd /api/ewbi
 yq eval-all --inplace 'del(.servers, .components.securitySchemes, .security) |

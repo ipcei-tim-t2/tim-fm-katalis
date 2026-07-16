@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,44 +34,11 @@ const (
 type Opt func(obj metav1.Object) error
 
 func (c *k8sClient) patchK8sStatus(original k8scli.Object, modified k8scli.Object) error {
-
-	// Creiamo la patch calcolando le differenze tra l'originale e il modificato
 	patch := client.MergeFrom(original)
-
-	// Attenzione: usiamo .Status().Patch() per toccare solo la sub-risorsa Status!
 	if err := c.kubernetes.Status().Patch(context.Background(), modified, patch); err != nil {
 		return errors.Wrapf(err, "unable to patch status of object %T", modified)
 	}
-
 	return nil
-}
-
-// getResourceByFields è un motore di ricerca universale per le Custom Resource di Kubernetes.
-func (c *k8sClient) getResourceByFields(ctx context.Context, listObj client.ObjectList, fields map[string]string) (client.Object, error) {
-
-	// 1. Interroga Kubernetes chiedendo di filtrare i risultati in base ai campi forniti
-	err := c.kubernetes.List(ctx, listObj, client.MatchingFields(fields))
-	if err != nil {
-		return nil, err
-	}
-
-	// 2. Estrae gli elementi dalla lista generica
-	objs, err := meta.ExtractList(listObj)
-	if err != nil {
-		return nil, fmt.Errorf("errore durante l'estrazione della lista: %w", err)
-	}
-
-	// 3. Verifica se ci sono risultati
-	if len(objs) == 0 {
-		return nil, fmt.Errorf("nessuna risorsa trovata con i campi richiesti")
-	}
-
-	// 4. Converte e restituisce il primo risultato utile
-	if obj, ok := objs[0].(client.Object); ok {
-		return obj, nil
-	}
-
-	return nil, fmt.Errorf("impossibile convertire l'oggetto in client.Object")
 }
 
 func WithOwnerReference(owner metav1.Object, scheme *runtime.Scheme) Opt {

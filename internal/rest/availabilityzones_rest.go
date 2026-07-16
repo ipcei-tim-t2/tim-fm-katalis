@@ -44,12 +44,8 @@ func (r *ZoneReconciler) AcceptZone(ctx context.Context, zone *v1beta1.Availabil
 	zoneReq := opgmodels.ZoneRegistrationRequestData{
 		AcceptedAvailabilityZones: []opgmodels.ZoneIdentifier{zone.Spec.ZoneId},
 	}
-	fedId, err := uuid.Parse("fed-" + uu.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()+fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	res, err := r.GetOPGClient(
-		fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	).ZoneSubscribeWithResponse(
@@ -176,7 +172,7 @@ func (r *ZoneReconciler) AcceptZone(ctx context.Context, zone *v1beta1.Availabil
 			}
 		}
 		if acceptedZoneResourceInfo.NetworkResources != nil {
-			zone.Status.NetworkResources = v1beta1.NetworkResources{
+			zone.Status.NetworkResources = &v1beta1.NetworkResources{
 				EgressBandWidth: acceptedZoneResourceInfo.NetworkResources.EgressBandWidth,
 				DedicatedNIC:    acceptedZoneResourceInfo.NetworkResources.DedicatedNIC,
 				SupportSriov:    acceptedZoneResourceInfo.NetworkResources.SupportSriov,
@@ -184,16 +180,16 @@ func (r *ZoneReconciler) AcceptZone(ctx context.Context, zone *v1beta1.Availabil
 			}
 		}
 		if acceptedZoneResourceInfo.ZoneServiceLevelObjsInfo != nil {
-			zone.Status.ZoneServiceLevelObjsInfo = v1beta1.ZoneServiceLevelObjsInfo{
-				LatencyRanges: v1beta1.LatencyRanges{
+			zone.Status.ZoneServiceLevelObjsInfo = &v1beta1.ZoneServiceLevelObjsInfo{
+				LatencyRanges: &v1beta1.LatencyRanges{
 					MinLatency: *acceptedZoneResourceInfo.ZoneServiceLevelObjsInfo.LatencyRanges.MinLatency,
 					MaxLatency: *acceptedZoneResourceInfo.ZoneServiceLevelObjsInfo.LatencyRanges.MaxLatency,
 				},
-				JitterRanges: v1beta1.JitterRanges{
+				JitterRanges: &v1beta1.JitterRanges{
 					MinJitter: *acceptedZoneResourceInfo.ZoneServiceLevelObjsInfo.JitterRanges.MinJitter,
 					MaxJitter: *acceptedZoneResourceInfo.ZoneServiceLevelObjsInfo.JitterRanges.MaxJitter,
 				},
-				ThroughputRanges: v1beta1.ThroughputRanges{
+				ThroughputRanges: &v1beta1.ThroughputRanges{
 					MinThroughput: *acceptedZoneResourceInfo.ZoneServiceLevelObjsInfo.ThroughputRanges.MinThroughput,
 					MaxThroughput: *acceptedZoneResourceInfo.ZoneServiceLevelObjsInfo.ThroughputRanges.MaxThroughput,
 				},
@@ -240,12 +236,8 @@ func (r *ZoneReconciler) DeleteZone(ctx context.Context, zone *v1beta1.Availabil
 	if err != nil {
 		return err
 	}
-	fedId, err := uuid.Parse("fed-" + uu.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()+fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	res, err := r.GetOPGClient(
-		fedId.String(),
+		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	).ZoneUnsubscribeWithResponse(
@@ -298,19 +290,15 @@ func (r *ZoneReconciler) DeleteZone(ctx context.Context, zone *v1beta1.Availabil
 func (r *ZoneReconciler) UpdateZoneStatus(ctx context.Context, zone *v1beta1.AvailabilityZone, fed *v1beta1.Federation) error {
 	log := ctrl.Log
 	// Check if callback is configured
-	if zone.Spec.AvailZoneNotifLink == "" {
-		log.Info(">>> [AZ][REST] No AvailZoneNotifLink, skipping CALLBACK", "name", zone.Name, "namespace", zone.Namespace)
+	if zone.Spec.ZoneNotifLink == "" {
+		log.Info(">>> [AZ][REST] No ZoneNotifLink, skipping CALLBACK", "name", zone.Name, "namespace", zone.Namespace)
 		return nil
 	}
 	zoneId, err := uuid.Parse("fed-" + uu.V5(zone.Spec.FederationContextId+zone.Spec.ZoneId))
 	if err != nil {
 		return err
 	}
-	fedId, err := uuid.Parse("fed-" + uu.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()+fed.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
-	log.Info(">>> [AZ][REST] Sending CALLBACK to Federation Partner", "name", zone.Name, "namespace", zone.Namespace, "callbackURL", zone.Spec.AvailZoneNotifLink)
+	log.Info(">>> [AZ][REST] Sending CALLBACK to Federation Partner", "name", zone.Name, "namespace", zone.Namespace, "callbackURL", zone.Spec.ZoneNotifLink)
 	callbackBody := opgmodels.AvailZoneNotifLinkJSONRequestBody{
 		ZoneId:              zoneId.String(),
 		FederationContextId: &zone.Spec.FederationContextId,
@@ -318,12 +306,12 @@ func (r *ZoneReconciler) UpdateZoneStatus(ctx context.Context, zone *v1beta1.Ava
 	}
 	// Get callback client (pointing to Guest's callback URL via Federation.spec.partner.statusLink)
 	res, err := r.GetOPGClient(
-		fedId.String(),
-		zone.Spec.AvailZoneNotifLink,
-		fed.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
+		zone.Spec.ZoneNotifLink,
+		"host",
 	).AvailZoneNotifLinkWithResponse(
 		context.TODO(),
-		fed.Spec.FederationData.ClientId,
+		zone.Spec.FederationContextId,
 		callbackBody)
 	if err != nil {
 		log.Error(err, ">>> [AZ][REST] Error CALLBACK", "name", zone.Name, "namespace", zone.Namespace)

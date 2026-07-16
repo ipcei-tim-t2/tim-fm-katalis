@@ -233,7 +233,7 @@ func makeTestArtefact(fedCtxId string, opts ...artefactOpt) *v1beta1.Artefact {
 		},
 		Spec: v1beta1.ArtefactSpec{
 			FederationContextId: fedCtxId,
-			ArtefactBody: v1beta1.ArtefactBody{
+			ArtefactBody: &v1beta1.ArtefactBody{
 				AppProviderId:       testAppProvider,
 				ArtefactName:        "ContainerDeploy001",
 				ArtefactVersionInfo: "14",
@@ -241,14 +241,14 @@ func makeTestArtefact(fedCtxId string, opts ...artefactOpt) *v1beta1.Artefact {
 				ArtefactVirtType:    "CONTAINER_TYPE",
 				ComponentSpec: []v1beta1.ComponentSpec{{
 					ComponentName: "test-pod",
-					CommandLineParams: v1beta1.CommandLineParams{
+					CommandLineParams: &v1beta1.CommandLineParams{
 						Command:     []string{"nginx-debug"},
 						CommandArgs: []string{"-g", "daemon off;"},
 					},
 					Images:         []string{testFileName},
 					NumOfInstances: 0,
 					RestartPolicy:  "RESTART_POLICY_ALWAYS",
-					ComputeResourceProfile: v1beta1.ComputeResourceProfile{
+					ComputeResourceProfile: &v1beta1.ComputeResourceProfile{
 						CPUArchType:    "ISA_X86_64",
 						CPUExclusivity: false,
 						Memory:         512,

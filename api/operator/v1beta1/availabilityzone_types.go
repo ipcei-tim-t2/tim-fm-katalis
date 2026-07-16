@@ -22,7 +22,7 @@ import (
 
 // finalizers
 const (
-	AvailabilityZoneFinalizer = "availabilityzone.opg.ewbi.finalizer.katalis.com"
+	AvailabilityZoneFinalizer = "katalis.com/availabilityzone.opg.ewbi.finalizer"
 )
 
 type ZoneState string
@@ -225,13 +225,13 @@ type ThroughputRanges struct {
 
 type ZoneServiceLevelObjsInfo struct {
 	// +kubebuilder:validation:Required
-	LatencyRanges LatencyRanges `json:"latencyRanges"`
+	LatencyRanges *LatencyRanges `json:"latencyRanges"`
 
 	// +kubebuilder:validation:Required
-	JitterRanges JitterRanges `json:"jitterRanges"`
+	JitterRanges *JitterRanges `json:"jitterRanges"`
 
 	// +kubebuilder:validation:Required
-	ThroughputRanges ThroughputRanges `json:"throughputRanges"`
+	ThroughputRanges *ThroughputRanges `json:"throughputRanges"`
 }
 
 // AvailabilityZoneSpec defines the desired state of AvailabilityZone
@@ -250,12 +250,12 @@ type AvailabilityZoneSpec struct {
 	ZoneId string `json:"zoneId,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	AvailZoneNotifLink string `json:"availZoneNotifLink,omitempty"`
+	ZoneNotifLink string `json:"availZoneNotifLink,omitempty"`
 }
 
 // AvailabilityZoneStatus defines the observed state of AvailabilityZone.
 type AvailabilityZoneStatus struct {
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	State ZoneState `json:"state,omitempty"`
 	// Resources exclusively reserved for the originator OP.
 	// +kubebuilder:validation:Optional
@@ -272,17 +272,20 @@ type AvailabilityZoneStatus struct {
 	FlavoursSupported []FlavourSupported `json:"flavoursSupported,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	NetworkResources NetworkResources `json:"networkResources,omitempty"`
+	NetworkResources *NetworkResources `json:"networkResources,omitempty"`
 
 	// It is a measure of the actual amount of data that is being sent over a network per unit of time and indicates máximum supported value for a zone
 	// +kubebuilder:validation:Optional
-	ZoneServiceLevelObjsInfo ZoneServiceLevelObjsInfo `json:"zoneServiceLevelObjsInfo,omitempty"`
+	ZoneServiceLevelObjsInfo *ZoneServiceLevelObjsInfo `json:"zoneServiceLevelObjsInfo,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=avazone,scope=Namespaced
-// +kubebuilder:printcolumn:name="FederationContextId",type=string,JSONPath=`.spec.federationContextId`
+// +kubebuilder:printcolumn:name="relationType",type="string",JSONPath=".spec.relationType"
+// +kubebuilder:printcolumn:name="federationContextId",type="string",JSONPath=".spec.federationContextId"
+// +kubebuilder:printcolumn:name="zoneId",type="string",JSONPath=".spec.zoneId"
+// +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.state"
 
 // AvailabilityZone is the Schema for the availabilityzones API
 type AvailabilityZone struct {

@@ -61,6 +61,11 @@ func SerializeUploadFileMultipartBody(fileMPBody opgmodels.UploadFileMultipartBo
 			return nil, "", err
 		}
 	}
+	if fileMPBody.FileNotifLink != nil { // Handle potential nil pointer
+		if err := fileReader.addFormField("fileNotifLink", string(*fileMPBody.FileNotifLink)); err != nil {
+			return nil, "", err
+		}
+	}
 
 	err := fileReader.close() // Important: Close the writer to finalize the multipart body
 	if err != nil {
@@ -101,7 +106,11 @@ func SerializeUploadArtefactMultipartBody(aMPBody opgmodels.UploadArtefactMultip
 	if err := aReader.addComponentSpecField("componentSpec", aMPBody.ComponentSpec); err != nil {
 		return nil, "", err
 	}
-
+	if aMPBody.ArtefactNotifLink != nil { // Handle potential nil pointer
+		if err := aReader.addFormField("artefactNotifLink", string(*aMPBody.ArtefactNotifLink)); err != nil {
+			return nil, "", err
+		}
+	}
 	err := aReader.close() // Important: Close the writer to finalize the multipart body
 	if err != nil {
 		return nil, "", err

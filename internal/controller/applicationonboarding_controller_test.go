@@ -231,18 +231,18 @@ func makeTestApplicationOnboarding(fedCtxId string, opts ...appOpt) *v1beta1.App
 		},
 		Spec: v1beta1.ApplicationOnboardingSpec{
 			FederationContextId: fedCtxId,
-			AppInfo: v1beta1.AppInfo{
+			AppInfo: &v1beta1.AppInfo{
 				AppProviderId: testAppProvider,
 				AppComponentSpecs: []v1beta1.AppComponentSpec{{
 					ArtefactId: testArtefactName,
 				}},
-				AppMetaData: v1beta1.AppMetaData{
+				AppMetaData: &v1beta1.AppMetaData{
 					AccessToken:     "a1234567890123456789012345678901234567890123456789012345678901",
 					AppName:         testAppMetaDataName,
 					MobilitySupport: false,
 					Version:         testAppMetaDataVersion,
 				},
-				AppQoSProfile: v1beta1.AppQoSProfile{
+				AppQoSProfile: &v1beta1.AppQoSProfile{
 					AppProvisioning:    false,
 					LatencyConstraints: "LOW",
 				},

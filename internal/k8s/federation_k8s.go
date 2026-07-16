@@ -40,9 +40,6 @@ func (r *FederationReconciler) CreateFederation(ctx context.Context, fed *v1beta
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()),
 			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
-			Labels: map[string]string{
-				v1beta1.FederationPolicyLabel: fed.Labels[v1beta1.FederationPolicyLabel],
-			},
 		},
 		Spec: v1beta1.FederationSpec{
 			FederationData: &v1beta1.FederationData{
@@ -56,7 +53,21 @@ func (r *FederationReconciler) CreateFederation(ctx context.Context, fed *v1beta
 			},
 		},
 	}
-	err := ApplyRemoteResource(ctx, r.Client, r.Scheme, fed, fedHost, &v1beta1.Federation{}, fed.Name, fed.Namespace, v1beta1.GroupVersion.Group, v1beta1.GroupVersion.Version, v1beta1.PluralFederation, "federation-controller", "[Federation][K8s]")
+	err := ApplyRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		fedHost,
+		&v1beta1.Federation{},
+		fed.Name,
+		fed.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralFederation,
+		"federation-controller",
+		"[Federation][K8s]",
+	)
 	if err != nil {
 		return err
 	}
@@ -67,16 +78,23 @@ func (r *FederationReconciler) PatchFederation(ctx context.Context, fed *v1beta1
 	fedHost := &v1beta1.Federation{
 		TypeMeta: fed.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()),
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode),
 			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
 		},
 	}
 	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
 
 	if err := PatchRemoteResource(
-		ctx, r.Client, r.Scheme, fed, fedHost,
-		fed.Name, fed.Namespace,
-		v1beta1.GroupVersion.Group, v1beta1.GroupVersion.Version, v1beta1.PluralFederation,
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		fedHost,
+		fed.Name,
+		fed.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralFederation,
 		"[Federation][K8s]",
 	); err != nil {
 		return err
@@ -85,31 +103,122 @@ func (r *FederationReconciler) PatchFederation(ctx context.Context, fed *v1beta1
 }
 
 func (r *FederationReconciler) GetHealthFederation(ctx context.Context, fed *v1beta1.Federation) error {
-	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	fedHost := &v1beta1.Federation{
+		TypeMeta: fed.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode),
+			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+		},
+	}
+	err := AddRemoteAnnotation(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		fedHost,
+		fed.Name,
+		fed.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralFederation,
+		"[Federation][K8s]",
+		v1beta1.GetHealthInfoAnnotation,
+		fed.Annotations[v1beta1.GetHealthInfoAnnotation],
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
-
 func (r *FederationReconciler) GetPlatformCapsFederation(ctx context.Context, fed *v1beta1.Federation) error {
-	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	fedHost := &v1beta1.Federation{
+		TypeMeta: fed.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode),
+			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+		},
+	}
+	err := AddRemoteAnnotation(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		fedHost,
+		fed.Name,
+		fed.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralFederation,
+		"[Federation][K8s]",
+		v1beta1.GetPlatformCapsAnnotation,
+		fed.Annotations[v1beta1.GetPlatformCapsAnnotation],
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
-
 func (r *FederationReconciler) GetServiceAPIFederation(ctx context.Context, fed *v1beta1.Federation) error {
-
-	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	fedHost := &v1beta1.Federation{
+		TypeMeta: fed.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode),
+			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+		},
+	}
+	err := AddRemoteAnnotation(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		fedHost,
+		fed.Name,
+		fed.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralFederation,
+		"[Federation][K8s]",
+		v1beta1.GetServiceAPIsAnnotation,
+		fed.Annotations[v1beta1.GetServiceAPIsAnnotation],
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
-
 func (r *FederationReconciler) RenewalFederation(ctx context.Context, fed *v1beta1.Federation) error {
-
-	// DEVE AGGIUNGERE L'ANNOTAZIONE PER IL RINNOVO DELLA FEDERAZIONE LATO HOST
+	fedHost := &v1beta1.Federation{
+		TypeMeta: fed.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode),
+			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
+		},
+	}
+	err := AddRemoteAnnotation(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		fedHost,
+		fed.Name,
+		fed.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralFederation,
+		"[Federation][K8s]",
+		v1beta1.FederationRenewalAnnotation,
+		fed.Annotations[v1beta1.FederationRenewalAnnotation],
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // WATCHER
 func (r *FederationReconciler) UpdateFederationStatus(ctx context.Context, fed *v1beta1.Federation) error {
 	fedHost := &v1beta1.Federation{}
-	remoteName := "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String())
+	remoteName := "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode)
 	if err := GetRemoteResource(ctx, r.Client, r.Scheme, fed, fedHost, remoteName, fed.Name, fed.Namespace, "[Federation][K8s]"); err != nil {
 		return err
 	}
@@ -124,6 +233,16 @@ func (r *FederationReconciler) UpdateFederationStatus(ctx context.Context, fed *
 
 // DeleteFederation
 func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta1.Federation) error {
-	remoteName := "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String())
-	return DeleteRemoteResource(ctx, r.Client, r.Scheme, fed, &v1beta1.Federation{}, remoteName, fed.Name, fed.Namespace, "[Federation][K8s]")
+	remoteName := "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode)
+	return DeleteRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		&v1beta1.Federation{},
+		remoteName,
+		fed.Name,
+		fed.Namespace,
+		"[Federation][K8s]",
+	)
 }

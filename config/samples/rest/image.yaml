@@ -2,11 +2,11 @@ apiVersion: opg.ewbi.katalis.com/v1beta1
 kind: Image
 metadata:
   namespace: guest
-  name: image-66c9fcf3-4609-58e2-8868-123001d4f14c
+  name: image-123e4567
 spec:
   relationType: GUEST
-  federationContextId:  b84838d5-4fd6-5a62-8e23-c71c9960c962
-  imageId: 123e4567-e89b-12d3-a456-426614174000
+  federationContextId: 2547a104-895a-52c3-899d-2e7643c4270c
+  imageId: 123e4567-e89b-12d3-a456-426614174001
   imageBody:
     appProviderId: nearbycomputing
     imageName: "nginx_latest"
@@ -14,9 +14,9 @@ spec:
     imageType: DOCKER
     imageVersionInfo: "latest"
     imgOSType:
-
       architecture: x86_64
       distribution: UBUNTU
       license: OS_LICENSE_TYPE_FREE
       version: OS_VERSION_UBUNTU_2204_LTS
     imgInsSetArch: ISA_X86_64
+  imageNotifLink: "http://tim-fm-api.guest.svc.cluster.local:6443"

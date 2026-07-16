@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -12,7 +11,6 @@ import (
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/server"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
-	"github.com/neonephos-katalis/opg-ewbi-operator/internal/controller"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/deployment"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/metastore"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
@@ -91,32 +89,13 @@ func (h *handler) CreateFederation(c echo.Context) error {
 
 	userClientCredentials, _ := h.getRequestClientCredentialsFunc(c)
 	var fed *v1beta1.Federation
-	federationContextId := uuid.V5(*request.OrigOPFederationId + request.InitialDate.String())
+	federationContextId := uuid.V5(*request.OrigOPFederationId + request.InitialDate.String() + *request.OrigOPCountryCode)
 	if fed, err = h.metaStoreClient.CreateFederation(ctx, &metastore.Federation{
 		ClientCredentials:     userClientCredentials,
 		FederationRequestData: request,
 		FederationContextId:   federationContextId,
 	}); err != nil {
 		return sendErrorResponseFromError(c, err)
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
-	defer cancel()
-
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	for (len(fed.Status.ZoneDetails) == 0) || fed.Status.PartnerOPFederationId == "" || fed.Status.PartnerOPCountryCode == "" || fed.Status.FederationExpiryDate.IsZero() || fed.Status.FederationRenewalDate.IsZero() || fed.Status.PlatformCaps == nil {
-		select {
-		case <-timeoutCtx.Done():
-			// End the loop if the timeout context is done
-			return sendErrorResponse(c, http.StatusRequestTimeout, "timeout: federation status non ancora pronto")
-		case <-ticker.C:
-			fed, _, err = controller.GetFederation(ctx, false, h.Client, string(federationContextId), fed.Namespace)
-			if err != nil {
-				return sendErrorResponseFromError(c, err)
-			}
-		}
 	}
 
 	offeredZones := make([]models.ZoneDetails, len(fed.Status.ZoneDetails))
@@ -272,7 +251,7 @@ func (h *handler) UploadArtefact(c echo.Context, federationContextId models.Fede
 // Removes an artefact from partner OP.
 // (DELETE /{federationContextId}/artefact/{artefactId})
 func (h *handler) RemoveArtefact(c echo.Context, federationContextId models.FederationContextId, artefactId models.ArtefactId) error {
-	if err := h.metaStoreClient.RemoveArtefact(h.getRequestContextFunc(c), federationContextId, string(artefactId[:])); err != nil {
+	if err := h.metaStoreClient.RemoveArtefact(h.getRequestContextFunc(c), federationContextId, artefactId); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusOK, nil)
@@ -281,7 +260,7 @@ func (h *handler) RemoveArtefact(c echo.Context, federationContextId models.Fede
 // Retrieves details about an artefact.
 // (GET /{federationContextId}/artefact/{artefactId})
 func (h *handler) GetArtefact(c echo.Context, federationContextId models.FederationContextId, artefactId models.ArtefactId) error {
-	artefact, err := h.metaStoreClient.GetArtefact(h.getRequestContextFunc(c), federationContextId, string(artefactId[:]))
+	artefact, err := h.metaStoreClient.GetArtefact(h.getRequestContextFunc(c), federationContextId, artefactId)
 	if err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
@@ -300,7 +279,6 @@ func (h *handler) UploadFile(c echo.Context, federationContextId models.Federati
 			Detail: &detail,
 		})
 	}
-
 	if _, err := h.metaStoreClient.UploadImage(ctx, &metastore.UploadImage{
 		UploadFileMultipartBody: request,
 		FederationContextId:     federationContextId,
@@ -314,7 +292,7 @@ func (h *handler) UploadFile(c echo.Context, federationContextId models.Federati
 // Removes an image file from partner OP.
 // (DELETE /{federationContextId}/files/{fileId})
 func (h *handler) RemoveFile(c echo.Context, federationContextId models.FederationContextId, fileId models.FileId) error {
-	if err := h.metaStoreClient.RemoveImage(h.getRequestContextFunc(c), federationContextId, string(fileId[:])); err != nil {
+	if err := h.metaStoreClient.RemoveImage(h.getRequestContextFunc(c), federationContextId, fileId); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusOK, nil)
@@ -323,7 +301,7 @@ func (h *handler) RemoveFile(c echo.Context, federationContextId models.Federati
 // View an image file from partner OP.
 // (GET /{federationContextId}/files/{fileId})
 func (h *handler) ViewFile(c echo.Context, federationContextId models.FederationContextId, fileId models.FileId) error {
-	file, err := h.metaStoreClient.GetImage(h.getRequestContextFunc(c), federationContextId, string(fileId[:]))
+	file, err := h.metaStoreClient.GetImage(h.getRequestContextFunc(c), federationContextId, fileId)
 	if err != nil {
 		return sendErrorResponseFromError(c, err)
 	}

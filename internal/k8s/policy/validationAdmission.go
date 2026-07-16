@@ -45,46 +45,43 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 	log := ctrl.Log
 	listFed := &v1beta1.FederationList{}
 
-	// 1. Recupera TUTTE le istanze di Federation (Senza usare MatchingFields)
-	// In questo modo aggiriamo completamente il problema dell'indice della cache
+	// Retrive all the federations and filter by the specified role and federationContextID
 	if err := r.Client.List(ctx, listFed); err != nil {
 		log.Error(err, ">>> [Federation] Failed to list Federations")
 		return err
 	}
 
-	// Utilizziamo una mappa per evitare duplicati in modo semplice
 	idMap := make(map[string]bool)
-
-	// 2. Scorriamo la lista e facciamo il FILTRO LATO GO
+	// List all the federations and filter by the specified role and federationContextID
 	for _, fed := range listFed.Items {
-		// Aggiungiamo alla mappa SOLO se il relationType corrisponde al ruolo cercato
+		// Add the federationContextId to the map if it matches the role and has a non-empty federationContextId
 		if fed.Spec.FederationData.RelationType == string(role) && fed.Status.FederationContextId != "" {
 			idMap[fed.Status.FederationContextId] = true
 		}
 	}
 
-	// 2. GESTIONE DELL'AZIONE SULL'ELEMENTO SPECIFICO
+	// Handle the action on the specific element
 	if federationContextID != "" {
 		switch action {
 		case "remove":
-			// Rimuoviamo l'elemento (forzando l'esclusione anche se fosse ancora in cache)
+			// Delete the element from the map (useful in case it has already appeared in the List cache)
 			delete(idMap, federationContextID)
 		case "add":
-			// Aggiungiamo l'elemento (utile nel caso in cui non sia ancora comparso nella cache della List)
+			// Add the element to the map (useful in case it has not yet appeared in the List cache)
 			idMap[federationContextID] = true
 		default:
-			log.Error(fmt.Errorf("invalid action"), ">>> [Federation] Invalid action provided", "action", action)
+			log.Error(fmt.Errorf("invalid action"), ">>> [Federation][Policy] Invalid action provided", "action", action)
 			return fmt.Errorf("invalid action: %s", action)
 		}
 	}
 
-	// 3. Trasformiamo la mappa nella lista finale
+	// Transform the map into a slice of strings to be used in the CEL expression
 	var federationContextIds []string
 	for id := range idMap {
 		federationContextIds = append(federationContextIds, id)
 	}
 
-	// 4. Costruiamo la stringa per l'espressione CEL
+	// Build the CEL expression based on the federationContextIds and the role
 	celList := "[]"
 	if len(federationContextIds) > 0 {
 		var celListItems []string
@@ -105,7 +102,7 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 	)
 `, string(role), celList, string(role), celList)
 
-	// 6. Costruzione e Patch della Policy
+	// Build and Patch the ValidatingAdmissionPolicy
 	policy := &admissionregistrationv1.ValidatingAdmissionPolicy{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",
@@ -128,7 +125,7 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 							Rule: admissionregistrationv1.Rule{
 								APIGroups:   []string{"opg.ewbi.katalis.com"},
 								APIVersions: []string{"v1beta1"},
-								Resources:   []string{"files", "artefacts", "applications", "applicationinstances"},
+								Resources:   []string{"images", "artefacts", "applicationonboardings", "applicationdeployments"},
 							},
 						},
 					},
@@ -145,11 +142,11 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 
 	err := r.Client.Patch(ctx, policy, client.Apply, client.ForceOwnership, client.FieldOwner("federation-controller"))
 	if err != nil {
-		log.Error(err, ">>> [Federation] Impossible to patch ValidatingAdmissionPolicy", "policyName", policyName)
+		log.Error(err, ">>> [Federation][Policy] Impossible to patch ValidatingAdmissionPolicy", "policyName", policyName)
 		return err
 	}
 
-	// 7. Costruzione e Patch del Binding (rimane inalterato)
+	// Build and Patch the Binding (remains unchanged)
 	bindingName := policyName + "-binding"
 	binding := &admissionregistrationv1.ValidatingAdmissionPolicyBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -170,10 +167,10 @@ func (r *FederationReconciler) FederationContextIdPolicy(ctx context.Context, ro
 
 	err = r.Client.Patch(ctx, binding, client.Apply, client.ForceOwnership, client.FieldOwner("federation-controller"))
 	if err != nil {
-		log.Error(err, ">>> [Federation] Impossible to patch ValidatingAdmissionPolicyBinding", "bindingName", bindingName)
+		log.Error(err, ">>> [Federation][Policy] Impossible to patch ValidatingAdmissionPolicyBinding", "bindingName", bindingName)
 		return err
 	}
 
-	log.Info(">>> [Federation] Policy & Binding updated successfully", "policyName", policyName, "validIDsCount", len(federationContextIds), "actionPerformed", action)
+	log.Info(">>> [Federation][Policy] SUCCESSFULLY", "policyName", policyName, "validIDsCount", len(federationContextIds), "actionPerformed", action)
 	return nil
 }

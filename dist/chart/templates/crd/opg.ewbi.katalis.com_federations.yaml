@@ -22,7 +22,26 @@ spec:
     singular: federation
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.federationData.relationType
+      name: relationType
+      type: string
+    - jsonPath: .spec.federationData.technologyType
+      name: technologyType
+      type: string
+    - jsonPath: .spec.federationData.initialDate
+      name: initialDate
+      type: string
+    - jsonPath: .status.federationContextId
+      name: federationContextId
+      type: string
+    - jsonPath: .status.partnerOPFederationId
+      name: partnerOPFederationId
+      type: string
+    - jsonPath: .status.state
+      name: state
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Federation is the Schema for the federations API

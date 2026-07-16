@@ -22,7 +22,7 @@ import (
 
 // finalizers
 const (
-	ArtefactFinalizer = "artefact.opg.ewbi.finalizer.katalis.com"
+	ArtefactFinalizer = "katalis.com/artefact.opg.ewbi.finalizer"
 )
 
 type ArtefactState string
@@ -30,19 +30,14 @@ type ArtefactK8sErrMsg string
 type ArtefactK8sUnErrMsg string
 
 const (
-	ArtefactStateReconciling ArtefactState = "PENDING"
-	ArtefactStateReady       ArtefactState = "READY"
-	ArtefactStateError       ArtefactState = "ERROR"
-	ArtefactStateUnknown     ArtefactState = "UNKNOWN"
+	ArtefactStatePending ArtefactState = "PENDING"
+	ArtefactStateReady   ArtefactState = "READY"
+	ArtefactStateError   ArtefactState = "ERROR"
+	ArtefactStateUnknown ArtefactState = "UNKNOWN"
 
 	PluralArtefact = "artefacts"
 	KindArtefact   = "Artefact"
 )
-
-// const (
-// 	ErorUpdatingArtefactStatusMsg ArtefactK8sErrMsg   = ">>> [Artefact][K8s] Error Updating resource status"
-// 	UnexpectedStatusArtefactMsg   ArtefactK8sUnErrMsg = ">>> [Artefact][K8s] Unexpected Status Code"
-// )
 
 // / +kubebuilder:validation:Format=uuid
 // A globally unique identifier associated with the image file. Originating OP generates this identifier when file is uploaded over NBI.
@@ -176,15 +171,23 @@ type PersistentVolume struct {
 	SharingPolicy string `json:"sharingPolicy,omitempty"`
 }
 type ComputeResourceProfile struct {
-	CPUArchType    string `json:"cpuArchType"`
-	CPUExclusivity bool   `json:"cpuExclusivity"`
-	Memory         int64  `json:"memory"`
-	NumCPU         string `json:"numCPU"`
+	// +kubebuilder:validation:Optional
+	CPUArchType string `json:"cpuArchType"`
+	// +kubebuilder:validation:Optional
+	CPUExclusivity bool `json:"cpuExclusivity"`
+	// +kubebuilder:validation:Optional
+	Memory int64 `json:"memory"`
+	// +kubebuilder:validation:Optional
+	NumCPU string `json:"numCPU"`
 }
 type ExposedInterfaceInfo struct {
-	Port           int32  `json:"port"`
-	Protocol       string `json:"protocol"`
-	InterfaceId    string `json:"interfaceId"`
+	// +kubebuilder:validation:Optional
+	Port int32 `json:"port"`
+	// +kubebuilder:validation:Optional
+	Protocol string `json:"protocol"`
+	// +kubebuilder:validation:Optional
+	InterfaceId string `json:"interfaceId"`
+	// +kubebuilder:validation:Optional
 	VisibilityType string `json:"visibilityType"`
 }
 type ComponentSpec struct {
@@ -208,10 +211,10 @@ type ComponentSpec struct {
 	RestartPolicy string `json:"restartPolicy"`
 
 	// +kubebuilder:validation:Required
-	ComputeResourceProfile ComputeResourceProfile `json:"computeResourceProfile"`
+	ComputeResourceProfile *ComputeResourceProfile `json:"computeResourceProfile"`
 
 	// +kubebuilder:validation:Optional
-	CommandLineParams CommandLineParams `json:"commandLineParams,omitempty"`
+	CommandLineParams *CommandLineParams `json:"commandLineParams,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
@@ -222,7 +225,7 @@ type ComponentSpec struct {
 	CompEnvParams []CompEnvParam `json:"compEnvParams,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	DeploymentConfig DeploymentConfig `json:"deploymentConfig,omitempty"`
+	DeploymentConfig *DeploymentConfig `json:"deploymentConfig,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
@@ -276,7 +279,7 @@ type ArtefactBody struct {
 	RepoType string `json:"repoType,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	ArtefactRepoLocation ArtefactRepoLocation `json:"artefactRepoLocation,omitempty"`
+	ArtefactRepoLocation *ArtefactRepoLocation `json:"artefactRepoLocation,omitempty"`
 
 	// +kubebuilder:validation:Required
 	// Details about compute, networking and storage requirements for each component of the application. App provider should define all information needed to instantiate the component. If artefact is being defined at component level this section should have information just about the component. In case the artefact is being defined at application level the section should provide details about all the components.
@@ -299,7 +302,7 @@ type ArtefactSpec struct {
 	ArtefactId string `json:"artefactId"`
 
 	// +kubebuilder:validation:Optional
-	ArtefactBody ArtefactBody `json:"artefactBody,omitempty"`
+	ArtefactBody *ArtefactBody `json:"artefactBody,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Format=uri
@@ -309,8 +312,8 @@ type ArtefactSpec struct {
 
 // ArtefactStatus defines the observed state of Artefact.
 type ArtefactStatus struct {
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:Enum=Pending;Uploading;Uploaded;Failed
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=PENDING;READY;ERROR;UNKNOWN
 	// Current state of the artefact upload
 	State ArtefactState `json:"state,omitempty"`
 	// +kubebuilder:validation:Optional
@@ -323,10 +326,10 @@ type ArtefactStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=art,scope=Namespaced
+// +kubebuilder:printcolumn:name="relationType",type="string",JSONPath=".spec.relationType"
 // +kubebuilder:printcolumn:name="federationContextId",type="string",JSONPath=".spec.federationContextId"
 // +kubebuilder:printcolumn:name="artefactId",type="string",JSONPath=".spec.artefactId"
 // +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.state"
-// +kubebuilder:printcolumn:name="lastUpdated",type="string",JSONPath=".status.lastUpdated"
 
 // Artefact is the Schema for the artefacts API
 type Artefact struct {

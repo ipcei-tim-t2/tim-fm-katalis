@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,7 @@ import (
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 )
 
 // ArtefactReconciler reconciles a Artefact object
@@ -90,33 +92,56 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	}
 
 	//Helper function to set the status to NotAvailable and update the resource
-	skipStatusPatch := false
 	originalArtefact := art.DeepCopy()
 	defer func() {
-		if skipStatusPatch {
-			return
-		}
-		if err != nil {
+		isDeleting := !art.GetDeletionTimestamp().IsZero()
+		if err != nil && !isDeleting {
 			log.Error(err, ">>> [Artefact] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", art.Name, "namespace", art.Namespace)
 			art.Status.State = v1beta1.ArtefactStateError
-
 		}
+
+		// Metadata Patch (Annotations, Labels, Finalizers)
+		metaChanged := !reflect.DeepEqual(art.Annotations, originalArtefact.Annotations) ||
+			!reflect.DeepEqual(art.Labels, originalArtefact.Labels) ||
+			!reflect.DeepEqual(art.Finalizers, originalArtefact.Finalizers)
+
+		if metaChanged {
+			currentStatus := art.Status.DeepCopy()
+			// Using Patch instead of Update to avoid overwriting changes made by other controllers
+			if patchErr := r.Patch(ctx, &art, client.MergeFrom(originalArtefact)); patchErr != nil {
+				if !apierrors.IsNotFound(patchErr) {
+					log.Error(patchErr, ">>> [Artefact] UNEXPECTED ERROR during Artefact Metadata UPDATE.", "name", art.Name, "namespace", art.Namespace)
+				}
+				if err == nil {
+					err = patchErr
+				}
+				return // If there's an error patching metadata, we return early to avoid patching status with potentially inconsistent data
+			}
+			if currentStatus != nil {
+				art.Status = *currentStatus
+			}
+			// Alignment of the resource version after patching metadata
+			originalArtefact.SetResourceVersion(art.GetResourceVersion())
+		}
+		if isDeleting {
+			return
+		}
+		// Status Update
 		if patchErr := r.Status().Patch(ctx, &art, client.MergeFrom(originalArtefact)); patchErr != nil {
 			if !apierrors.IsNotFound(patchErr) {
-				log.Error(patchErr, ">>> [Artefact] UNEXPECTED ERROR during Artefact UPDATE.", "name", art.Name, "namespace", art.Namespace)
+				log.Error(patchErr, ">>> [Artefact] UNEXPECTED ERROR during Artefact Status UPDATE.", "name", art.Name, "namespace", art.Namespace)
 			}
 			if err == nil {
 				err = patchErr
 			}
 		} else {
-			log.Info(">>> [Artefact] SUCCESSFULLY.", "name", art.Name, "namespace", art.Namespace)
+			log.Info(">>> [Artefact] SUCCESSFULLY Reconciled.", "name", art.Name, "namespace", art.Namespace)
 		}
 	}()
 
 	isGuest := IsGuestResource(art.Spec.RelationType)
 	fed, isRest, err := GetFederation(ctx, isGuest, r.Client, art.Spec.FederationContextId, art.Namespace)
 	extClient := r.getExternalClient(isRest)
-
 	if err != nil {
 		log.Error(err, ">>> [Artefact] Should always have a parent federation.", "name", art.Name, "namespace", art.Namespace)
 		art.Status.State = v1beta1.ArtefactStateError
@@ -139,80 +164,80 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		}
 		if controllerutil.RemoveFinalizer(&art, v1beta1.ArtefactFinalizer) {
 			log.Info(">>> [Artefact] Removed basic finalizer for Artefact, exiting...", "name", art.Name, "namespace", art.Namespace)
-			if err := r.Update(ctx, art.DeepCopy()); err != nil {
-				log.Info(">>> [Artefact] Unable to update Artefact while removing finalizers.", "name", art.Name, "namespace", art.Namespace)
-				return ctrl.Result{}, nil
-			}
-			log.Info(">>> [Artefact] Successfully removed finalizer from Artefact.", "name", art.Name, "namespace", art.Namespace)
 		}
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
 	// Handle creation/finalizer
 	if controllerutil.AddFinalizer(&art, v1beta1.ArtefactFinalizer) {
 		log.Info(">>> [Artefact] Added finalizer to Artefact.", "name", art.Name, "namespace", art.Namespace)
-		if err := r.Update(ctx, art.DeepCopy()); err != nil {
-			log.Info(">>> [Artefact] Unable to Update Artefact with finalizer.", "name", art.Name, "namespace", art.Namespace)
-			return ctrl.Result{}, err
-		}
-		log.Info(">>> [Artefact] Successfully added finalizer to Artefact.", "name", art.Name, "namespace", art.Namespace)
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
-	isNewArtefact := art.Status.State == ""
+	if art.Labels == nil {
+		art.Labels = make(map[string]string)
+	}
 
+	isNewArtefact := art.Status.State == ""
 	if !isGuest {
 		// Host Artefact handling
 		if isNewArtefact {
-			art.Status.State = v1beta1.ArtefactStateReconciling
+			art.Status.State = v1beta1.ArtefactStatePending
+			art.Labels[v1beta1.ResourceIdLabel] = "art-" + uuid.V5(art.Spec.ArtefactId+art.Spec.FederationContextId)
 		} else {
 			if isRest {
 				if err := extClient.UpdateArtefactStatus(ctx, &art, fed); err != nil {
-					log.Error(err, ">>> [Artefact] Error during CALLBACK OPERATION via OPG EWBI API.", "name", art.Name, "namespace", art.Namespace)
+					log.Error(err, ">>> [Artefact][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", art.Name, "namespace", art.Namespace)
 					return ctrl.Result{}, err
 				}
 			} else {
-				log.Info(">>> [Artefact] Resource updated (GUEST via watcher update through the resource)", "name", art.Name, "namespace", art.Namespace)
+				log.Info(">>> [Artefact][K8s] Resource updated (GUEST via watcher update through the resource)", "name", art.Name, "namespace", art.Namespace)
 			}
 		}
 		return ctrl.Result{}, nil
 	} else {
 		// Guest Artefact handling
 		if isNewArtefact {
+			art.Status.State = v1beta1.ArtefactStatePending
+			art.Labels[v1beta1.ResourceIdLabel] = "art-" + uuid.V5(art.Spec.ArtefactId+art.Spec.FederationContextId)
 			componentSpec := art.Spec.ArtefactBody.ComponentSpec
 			for _, component := range componentSpec {
 				image := component.Images
 				for _, imageId := range image {
 					imageObj := &v1beta1.Image{}
-					if err := r.Get(ctx, client.ObjectKey{Name: imageId, Namespace: art.Namespace}, imageObj); err != nil {
-						if apierrors.IsNotFound(err) {
-							log.Error(err, ">>> [Artefact] Image not found for Artefact.", "name", art.Name, "namespace", art.Namespace, "imageId", imageId)
-							return ctrl.Result{}, err
-						}
-						log.Error(err, ">>> [Artefact] Error getting Image for Artefact.", "name", art.Name, "namespace", art.Namespace, "imageId", imageId)
+					imageList := &v1beta1.ImageList{}
+					if err := r.List(
+						ctx,
+						imageList,
+						client.InNamespace(art.Namespace),
+						client.MatchingLabels{
+							v1beta1.ResourceIdLabel: "image-" + uuid.V5(imageId+art.Spec.FederationContextId),
+						}); err != nil {
 						return ctrl.Result{}, err
 					}
-					if imageObj.Status.State != v1beta1.ImageStateUploaded {
-						log.Info(">>> [Artefact] Image is not UPLOADED for Artefact.", "name", art.Name, "namespace", art.Namespace, "imageId", imageId, "imageState", imageObj.Status.State)
-						skipStatusPatch = true
+					if len(imageList.Items) == 0 {
+						log.Info(">>> [Artefact] No Image foud for Artefact ", "name", art.Name, "naemspace", art.Namespace, "imageId", imageId)
+					}
+					imageObj = &imageList.Items[0]
+					if imageObj.Status.State != v1beta1.ImageStateReady {
+						log.Info(">>> [Artefact] Image is not READY for Artefact.", "name", art.Name, "namespace", art.Namespace, "imageId", imageId, "imageState", imageObj.Status.State)
 						return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 					}
 				}
 			}
 			if err := extClient.CreateArtefact(ctx, &art, fed); err != nil {
-				log.Info(">>> [Artefact] Error APPLYING/UPDATING SPEC Artefact.", "name", art.Name, "namespace", art.Namespace)
-				return ctrl.Result{}, nil
+				log.Error(err, ">>> [Artefact] Error APPLYING/UPDATING SPEC Artefact.", "name", art.Name, "namespace", art.Namespace)
+				return ctrl.Result{}, err
 			}
 			log.Info(">>> [Artefact] SUCCESSFULLY APPLIED SPEC AND SET INITIAL STATUS.", "name", art.Name, "namespace", art.Namespace)
 			return ctrl.Result{}, nil
 		} else {
 			if isRest {
-				log.Info(">>> [Artefact] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", art.Name, "namespace", art.Namespace)
+				log.Info(">>> [Artefact][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", art.Name, "namespace", art.Namespace)
 			} else {
 				if err := extClient.UpdateArtefactStatus(ctx, &art, fed); err != nil {
-					return ctrl.Result{}, nil
+					log.Error(err, ">>> [Artefact][K8s] Error updating Artefact.", "name", art.Name, "namespace", art.Namespace)
+					return ctrl.Result{}, err
 				}
 			}
 		}

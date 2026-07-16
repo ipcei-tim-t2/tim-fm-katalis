@@ -6,7 +6,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/google/uuid"
 	"github.com/icza/gog"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
@@ -31,19 +30,16 @@ func (a *OnboardApplication) MarshalJSON() ([]byte, error) {
 }
 
 func (a *OnboardApplication) k8sCustomResource(namespace string, opts ...Opt) (*v1beta1.ApplicationOnboarding, error) {
-	appId, err := uuid.Parse("fed-" + uu.V5(a.FederationContextId+a.AppProviderId+string(a.AppId[:])))
-	if err != nil {
-		return nil, err
-	}
+	appId := "apponboard-" + uu.V5(a.FederationContextId+a.AppProviderId+string(a.AppId[:]))
 	obj := &v1beta1.ApplicationOnboarding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appId.String(),
+			Name:      appId,
 			Namespace: namespace,
 		},
 		Spec: v1beta1.ApplicationOnboardingSpec{
 			FederationContextId: a.FederationContextId,
 			RelationType:        string(v1beta1.FederationRelationHost),
-			AppInfo: v1beta1.AppInfo{
+			AppInfo: &v1beta1.AppInfo{
 				AppId:                 a.AppId,
 				AppProviderId:         a.AppProviderId,
 				AppComponentSpecs:     a.componentSpecs(),
@@ -66,7 +62,7 @@ func (a *OnboardApplication) artefacts() []string {
 	out := make([]string, len(a.AppComponentSpecs))
 	for i, componentSpec := range a.AppComponentSpecs {
 		// Usa .String() per formattare l'array UUID come stringa
-		out[i] = componentSpec.ArtefactId.String()
+		out[i] = componentSpec.ArtefactId
 	}
 	return out
 }
@@ -75,14 +71,14 @@ func (a *OnboardApplication) componentSpecs() []v1beta1.AppComponentSpec {
 	out := make([]v1beta1.AppComponentSpec, len(a.AppComponentSpecs))
 	for i, componentSpec := range a.AppComponentSpecs {
 		out[i] = v1beta1.AppComponentSpec{
-			ArtefactId: componentSpec.ArtefactId.String(),
+			ArtefactId: componentSpec.ArtefactId,
 		}
 	}
 	return out
 }
 
-func (a *OnboardApplication) metaData() v1beta1.AppMetaData {
-	return v1beta1.AppMetaData{
+func (a *OnboardApplication) metaData() *v1beta1.AppMetaData {
+	return &v1beta1.AppMetaData{
 		AccessToken:     a.AppMetaData.AccessToken,
 		AppName:         a.AppMetaData.AppName,
 		MobilitySupport: defaultIfNil(a.AppMetaData.MobilitySupport),
@@ -90,8 +86,8 @@ func (a *OnboardApplication) metaData() v1beta1.AppMetaData {
 	}
 }
 
-func (a *OnboardApplication) qosProfile() v1beta1.AppQoSProfile {
-	return v1beta1.AppQoSProfile{
+func (a *OnboardApplication) qosProfile() *v1beta1.AppQoSProfile {
+	return &v1beta1.AppQoSProfile{
 		AppProvisioning:     defaultIfNil(a.AppQoSProfile.AppProvisioning),
 		LatencyConstraints:  string(a.AppQoSProfile.LatencyConstraints),
 		MultiUserClients:    defaultIfNil((*string)(a.AppQoSProfile.MultiUserClients)),
@@ -120,12 +116,8 @@ type appComponentSpec struct {
 func applicationFromK8sCustomResource(app v1beta1.ApplicationOnboarding) (*Application, error) {
 	componentSpec := make(models.AppComponentSpecs, len(app.Spec.AppInfo.AppComponentSpecs))
 	for i, cs := range app.Spec.AppInfo.AppComponentSpecs {
-		parsedUUID, err := uuid.Parse(cs.ArtefactId)
-		if err != nil {
-			return nil, fmt.Errorf("invalid ArtefactId format for component %d: %w", i, err)
-		}
 		componentSpec[i] = appComponentSpec{
-			ArtefactId: models.ArtefactId(parsedUUID),
+			ArtefactId: cs.ArtefactId,
 		}
 	}
 	return &Application{

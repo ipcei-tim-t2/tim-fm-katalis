@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"reflect"
+	"strings"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -95,6 +96,9 @@ func (r *FederationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if !isGuest && oldFed.Status.State != newFed.Status.State {
 					return true
 				}
+				if !isGuest && !reflect.DeepEqual(oldFed.Status.UpdateDetails, newFed.Status.UpdateDetails) {
+					return true
+				}
 				return false
 			},
 		})).
@@ -118,7 +122,6 @@ func (r *FederationReconciler) Reconcile(
 	req ctrl.Request,
 ) (res ctrl.Result, err error) {
 	log := ctrl.Log
-
 	log.Info(">>> [Federation] Starting RECONCILE FUNCTION", "name", req.Name, "namespace", req.Namespace)
 	defer log.Info(">>> [Federation] End RECONCILE FUNCTION", "name", req.Name, "namespace", req.Namespace)
 
@@ -134,34 +137,32 @@ func (r *FederationReconciler) Reconcile(
 
 	isGuest := IsGuestResource(fed.Spec.FederationData.RelationType)
 	isRest := IsRestTechnology(fed.Spec.FederationData.TechnologyType)
-	extClient := r.getExternalClient(isRest)
+	extClient := r.getExternalClient(isRest) // Get the appropriate external client based on the federation technology
 
-	annotations := fed.GetAnnotations()
-	if annotations == nil {
-		annotations = map[string]string{}
+	if fed.Annotations == nil {
+		fed.Annotations = make(map[string]string)
 	}
-
+	if fed.Labels == nil {
+		fed.Labels = make(map[string]string)
+	}
+	annotations := fed.Annotations
 	//Helper function to set the status to NotAvailable and update the resource
-	skipStatusPatch := false
 	originalFed := fed.DeepCopy()
 	defer func() {
-		if skipStatusPatch {
-			return
-		}
-
-		if err != nil {
+		isDeleting := !fed.GetDeletionTimestamp().IsZero()
+		if err != nil && !isDeleting {
 			log.Error(err, ">>> [Federation] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", fed.Name, "namespace", fed.Namespace)
 			fed.Status.State = v1beta1.FederationStateFailed
 		}
 
-		// FASE 1: Aggiornamento dei Metadati (Annotations, Labels, Finalizers)
-		// Verifichiamo se c'è stata una reale modifica ai metadati usando reflect
+		// Metadata Patch (Annotations, Labels, Finalizers)
 		metaChanged := !reflect.DeepEqual(fed.Annotations, originalFed.Annotations) ||
 			!reflect.DeepEqual(fed.Labels, originalFed.Labels) ||
 			!reflect.DeepEqual(fed.Finalizers, originalFed.Finalizers)
 
 		if metaChanged {
-			// Usiamo r.Patch (NON r.Status().Patch) per salvare i metadati
+			currentStatus := fed.Status.DeepCopy()
+			// Using Patch instead of Update to avoid overwriting changes made by other controllers
 			if patchErr := r.Patch(ctx, &fed, client.MergeFrom(originalFed)); patchErr != nil {
 				if !apierrors.IsNotFound(patchErr) {
 					log.Error(patchErr, ">>> [Federation] UNEXPECTED ERROR during Federation Metadata UPDATE.", "name", fed.Name, "namespace", fed.Namespace)
@@ -169,17 +170,20 @@ func (r *FederationReconciler) Reconcile(
 				if err == nil {
 					err = patchErr
 				}
-				return // Se fallisce il salvataggio dei metadati, interrompiamo qui
+				return // If there's an error patching metadata, we return early to avoid patching status with potentially inconsistent data
 			}
-
-			// TRUCCO K8S FONDAMENTALE:
-			// r.Patch ha appena aggiornato il ResourceVersion dell'oggetto 'fed' in memoria.
-			// Per evitare un errore 409 (Conflict) nella Fase 2, dobbiamo allineare
-			// il ResourceVersion dell'oggetto 'originalFed' con quello nuovo appena ottenuto.
+			if currentStatus != nil {
+				fed.Status = *currentStatus
+			}
+			// Alignment of the resource version after patching metadata
 			originalFed.SetResourceVersion(fed.GetResourceVersion())
 		}
 
-		// FASE 2: Aggiornamento dello Status
+		if isDeleting {
+			return
+		}
+
+		// Status Update
 		if patchErr := r.Status().Patch(ctx, &fed, client.MergeFrom(originalFed)); patchErr != nil {
 			if !apierrors.IsNotFound(patchErr) {
 				log.Error(patchErr, ">>> [Federation] UNEXPECTED ERROR during Federation Status UPDATE.", "name", fed.Name, "namespace", fed.Namespace)
@@ -188,7 +192,7 @@ func (r *FederationReconciler) Reconcile(
 				err = patchErr
 			}
 		} else {
-			log.Info(">>> [Federation] SUCCESSFULLY Reconciled (Metadata and/or Status).", "name", fed.Name, "namespace", fed.Namespace)
+			log.Info(">>> [Federation] SUCCESSFULLY Reconciled.", "name", fed.Name, "namespace", fed.Namespace)
 		}
 	}()
 
@@ -197,10 +201,10 @@ func (r *FederationReconciler) Reconcile(
 		if isGuest {
 			role, policyName = v1beta1.FederationRelationGuest, v1beta1.PolicyGuestName
 		}
-		log.Info(">>> [Federation] Updating FederationContextId policy.", "name", fed.Name, "namespace", fed.Namespace, "role", role, "policyName", policyName)
+		log.Info(">>> [Federation][POLICY] Updating FederationContextId policy.", "name", fed.Name, "namespace", fed.Namespace, "role", role, "policyName", policyName)
 		policyHandler := &policy.FederationReconciler{Client: r.Client, Scheme: r.Scheme}
 		if err := policyHandler.FederationContextIdPolicy(ctx, role, policyName, action, fed.Status.FederationContextId); err != nil {
-			log.Error(err, ">>> [Federation] Error updating FederationContextId policy.", "name", fed.Name, "namespace", fed.Namespace, "role", role, "policyName", policyName)
+			log.Error(err, ">>> [Federation][POLICY] Error updating FederationContextId policy.", "name", fed.Name, "namespace", fed.Namespace, "role", role, "policyName", policyName)
 			return err
 		}
 		return nil
@@ -220,11 +224,7 @@ func (r *FederationReconciler) Reconcile(
 		}
 		if controllerutil.RemoveFinalizer(&fed, v1beta1.FederationFinalizer) {
 			log.Info(">>> [Federation] Removed basic finalizer for Federation, exiting...", "name", fed.Name, "namespace", fed.Namespace)
-			// if err := r.Update(ctx, fed.DeepCopy()); err != nil {
-			// 	log.Info(">>> [Federation] Unable to Update Federation while removing finalizer.", "name", fed.Name, "namespace", fed.Namespace)
-			// 	return ctrl.Result{}, err
-			// }
-			log.Info(">>> [Federation] Successfully removed finalizer from Federation.", "name", fed.Name, "namespace", fed.Namespace)
+
 		}
 		// skipStatusPatch = true
 		return ctrl.Result{}, nil
@@ -233,16 +233,10 @@ func (r *FederationReconciler) Reconcile(
 	// Handle creation/finalizer
 	if controllerutil.AddFinalizer(&fed, v1beta1.FederationFinalizer) {
 		log.Info(">>> [Federation] Added finalizer to Federation", "name", fed.Name, "namespace", fed.Namespace)
-		if fed.Labels == nil {
-			fed.Labels = make(map[string]string)
-		}
 		fed.Annotations[v1beta1.FederationPolicyAnnotation] = "not-set"
-		fed.Annotations[v1beta1.FederationWatcherAnnotation] = "not-stopped"
-		// if err := r.Update(ctx, &fed); err != nil {
-		// 	log.Error(err, ">>> [Federation] Failed to update Federation with finalizer", "name", fed.Name, "namespace", fed.Namespace)
-		// 	return ctrl.Result{}, err
-		// }
-		// skipStatusPatch = true
+		if isGuest && !isRest {
+			fed.Annotations[v1beta1.FederationWatcherAnnotation] = "not-stopped"
+		}
 		return ctrl.Result{}, nil
 	}
 
@@ -253,11 +247,6 @@ func (r *FederationReconciler) Reconcile(
 			return ctrl.Result{}, err
 		}
 		fed.Annotations[v1beta1.FederationPolicyAnnotation] = "set"
-		// if err := r.Update(ctx, &fed); err != nil {
-		// 	log.Error(err, ">>> [Federation] Failed to update Federation with policy label", "name", fed.Name, "namespace", fed.Namespace)
-		// 	return ctrl.Result{}, err
-		// }
-		// skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
@@ -273,7 +262,8 @@ func (r *FederationReconciler) Reconcile(
 		// Host federation handling
 		switch isNewFed {
 		case true:
-			fed.Status.FederationContextId = uuid.V5(fed.Spec.FederationData.ClientId + fed.Spec.FederationData.InitialDate.String())
+			fed.Status.FederationContextId = uuid.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode)
+			fed.Labels[v1beta1.ResourceIdLabel] = "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode)
 			// If the federation is new, we set the initial state to "AVAILABLE" and set the expiry and renewal dates based on the initial date provided in the spec. We also set the policy label to "false" to indicate that the policy has not been created yet.
 			if fed.Status.FederationExpiryDate.IsZero() {
 				fed.Status.FederationExpiryDate = metav1.NewTime(fed.Spec.FederationData.InitialDate.Add(24 * time.Hour))
@@ -305,11 +295,17 @@ func (r *FederationReconciler) Reconcile(
 		// Guest federation handling
 		// New Federation: Create it on the host
 		if isNewFed {
+			fed.Status.State = v1beta1.FederationStateNotAvailable
+			fed.Labels[v1beta1.ResourceIdLabel] = "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String())
 			if err := extClient.CreateFederation(ctx, &fed); err != nil {
+				if isRest && strings.Contains(err.Error(), "408 Timeout") {
+					log.Info(">>> [Federation][REST] 408 - Request Timeout. The request took longer than the server was prepared to wait.", "name", fed.Name, "namespace", fed.Namespace)
+					fed.Status.State = v1beta1.FederationStateTemporaryFailure
+					return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+				}
 				log.Error(err, ">>> [Federation] Error APPLYING/UPDATING SPEC Federation", "name", fed.Name, "namespace", fed.Namespace)
 				return ctrl.Result{}, err
 			}
-			fed.Status.State = v1beta1.FederationStateNotAvailable
 		} else {
 			switch fed.Status.State {
 			case v1beta1.FederationStateLocked:
@@ -386,7 +382,7 @@ func (r *FederationReconciler) guestFederationActions(ctx context.Context, fed *
 		}
 	}
 	if fed.Status.State == v1beta1.FederationStateAvailable {
-		if _, exists := annotations[v1beta1.UpdateDataAnnotation]; exists {
+		if _, exists := annotations[v1beta1.UpdateDataAnnotation]; exists && fed.Annotations[v1beta1.UpdateDataAnnotation] == "required" {
 			if isRest {
 				// PATCH OPG EWBI API for UpdateData
 				log.Info(">>> [Federation][REST] Applying UpdateDataRevision -> Performing PATCH operation", "name", fed.Name, "namespace", fed.Namespace)
@@ -439,7 +435,6 @@ func (r *FederationReconciler) guestFederationActions(ctx context.Context, fed *
 			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 	}
-	fed.SetAnnotations(annotations)
 	return nil
 }
 
@@ -448,25 +443,27 @@ func (r *FederationReconciler) hostFederationActions(ctx context.Context, fed *v
 	if fed.Status.State == v1beta1.FederationStateAvailable || fed.Status.State == v1beta1.FederationStateLocked {
 		if _, exists := annotations[v1beta1.FederationRenewalAnnotation]; exists && annotations[v1beta1.FederationRenewalAnnotation] == "required" {
 			log.Info(">>> [Federation] Received renewal request for Federation", "name", fed.Name, "namespace", fed.Namespace)
-			fed.Status.State = v1beta1.FederationStateNotAvailable
 			fed.Annotations[v1beta1.FederationRenewalAnnotation] = "not-required"
 		}
 	}
 	if fed.Status.State == v1beta1.FederationStateAvailable {
 		if _, exists := annotations[v1beta1.UpdateDataAnnotation]; exists && fed.Annotations[v1beta1.UpdateDataAnnotation] == "required" {
 			log.Info(">>> [Federation] Received update to UPDATE FEDERATION DATA", "name", fed.Name, "namespace", fed.Namespace)
+			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 		if _, exists := annotations[v1beta1.GetHealthInfoAnnotation]; exists && fed.Annotations[v1beta1.GetHealthInfoAnnotation] == "required" {
 			log.Info(">>> [Federation] Received request to GET HEALTH INFO", "name", fed.Name, "namespace", fed.Namespace)
+			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 		if _, exists := annotations[v1beta1.GetPlatformCapsAnnotation]; exists && fed.Annotations[v1beta1.GetPlatformCapsAnnotation] == "required" {
 			log.Info(">>> [Federation] Received request to GET PLATFORM CAPABILITIES", "name", fed.Name, "namespace", fed.Namespace)
+			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 		if _, exists := annotations[v1beta1.GetUpdateDetailsAnnotation]; exists && fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] == "required" {
 			log.Info(">>> [Federation] Received request to GET SUPPORTED SERVER API", "name", fed.Name, "namespace", fed.Namespace)
+			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 	}
-	fed.SetAnnotations(annotations)
 	return nil
 }
 

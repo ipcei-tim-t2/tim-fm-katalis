@@ -9,8 +9,6 @@ import (
 	camara "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/server"
 	v1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	uu "github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
-
-	"github.com/google/uuid"
 )
 
 type ApplicationInstanceDetails struct {
@@ -31,13 +29,10 @@ type ApplicationInstance struct {
 // }
 
 func (d *ApplicationInstance) k8sCustomResource(namespace string, opts ...Opt) (*v1beta1.ApplicationDeployment, error) {
-	appId, err := uuid.Parse("fed-" + uu.V5(d.FederationContextId+d.AppProviderId+string(d.AppId[:])))
-	if err != nil {
-		return nil, err
-	}
+	appId := "appdeploy-" + uu.V5(d.FederationContextId+d.AppProviderId+string(d.AppId[:]))
 	obj := &v1beta1.ApplicationDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appId.String(),
+			Name:      appId,
 			Namespace: namespace,
 		},
 		Spec: v1beta1.ApplicationDeploymentSpec{
@@ -46,9 +41,9 @@ func (d *ApplicationInstance) k8sCustomResource(namespace string, opts ...Opt) (
 			AppProviderId:       d.AppProviderId,
 			AppId:               d.AppId,
 			ZoneId:              d.ZoneInfo.ZoneId,
-			AppDetails: v1beta1.AppDetails{
+			AppDetails: &v1beta1.AppDetails{
 				AppVersion: d.AppVersion,
-				ZoneInfo: v1beta1.ZoneInfo{
+				ZoneInfo: &v1beta1.ZoneInfo{
 					FlavourId:           d.ZoneInfo.FlavourId,
 					ResourceConsumption: defaultIfNil((*string)(d.ZoneInfo.ResourceConsumption)),
 					ResPool:             defaultIfNil(d.ZoneInfo.ResPool),

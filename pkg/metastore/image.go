@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/google/uuid"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	camara "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/server"
 	v1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
@@ -31,47 +29,99 @@ func (f *UploadImage) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&cp)
 }
 
-// func isValidImageStatus(status string) bool {
-// 	switch v1beta1.ImageState(status) {
-// 	case v1beta1.ImageStatePending, v1beta1.ImageStateReady, v1beta1.ImageStateError, v1beta1.ImageStateUnknown:
-// 		return true
-// 	}
-// 	return false
-// }
-
-func (c *k8sClient) searchImage(ctx context.Context, federationContextId string, imageId string, role string, listObj client.ObjectList) (*v1beta1.Image, error) {
-	fields := map[string]string{
-		FedIdIndex:   federationContextId,
-		RelationType: role,
-		ImageIdIndex: imageId,
+func isValidImageStatus(status string) bool {
+	switch v1beta1.ImageState(status) {
+	case v1beta1.ImageStatePending, v1beta1.ImageStateReady, v1beta1.ImageStateError, v1beta1.ImageStateUnknown:
+		return true
 	}
-	obj, err := c.getResourceByFields(ctx, &v1beta1.ImageList{}, fields)
-	if err != nil {
+	return false
+}
+
+func (c *k8sClient) searchImage(ctx context.Context, federationContextId string, imageId string, role string) (*v1beta1.Image, error) {
+	var imageList v1beta1.ImageList
+	if err := c.kubernetes.List(ctx, &imageList, &k8scli.ListOptions{Namespace: c.getNamespace()}); err != nil {
 		return nil, err
 	}
-	image, ok := obj.(*v1beta1.Image)
-	if !ok {
-		return nil, missMatchErr("image", federationContextId, imageId, &v1beta1.Image{}, obj)
+	if len(imageList.Items) == 0 {
+		return nil, errors.Errorf("Image not found for federationContextId: %s and imageId: %s and role: %s and namespace: %s", federationContextId, imageId, role, c.getNamespace())
 	}
-	return image, nil
+	for i := range imageList.Items {
+		image := imageList.Items[i]
+		if image.Spec.ImageId == imageId && image.Spec.FederationContextId == federationContextId && image.Spec.RelationType == role {
+			return &image, nil
+		}
+	}
+	return nil, errors.Errorf("Image not found for federationContextId: %s and imageId: %s and role: %s and namespace: %s", federationContextId, imageId, role, c.getNamespace())
+}
+
+func (c *k8sClient) UploadImage(ctx context.Context, image *UploadImage) (*v1beta1.Image, error) {
+	if _, err := c.searchFederation(ctx, image.FederationContextId, "HOST"); err != nil {
+		return nil, err
+	}
+	imageId := "image-" + uu.V5(image.FederationContextId+image.FileId)
+	var repoType string
+	if image.RepoType != nil {
+		repoType = string(*image.RepoType)
+	}
+	var repoLocation *v1beta1.ImageRepoLocation
+	if image.FileRepoLocation != nil {
+		repoLocation = &v1beta1.ImageRepoLocation{
+			RepoURL:  defaultIfNil(image.FileRepoLocation.RepoURL),
+			Password: defaultIfNil(image.FileRepoLocation.Password),
+			Token:    defaultIfNil(image.FileRepoLocation.Token),
+			UserName: defaultIfNil(image.FileRepoLocation.UserName),
+		}
+	}
+	var callbackLink string
+	if image.FileNotifLink != nil {
+		callbackLink = string(*image.FileNotifLink)
+	}
+	obj := &v1beta1.Image{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      imageId,
+			Namespace: c.getNamespace(),
+		},
+		Spec: v1beta1.ImageSpec{
+			RelationType:        string(host),
+			ImageId:             image.FileId,
+			FederationContextId: image.FederationContextId,
+			ImageNotifLink:      callbackLink,
+			ImageBody: &v1beta1.ImageBody{
+				AppProviderId:     image.AppProviderId,
+				ImageName:         image.FileName,
+				ImageVersionInfo:  image.FileVersionInfo,
+				ImageType:         string(image.FileType),
+				RepoType:          repoType,
+				ImageRepoLocation: repoLocation,
+				ImgInsSetArch:     string(image.ImgInsSetArch),
+				ImgOSType: &v1beta1.ImgOSType{
+					Architecture: string(image.ImgOSType.Architecture),
+					Distribution: string(image.ImgOSType.Distribution),
+					License:      string(image.ImgOSType.License),
+					Version:      string(image.ImgOSType.Version),
+				},
+			},
+		},
+	}
+
+	if err := c.createK8sObject(obj); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
 
 func (c *k8sClient) GetImage(ctx context.Context, federationContextID, id string) (*Image, error) {
-	if _, err := c.searchFederation(ctx, federationContextID, "HOST", &v1beta1.FederationList{}); err != nil {
+	if _, err := c.searchFederation(ctx, federationContextID, "HOST"); err != nil {
 		return nil, err
 	}
-	image, err := c.searchImage(ctx, federationContextID, id, "HOST", &v1beta1.ImageList{})
-	if err != nil {
-		return nil, err
-	}
-	parsedUUID, err := uuid.Parse(id)
+	image, err := c.searchImage(ctx, federationContextID, id, "HOST")
 	if err != nil {
 		return nil, err
 	}
 	return &Image{
 		ViewFile200JSONResponse: &camara.ViewFile200JSONResponse{
 			AppProviderId: image.Spec.ImageBody.AppProviderId,
-			FileId:        models.FileId(parsedUUID),
+			FileId:        models.FileId(id),
 			FileName:      image.Spec.ImageBody.ImageName,
 			FileRepoLocation: &models.ObjectRepoLocation{
 				Password: &image.Spec.ImageBody.ImageRepoLocation.Password,
@@ -94,57 +144,11 @@ func (c *k8sClient) GetImage(ctx context.Context, federationContextID, id string
 	}, nil
 }
 
-func (c *k8sClient) UploadImage(ctx context.Context, image *UploadImage) (*v1beta1.Image, error) {
-	if _, err := c.searchFederation(ctx, image.FederationContextId, "HOST", &v1beta1.FederationList{}); err != nil {
-		return nil, err
-	}
-	imageId, err := uuid.Parse("fed-" + uu.V5(image.FederationContextId+string(image.FileId[:])))
-	if err != nil {
-		return nil, err
-	}
-	obj := &v1beta1.Image{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      imageId.String(),
-			Namespace: c.getNamespace(),
-		},
-		Spec: v1beta1.ImageSpec{
-			RelationType:        string(host),
-			ImageId:             string(image.FileId[:]),
-			FederationContextId: image.FederationContextId,
-			ImageBody: v1beta1.ImageBody{
-				AppProviderId:    image.AppProviderId,
-				ImageName:        image.FileName,
-				ImageVersionInfo: image.FileVersionInfo,
-				ImageType:        string(image.FileType),
-				RepoType:         defaultIfNil((*string)(image.RepoType)),
-				ImageRepoLocation: v1beta1.ImageRepoLocation{
-					RepoURL:  defaultIfNil(image.FileRepoLocation.RepoURL),
-					Password: defaultIfNil(image.FileRepoLocation.Password),
-					Token:    defaultIfNil(image.FileRepoLocation.Token),
-					UserName: defaultIfNil(image.FileRepoLocation.UserName),
-				},
-				ImgInsSetArch: string(image.ImgInsSetArch),
-				ImgOSType: v1beta1.ImgOSType{
-					Architecture: string(image.ImgOSType.Architecture),
-					Distribution: string(image.ImgOSType.Distribution),
-					License:      string(image.ImgOSType.License),
-					Version:      string(image.ImgOSType.Version),
-				},
-			},
-		},
-	}
-
-	if err := c.createK8sObject(obj); err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
 func (c *k8sClient) RemoveImage(ctx context.Context, federationContextID, id string) error {
-	if _, err := c.searchFederation(ctx, federationContextID, "HOST", &v1beta1.FederationList{}); err != nil {
+	if _, err := c.searchFederation(ctx, federationContextID, "HOST"); err != nil {
 		return err
 	}
-	image, err := c.searchImage(ctx, federationContextID, id, "HOST", &v1beta1.ImageList{})
+	image, err := c.searchImage(ctx, federationContextID, id, "HOST")
 	if err != nil {
 		return err
 	}
@@ -155,14 +159,14 @@ func (c *k8sClient) RemoveImage(ctx context.Context, federationContextID, id str
 }
 
 func (c *k8sClient) UpdateImageStatus(ctx context.Context, federationCallbackID string, updates *models.FileStatusCallbackLinkJSONRequestBody) error {
-	id := string(updates.FileId[:])
-	image, err := c.searchImage(ctx, federationCallbackID, id, "GUEST", &v1beta1.ImageList{})
+	image, err := c.searchImage(ctx, federationCallbackID, updates.FileId, "GUEST")
 	if err != nil {
 		return err
 	}
-	state := string(updates.UpdateStatus)
-	//if isValidImageStatus(state) {
-	return c.updateK8sObjectStatus(image, state)
-	// }
-	// return nil
+	originalImage := image.DeepCopy()
+	image.Status.State = v1beta1.ImageState(updates.UpdateStatus)
+	if isValidImageStatus(string(image.Status.State)) {
+		return c.patchK8sStatus(originalImage, image)
+	}
+	return nil
 }

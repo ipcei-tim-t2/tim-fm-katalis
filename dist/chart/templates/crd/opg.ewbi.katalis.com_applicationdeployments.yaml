@@ -22,7 +22,26 @@ spec:
     singular: applicationdeployment
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.relationType
+      name: relationType
+      type: string
+    - jsonPath: .spec.federationContextId
+      name: federationContextId
+      type: string
+    - jsonPath: .spec.appId
+      name: appId
+      type: string
+    - jsonPath: .spec.zoneId
+      name: zoneId
+      type: string
+    - jsonPath: .spec.appInstanceId
+      name: appInstanceId
+      type: string
+    - jsonPath: .status.appInstanceInfo.appInstanceState
+      name: state
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: ApplicationDeployment is the Schema for the applicationdeployments

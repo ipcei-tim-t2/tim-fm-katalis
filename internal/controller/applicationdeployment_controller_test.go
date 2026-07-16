@@ -239,9 +239,9 @@ func makeTestAppDeploy(fedCtxId string, opts ...appInstOpt) *v1beta1.Application
 			AppProviderId:       testAppProvider,
 			AppId:               testAppName,
 			ZoneId:              testAZName,
-			AppDetails: v1beta1.AppDetails{
+			AppDetails: &v1beta1.AppDetails{
 				AppVersion: testAppMetaDataVersion,
-				ZoneInfo: v1beta1.ZoneInfo{
+				ZoneInfo: &v1beta1.ZoneInfo{
 					FlavourId:           "NOT_SPECIFIED",
 					ResourceConsumption: "RESERVED_RES_AVOID",
 					ResPool:             "mock-res-pool",

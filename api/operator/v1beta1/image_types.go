@@ -22,18 +22,16 @@ import (
 
 // finalizers
 const (
-	ImageFinalizer = "image.opg.ewbi.finalizer.katalis.com"
+	ImageFinalizer = "katalis.com/image.opg.ewbi.finalizer"
 )
 
 type ImageState string
 
 const (
-	ImageStatePending   ImageState = "PENDING"
-	ImageStateUploading ImageState = "UPLOADING"
-	ImageStateUploaded  ImageState = "UPLOADED"
-	ImageStateFailed    ImageState = "FAILED"
-	ImageStateError     ImageState = "ERROR"
-	ImageStateUnknown   ImageState = "UNKNOWN"
+	ImageStatePending ImageState = "PENDING"
+	ImageStateReady   ImageState = "READY"
+	ImageStateError   ImageState = "ERROR"
+	ImageStateUnknown ImageState = "UNKNOWN"
 
 	PluralImage = "images"
 	KindImage   = "Image"
@@ -105,7 +103,7 @@ type ImageBody struct {
 	Checksum string `json:"checksum,omitempty"`
 
 	// +kubebuilder:validation:Required
-	ImgOSType ImgOSType `json:"imgOSType"`
+	ImgOSType *ImgOSType `json:"imgOSType"`
 
 	// CPU Instruction Set Architecture (ISA) E.g., Intel, Arm etc.
 	// +kubebuilder:validation:Required
@@ -118,7 +116,7 @@ type ImageBody struct {
 	RepoType string `json:"repoType,omitempty"`
 
 	// +kubebuilder:validation:Optional
-	ImageRepoLocation ImageRepoLocation `json:"imageRepoLocation,omitempty"`
+	ImageRepoLocation *ImageRepoLocation `json:"imageRepoLocation,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Format=byte
@@ -142,7 +140,7 @@ type ImageSpec struct {
 	ImageId string `json:"imageId"`
 
 	// +kubebuilder:validation:Optional
-	ImageBody ImageBody `json:"imageBody,omitempty"`
+	ImageBody *ImageBody `json:"imageBody,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Format=uri
@@ -170,6 +168,10 @@ type ImageStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=imgman,scope=Namespaced
+// +kubebuilder:printcolumn:name="relationType",type="string",JSONPath=".spec.relationType"
+// +kubebuilder:printcolumn:name="federationContextId",type="string",JSONPath=".spec.federationContextId"
+// +kubebuilder:printcolumn:name="imageId",type="string",JSONPath=".spec.imageId"
+// +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.state"
 
 // Image is the Schema for the images API
 type Image struct {

@@ -21,10 +21,10 @@ import (
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ApplicationOnboardingReconciler reconciles an Artefact object
@@ -38,7 +38,7 @@ func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx contex
 	appOnboardHost := &v1beta1.ApplicationOnboarding{
 		TypeMeta: appOnboard.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appOnboard.Name,
+			Name:      "apponboard-" + uuid.V5(appOnboard.Spec.AppInfo.AppId+appOnboard.Spec.FederationContextId),
 			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
 		},
 		Spec: v1beta1.ApplicationOnboardingSpec{
@@ -47,7 +47,21 @@ func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx contex
 			AppInfo:             appOnboard.Spec.AppInfo,
 		},
 	}
-	err := ApplyRemoteResource(ctx, r.Client, r.Scheme, fed, appOnboardHost, &v1beta1.ApplicationOnboarding{}, appOnboard.Name, appOnboard.Namespace, v1beta1.GroupVersion.Group, v1beta1.GroupVersion.Version, v1beta1.PluralApplicationOnboarding, "app-onboard-controller", "[AppOnboard][K8s]")
+	err := ApplyRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		appOnboardHost,
+		&v1beta1.ApplicationOnboarding{},
+		appOnboard.Name,
+		appOnboard.Namespace,
+		v1beta1.GroupVersion.Group,
+		v1beta1.GroupVersion.Version,
+		v1beta1.PluralApplicationOnboarding,
+		"app-onboard-controller",
+		"[AppOnboard][K8s]",
+	)
 	if err != nil {
 		return err
 	}
@@ -55,11 +69,19 @@ func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx contex
 }
 
 func (r *ApplicationOnboardingReconciler) UpdateApplicationOnboardingStatus(ctx context.Context, appOnboard *v1beta1.ApplicationOnboarding, fed *v1beta1.Federation) error {
-	log := log.FromContext(ctx)
 	appOnboardHost := &v1beta1.ApplicationOnboarding{}
-	remoteName := appOnboard.Name
-	if err := GetRemoteResource(ctx, r.Client, r.Scheme, fed, appOnboardHost, remoteName, appOnboard.Name, appOnboard.Namespace, "[AppOnboard][K8s]"); err != nil {
-		log.Error(err, ">>> [AppOnboard][K8s] Error retrieving remote resource.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+	remoteName := "apponboard-" + uuid.V5(appOnboard.Spec.AppInfo.AppId+appOnboard.Spec.FederationContextId)
+	if err := GetRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		appOnboardHost,
+		remoteName,
+		appOnboard.Name,
+		appOnboard.Namespace,
+		"[AppOnboard][K8s]",
+	); err != nil {
 		return err
 	}
 	appOnboard.Status = appOnboardHost.Status
@@ -67,6 +89,16 @@ func (r *ApplicationOnboardingReconciler) UpdateApplicationOnboardingStatus(ctx 
 }
 
 func (r *ApplicationOnboardingReconciler) DeleteApplicationOnboarding(ctx context.Context, appOnboard *v1beta1.ApplicationOnboarding, fed *v1beta1.Federation) error {
-	remoteName := appOnboard.Name
-	return DeleteRemoteResource(ctx, r.Client, r.Scheme, fed, &v1beta1.ApplicationOnboarding{}, remoteName, appOnboard.Name, appOnboard.Namespace, "[AppOnboard][K8s]")
+	remoteName := "apponboard-" + uuid.V5(appOnboard.Spec.AppInfo.AppId+appOnboard.Spec.FederationContextId)
+	return DeleteRemoteResource(
+		ctx,
+		r.Client,
+		r.Scheme,
+		fed,
+		&v1beta1.ApplicationOnboarding{},
+		remoteName,
+		appOnboard.Name,
+		appOnboard.Namespace,
+		"[AppOnboard][K8s]",
+	)
 }

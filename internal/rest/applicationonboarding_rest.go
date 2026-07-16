@@ -47,7 +47,7 @@ const (
 	unexpectedStatusApplicationMsg    = ">>> [App][REST] Unexpected Status Code"
 )
 
-func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx context.Context, a *v1beta1.ApplicationOnboarding, feder *v1beta1.Federation) error {
+func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx context.Context, a *v1beta1.ApplicationOnboarding, fed *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 	numUsers := int(a.Spec.AppInfo.AppQoSProfile.NoOfUsersPerAppInst)
 	multiUserClients := opgmodels.MultiUserClients(a.Spec.AppInfo.AppQoSProfile.MultiUserClients)
@@ -55,17 +55,13 @@ func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx contex
 
 	// opgmodels.AppComponentSpecs{} is a "[]struct"
 	for _, c := range a.Spec.AppInfo.AppComponentSpecs {
-		artefactId, err := uuid.Parse(c.ArtefactId)
-		if err != nil {
-			return err
-		}
 		newComponent := struct {
 			ArtefactId    opgmodels.ArtefactId `json:"artefactId"`
 			ComponentName *string              `json:"componentName,omitempty"`
 			ServiceNameEW *string              `json:"serviceNameEW,omitempty"`
 			ServiceNameNB *string              `json:"serviceNameNB,omitempty"`
 		}{
-			ArtefactId: opgmodels.ArtefactId(artefactId),
+			ArtefactId: opgmodels.ArtefactId(c.ArtefactId),
 		}
 		components = append(components, newComponent)
 	}
@@ -92,17 +88,13 @@ func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx contex
 		AppStatusCallbackLink: &(a.Spec.AppInfo.AppStatusCallbackLink),
 		AppComponentSpecs:     components,
 	}
-	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	res, err := r.GetOPGClient(
-		fedId.String(),
-		feder.Spec.FederationData.RestOptions.TokenUrl,
-		feder.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
+		fed.Spec.FederationData.RestOptions.TokenUrl,
+		fed.Spec.FederationData.ClientId,
 	).OnboardApplicationWithResponse(
 		context.TODO(),
-		feder.Status.FederationContextId,
+		a.Spec.FederationContextId,
 		appReqBody)
 
 	if err != nil {
@@ -157,21 +149,17 @@ func (r *ApplicationOnboardingReconciler) CreateApplicationOnboarding(ctx contex
 	return nil
 }
 
-func (r *ApplicationOnboardingReconciler) DeleteApplicationOnboarding(ctx context.Context, a *v1beta1.ApplicationOnboarding, feder *v1beta1.Federation) error {
+func (r *ApplicationOnboardingReconciler) DeleteApplicationOnboarding(ctx context.Context, a *v1beta1.ApplicationOnboarding, fed *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 	log.Info("Deleting external application onboarding")
-	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	// we should delete the application onboarding
 	res, err := r.GetOPGClient(
-		fedId.String(),
-		feder.Spec.FederationData.RestOptions.TokenUrl,
-		feder.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
+		fed.Spec.FederationData.RestOptions.TokenUrl,
+		fed.Spec.FederationData.ClientId,
 	).DeleteAppWithResponse(
 		context.TODO(),
-		feder.Status.FederationContextId,
+		a.Spec.FederationContextId,
 		a.Spec.AppInfo.AppId,
 	)
 	if err != nil {

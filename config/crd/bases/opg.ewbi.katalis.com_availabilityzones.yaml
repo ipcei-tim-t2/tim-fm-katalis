@@ -17,8 +17,17 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.relationType
+      name: relationType
+      type: string
     - jsonPath: .spec.federationContextId
-      name: FederationContextId
+      name: federationContextId
+      type: string
+    - jsonPath: .spec.zoneId
+      name: zoneId
+      type: string
+    - jsonPath: .status.state
+      name: state
       type: string
     name: v1beta1
     schema:
@@ -479,8 +488,6 @@ spec:
                 - latencyRanges
                 - throughputRanges
                 type: object
-            required:
-            - state
             type: object
         required:
         - spec

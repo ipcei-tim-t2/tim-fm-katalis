@@ -78,17 +78,6 @@ func (h *handler) AvailZoneNotifLink(c echo.Context, federationCallbackId models
 	return c.JSON(http.StatusNotImplemented, nil)
 }
 
-// OP uses this callback api to notify partner OP about change in federation status, federation metadata or offered zone details. Allowed combinations of objectType and operationType are
-// - FEDERATION - STATUS: Status specified by parameter 'federationStatus'.
-// - ZONES - STATUS: Status specified by parameter 'zoneStatus'.
-// - ZONES - ADD: Use parameter 'addZones' to define add new zones
-// - ZONES - REMOVE: Use parameter 'removeZones' to define remove zones.
-// - EDGE_DISCOVERY_SERVICE - UPDATE: Use parameter 'edgeDiscoverySvcEndPoint' to specify new endpoints
-// - LCM_SERVICE - UPDATE: Use parameter 'lcmSvcEndPoint' to specify new endpoints
-// - MOBILE_NETWORK_CODES - ADD: Use parameter 'addMobileNetworkIds' to define new mobile network codes.
-// - MOBILE_NETWORK_CODES - REMOVE: Use parameter 'removeMobileNetworkIds' to remove mobile network codes.
-// - FIXED_NETWORK_CODES - ADD: Use parameter 'addFixedNetworkIds' to define new fixed network codes.
-// - FIXED_NETWORK_CODES - REMOVE: Use parameter 'removeFixedNetworkIds' to remove fixed network codes.
 // (POST /{federationCallbackId}/partnerStatusLink)
 func (h *handler) PartnerStatusLink(c echo.Context, federationCallbackId models.FederationCallbackId) error {
 	ctx := h.getRequestContextFunc(c)

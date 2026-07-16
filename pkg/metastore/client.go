@@ -15,7 +15,7 @@ var uuidV5Fn = uuid.V5
 type Client interface {
 	GetFederation(ctx context.Context, federationContextID string) (*Federation, error)
 	CreateFederation(ctx context.Context, fed *Federation) (*v1beta1.Federation, error)
-	UpdateFederationStatus(ctx context.Context, federationCallbackID string, updates *models.PartnerStatusLinkJSONRequestBody) error //CALLBACK
+	UpdateFederationStatus(ctx context.Context, federationCallbackID string, updates *models.PartnerStatusLinkJSONRequestBody) error
 	RemoveFederation(ctx context.Context, federationContextID string) error
 
 	GetImage(ctx context.Context, federationContextID, id string) (*Image, error)

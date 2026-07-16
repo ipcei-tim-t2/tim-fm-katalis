@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,7 @@ import (
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
+	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 )
 
 // ApplicationOnboardingReconciler reconciles a ApplicationOnboarding object
@@ -88,33 +90,58 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 		log.Error(err, ">>> [AppOnboard] Error getting object.", "name", req.Name, "namespace", req.Namespace)
 		return ctrl.Result{}, err
 	}
+
 	//Helper function to set the status to NotAvailable and update the resource
-	skipStatusPatch := false
 	originalAppOnboard := appOnboard.DeepCopy()
 	defer func() {
-		if skipStatusPatch {
-			return
-		}
-		if err != nil {
+		isDeleting := !appOnboard.GetDeletionTimestamp().IsZero()
+		if err != nil && !isDeleting {
 			log.Error(err, ">>> [AppOnboard] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 			appOnboard.Status.State = v1beta1.ApplicationOnboardingStateFailed
-
 		}
+
+		// Metadata Patch (Annotations, Labels, Finalizers)
+		metaChanged := !reflect.DeepEqual(appOnboard.Annotations, originalAppOnboard.Annotations) ||
+			!reflect.DeepEqual(appOnboard.Labels, originalAppOnboard.Labels) ||
+			!reflect.DeepEqual(appOnboard.Finalizers, originalAppOnboard.Finalizers)
+
+		if metaChanged {
+			currentStatus := appOnboard.Status.DeepCopy()
+			// Using Patch instead of Update to avoid overwriting changes made by other controllers
+			if patchErr := r.Patch(ctx, &appOnboard, client.MergeFrom(originalAppOnboard)); patchErr != nil {
+				if !apierrors.IsNotFound(patchErr) {
+					log.Error(patchErr, ">>> [AppOnboard] UNEXPECTED ERROR during ApplicationOnboarding Metadata UPDATE.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+				}
+				if err == nil {
+					err = patchErr
+				}
+				return // If there's an error patching metadata, we return early to avoid patching status with potentially inconsistent data
+			}
+			if currentStatus != nil {
+				appOnboard.Status = *currentStatus
+			}
+			// Alignment of the resource version after patching metadata
+			originalAppOnboard.SetResourceVersion(appOnboard.GetResourceVersion())
+		}
+		if isDeleting {
+			return
+		}
+		// Status Update
 		if patchErr := r.Status().Patch(ctx, &appOnboard, client.MergeFrom(originalAppOnboard)); patchErr != nil {
 			if !apierrors.IsNotFound(patchErr) {
-				log.Error(patchErr, ">>> [AppOnboard] UNEXPECTED ERROR during AppOnboard UPDATE.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+				log.Error(patchErr, ">>> [AppOnboard] UNEXPECTED ERROR during ApplicationOnboarding Status UPDATE.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 			}
 			if err == nil {
 				err = patchErr
 			}
 		} else {
-			log.Info(">>> [AppOnboard] SUCCESSFULLY.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+			log.Info(">>> [AppOnboard] SUCCESSFULLY Reconciled.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 		}
 	}()
+
 	isGuest := IsGuestResource(appOnboard.Spec.RelationType)
 	fed, isRest, err := GetFederation(ctx, isGuest, r.Client, appOnboard.Spec.FederationContextId, appOnboard.Namespace)
 	extClient := r.getExternalClient(isRest)
-
 	if err != nil {
 		log.Error(err, ">>> [AppOnboard] Should always have a parent federation.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 		return ctrl.Result{}, err
@@ -135,26 +162,17 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 		}
 		if controllerutil.RemoveFinalizer(&appOnboard, v1beta1.ApplicationOnboardingFinalizer) {
 			log.Info(">>> [AppOnboard] Removed basic finalizer for ApplicationOnboarding, exiting...", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
-			if err := r.Update(ctx, appOnboard.DeepCopy()); err != nil {
-				log.Error(err, ">>> [AppOnboard] Unable to update ApplicationOnboarding while removing finalizers.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
-				return ctrl.Result{}, err
-			}
-			log.Info(">>> [AppOnboard] Successfully removed finalizer from ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 		}
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
 	}
 
 	// Handle creation/finalizer
 	if controllerutil.AddFinalizer(&appOnboard, v1beta1.ApplicationOnboardingFinalizer) {
 		log.Info(">>> [AppOnboard] Added finalizer to ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
-		if err := r.Update(ctx, appOnboard.DeepCopy()); err != nil {
-			log.Info(">>> [AppOnboard] Unable to Update ApplicationOnboarding with finalizer.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
-			return ctrl.Result{}, err
-		}
-		log.Info(">>> [AppOnboard] Successfully added finalizer to ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
-		skipStatusPatch = true
 		return ctrl.Result{}, nil
+	}
+	if appOnboard.Labels == nil {
+		appOnboard.Labels = make(map[string]string)
 	}
 
 	isNewAppOnboard := appOnboard.Status.State == ""
@@ -162,36 +180,44 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 		// Host ApplicationOnboarding handling
 		if isNewAppOnboard {
 			appOnboard.Status.State = v1beta1.ApplicationOnboardingStatePending
+			appOnboard.Labels[v1beta1.ResourceIdLabel] = "apponboard-" + uuid.V5(appOnboard.Spec.AppInfo.AppId+appOnboard.Spec.FederationContextId)
 		} else {
 			// Callback for REST and GET for K8s
 			if isRest {
 				if err := extClient.UpdateApplicationOnboardingStatus(ctx, &appOnboard, fed); err != nil {
-					log.Error(err, ">>> [AppOnboard] Error during CALLBACK OPERATION via OPG EWBI API.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+					log.Error(err, ">>> [AppOnboard][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 					return ctrl.Result{}, err
 				}
 			} else {
-				log.Info(">>> [AppOnboard] Resource updated (GUEST via watcher update through the resource)", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+				log.Info(">>> [AppOnboard][K8s] Resource updated (GUEST via watcher update through the resource)", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 			}
 		}
 		return ctrl.Result{}, nil
 	} else {
 		// Guest ApplicationOnboarding handling
 		if isNewAppOnboard {
+			appOnboard.Status.State = v1beta1.ApplicationOnboardingStatePending
+			appOnboard.Labels[v1beta1.ResourceIdLabel] = "apponboard-" + uuid.V5(appOnboard.Spec.AppInfo.AppId+appOnboard.Spec.FederationContextId)
 			appComponentSpec := appOnboard.Spec.AppInfo.AppComponentSpecs
+
 			for _, appComponent := range appComponentSpec {
-				artefactId := appComponent.ArtefactId
 				artObj := &v1beta1.Artefact{}
-				if err := r.Get(ctx, client.ObjectKey{Name: artefactId, Namespace: artObj.Namespace}, artObj); err != nil {
-					if apierrors.IsNotFound(err) {
-						log.Error(err, ">>> [AppOnboard] Artefact not found for ApplicationOnboarding.", "name", artObj.Name, "namespace", artObj.Namespace, "artefactId", artefactId)
-						return ctrl.Result{}, err
-					}
-					log.Error(err, ">>> [AppOnboard] Error getting Artefact for ApplicationOnboarding.", "name", artObj.Name, "namespace", artObj.Namespace, "artefactId", artefactId)
+				artList := &v1beta1.ArtefactList{}
+				if err := r.List(
+					ctx,
+					artList,
+					client.InNamespace(appOnboard.Namespace),
+					client.MatchingLabels{
+						v1beta1.ResourceIdLabel: "art-" + uuid.V5(appComponent.ArtefactId+appOnboard.Spec.FederationContextId),
+					}); err != nil {
 					return ctrl.Result{}, err
 				}
+				if len(artList.Items) == 0 {
+					log.Info(">>> [Artefact] No Artefact foud for AppOnboard ", "name", appOnboard.Name, "naemspace", appOnboard.Namespace, "artefactId", appComponent.ArtefactId)
+				}
+				artObj = &artList.Items[0]
 				if artObj.Status.State != v1beta1.ArtefactStateReady {
-					log.Info(">>> [AppOnboard] Artefact is not READY for ApplicationOnboarding.", "name", artObj.Name, "namespace", artObj.Namespace, "artefactId", artefactId, "state", artObj.Status.State)
-					skipStatusPatch = true
+					log.Info(">>> [AppOnboard] Artefact is not READY for ApplicationOnboarding.", "name", appOnboard.Name, "naemspace", appOnboard.Namespace, "artefactId", appComponent.ArtefactId, "state", artObj.Status.State)
 					return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 				}
 			}
@@ -202,10 +228,10 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 			log.Info(">>> [AppOnboard] SUCCESSFULLY APPLIED SPEC AND SET INITIAL STATUS.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 		} else {
 			if isRest {
-				log.Info(">>> [AppOnboard] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+				log.Info(">>> [AppOnboard][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 			} else {
 				if err := extClient.UpdateApplicationOnboardingStatus(ctx, &appOnboard, fed); err != nil {
-					log.Error(err, ">>> [AppOnboard] Error updating ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+					log.Error(err, ">>> [AppOnboard][K8s] Error updating ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 					return ctrl.Result{}, err
 				}
 			}
