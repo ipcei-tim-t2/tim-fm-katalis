@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"reflect"
-	"strings"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -56,7 +55,9 @@ type FederationReconciler struct {
 type ExternalFederationClient interface {
 	CreateFederation(ctx context.Context, f *v1beta1.Federation) error
 	DeleteFederation(ctx context.Context, f *v1beta1.Federation) error
-	UpdateFederationStatus(ctx context.Context, f *v1beta1.Federation) error //CALLBACK when REST (HOST Side), FUNCTION FOR THE WATCHER for K8s (GUEST Side)
+	UpdateFederationStatus(ctx context.Context, f *v1beta1.Federation) error        //CALLBACK when REST (HOST Side), FUNCTION FOR THE WATCHER for K8s (GUEST Side)
+	DetailsFederation(ctx context.Context, f *v1beta1.Federation) error             //POST /{federationContextId}/partner
+	UpdateFederationDetailsStatus(ctx context.Context, f *v1beta1.Federation) error //Callback /{federationContextId}/partner
 	PatchFederation(ctx context.Context, f *v1beta1.Federation) error
 	GetHealthFederation(ctx context.Context, f *v1beta1.Federation) error
 	GetPlatformCapsFederation(ctx context.Context, f *v1beta1.Federation) error
@@ -260,8 +261,7 @@ func (r *FederationReconciler) Reconcile(
 	}
 	if !isGuest {
 		// Host federation handling
-		switch isNewFed {
-		case true:
+		if isNewFed {
 			fed.Status.FederationContextId = uuid.V5(fed.Spec.FederationData.OrigOPFederationId + fed.Spec.FederationData.InitialDate.String() + fed.Spec.FederationData.OrigOPCountryCode)
 			fed.Labels[v1beta1.ResourceIdLabel] = "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode)
 			// If the federation is new, we set the initial state to "AVAILABLE" and set the expiry and renewal dates based on the initial date provided in the spec. We also set the policy label to "false" to indicate that the policy has not been created yet.
@@ -273,7 +273,7 @@ func (r *FederationReconciler) Reconcile(
 				fed.Status.FederationRenewalDate = metav1.NewTime(fed.Spec.FederationData.InitialDate.Add(23 * time.Hour))
 			}
 			fed.Status.State = v1beta1.FederationStateAvailable
-		case false:
+		} else {
 			result, stop := r.federationExpiry(&fed)
 			if stop {
 				return result, nil
@@ -283,6 +283,11 @@ func (r *FederationReconciler) Reconcile(
 				log.Info(">>> [Federation][REST] Execution CALLBACK OPERATION via OPG EWBI API", "name", fed.Name, "namespace", fed.Namespace)
 				if err := extClient.UpdateFederationStatus(ctx, &fed); err != nil {
 					log.Error(err, ">>> [Federation][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
+					return ctrl.Result{}, err
+				}
+				log.Info(">>> [Federation][REST] Execution CALLBACK DETAILS OPERATION via OPG EWBI API", "name", fed.Name, "namespace", fed.Namespace)
+				if err := extClient.UpdateFederationDetailsStatus(ctx, &fed); err != nil {
+					log.Error(err, ">>> [Federation][REST] Error during CALLBACK DETAILS OPERATION via OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
 					return ctrl.Result{}, err
 				}
 			}
@@ -298,13 +303,11 @@ func (r *FederationReconciler) Reconcile(
 			fed.Status.State = v1beta1.FederationStateNotAvailable
 			fed.Labels[v1beta1.ResourceIdLabel] = "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String())
 			if err := extClient.CreateFederation(ctx, &fed); err != nil {
-				if isRest && strings.Contains(err.Error(), "408 Timeout") {
-					log.Info(">>> [Federation][REST] 408 - Request Timeout. The request took longer than the server was prepared to wait.", "name", fed.Name, "namespace", fed.Namespace)
-					fed.Status.State = v1beta1.FederationStateTemporaryFailure
-					return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
-				}
 				log.Error(err, ">>> [Federation] Error APPLYING/UPDATING SPEC Federation", "name", fed.Name, "namespace", fed.Namespace)
 				return ctrl.Result{}, err
+			}
+			if isRest {
+				extClient.DetailsFederation(ctx, &fed)
 			}
 		} else {
 			switch fed.Status.State {

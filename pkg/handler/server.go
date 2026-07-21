@@ -173,6 +173,66 @@ func (h *handler) GetAppInstanceDetails(c echo.Context, federationContextId mode
 	return c.JSON(http.StatusOK, appInst.GetAppInstanceDetails200JSONResponse)
 }
 
+// Registers a callback to be called when there are updates on details about the federation context with the partner OP. The callback body shall provide info about the zones offered by the partner, partner OP network codes, information about edge discovery and LCM service etc.
+// (POST /{federationContextId}/partner)
+func (h *handler) PartnerDetails(c echo.Context, federationContextId models.FederationContextId) error {
+	ctx := h.getRequestContextFunc(c)
+
+	k8sFed, err := h.metaStoreClient.GetK8SFederation(ctx, federationContextId)
+	if err != nil {
+		return sendErrorResponseFromError(c, err)
+	}
+
+	offeredZones := make([]models.ZoneDetails, len(k8sFed.Status.ZoneDetails))
+	for i, zd := range k8sFed.Status.ZoneDetails {
+		offeredZones[i] = models.ZoneDetails{
+			ZoneId:           zd.ZoneId,
+			Geolocation:      &zd.Geolocation,
+			GeographyDetails: zd.GeographyDetails,
+		}
+	}
+	var partnerMobileNetCodes *models.MobileNetworkIds
+	if k8sFed.Status.MobileNetworkIds != nil {
+		partnerMobileNetCodes = &models.MobileNetworkIds{
+			Mcc:  &k8sFed.Status.MobileNetworkIds.Mcc,
+			Mncs: &k8sFed.Status.MobileNetworkIds.Mncs,
+		}
+	}
+	var edgeDiscoveryServiceEndPoint *models.ServiceEndpoint
+	if k8sFed.Status.EdgeDiscoveryServiceEndPoint != nil {
+		edgeDiscoveryServiceEndPoint = &models.ServiceEndpoint{
+			Fqdn:          &k8sFed.Status.EdgeDiscoveryServiceEndPoint.Fqdn,
+			Ipv4Addresses: &k8sFed.Status.EdgeDiscoveryServiceEndPoint.Ipv4Addresses,
+			// Ipv6Addresses: &k8sFed.Status.EdgeDiscoveryServiceEndPoint.Ipv6Addresses,
+			Port: k8sFed.Status.EdgeDiscoveryServiceEndPoint.Port,
+		}
+	}
+	var lcmServiceEndPoint *models.ServiceEndpoint
+	if k8sFed.Status.LcmServiceEndPoint != nil {
+		lcmServiceEndPoint = &models.ServiceEndpoint{
+			Fqdn:          &k8sFed.Status.LcmServiceEndPoint.Fqdn,
+			Ipv4Addresses: &k8sFed.Status.LcmServiceEndPoint.Ipv4Addresses,
+			// Ipv6Addresses: &k8sFed.Status.LcmServiceEndPoint.Ipv6Addresses,
+			Port: k8sFed.Status.LcmServiceEndPoint.Port,
+		}
+	}
+
+	response := server.PartnerDetails200JSONResponse{
+		EdgeDiscoveryServiceEndPoint: edgeDiscoveryServiceEndPoint,
+		LcmServiceEndPoint:           lcmServiceEndPoint,
+		FederationExpiryDate:         k8sFed.Status.FederationExpiryDate.Time,
+		FederationRenewalDate:        k8sFed.Status.FederationRenewalDate.Time,
+		PartnerOPCountryCode:         &k8sFed.Status.PartnerOPCountryCode,
+		PartnerOPFederationId:        &k8sFed.Status.PartnerOPFederationId,
+		PartnerOPFixedNetworkCodes:   &k8sFed.Status.FixedNetworkIds,
+		PartnerOPMobileNetworkCodes:  partnerMobileNetCodes,
+		OfferedAvailabilityZones:     &offeredZones,
+		PlatformCaps:                 k8sFed.Status.PlatformCaps,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
 // Submits an application details to a partner OP. Based on the details provided,  partner OP shall do bookkeeping, resource validation and other pre-deployment operations.
 // (POST /{federationContextId}/application/onboarding)
 func (h *handler) OnboardApplication(c echo.Context, federationContextId models.FederationContextId) error {

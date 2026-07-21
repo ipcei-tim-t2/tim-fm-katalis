@@ -127,6 +127,11 @@ type ClientInterface interface {
 
 	FileStatusCallbackLink(ctx context.Context, federationCallbackId FederationCallbackId, body FileStatusCallbackLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PartnerDetailsCallbackWithBody request with any body
+	PartnerDetailsCallbackWithBody(ctx context.Context, federationCallbackId FederationCallbackId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PartnerDetailsCallback(ctx context.Context, federationCallbackId FederationCallbackId, body PartnerDetailsCallbackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PartnerStatusLinkWithBody request with any body
 	PartnerStatusLinkWithBody(ctx context.Context, federationCallbackId FederationCallbackId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -387,6 +392,11 @@ type ClientInterface interface {
 
 	UpdateFederation(ctx context.Context, federationContextId FederationContextId, body UpdateFederationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// PartnerDetailsWithBody request with any body
+	PartnerDetailsWithBody(ctx context.Context, federationContextId FederationContextId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	PartnerDetails(ctx context.Context, federationContextId FederationContextId, body PartnerDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetServiceAPIsDetails request
 	GetServiceAPIsDetails(ctx context.Context, federationContextId FederationContextId, serviceType ServiceType, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -569,6 +579,30 @@ func (c *Client) FileStatusCallbackLinkWithBody(ctx context.Context, federationC
 
 func (c *Client) FileStatusCallbackLink(ctx context.Context, federationCallbackId FederationCallbackId, body FileStatusCallbackLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewFileStatusCallbackLinkRequest(c.Server, federationCallbackId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PartnerDetailsCallbackWithBody(ctx context.Context, federationCallbackId FederationCallbackId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPartnerDetailsCallbackRequestWithBody(c.Server, federationCallbackId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PartnerDetailsCallback(ctx context.Context, federationCallbackId FederationCallbackId, body PartnerDetailsCallbackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPartnerDetailsCallbackRequest(c.Server, federationCallbackId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -1743,6 +1777,30 @@ func (c *Client) UpdateFederation(ctx context.Context, federationContextId Feder
 	return c.Client.Do(req)
 }
 
+func (c *Client) PartnerDetailsWithBody(ctx context.Context, federationContextId FederationContextId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPartnerDetailsRequestWithBody(c.Server, federationContextId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) PartnerDetails(ctx context.Context, federationContextId FederationContextId, body PartnerDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPartnerDetailsRequest(c.Server, federationContextId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) GetServiceAPIsDetails(ctx context.Context, federationContextId FederationContextId, serviceType ServiceType, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetServiceAPIsDetailsRequest(c.Server, federationContextId, serviceType)
 	if err != nil {
@@ -2149,6 +2207,53 @@ func NewFileStatusCallbackLinkRequestWithBody(server string, federationCallbackI
 	}
 
 	operationPath := fmt.Sprintf("/%s/fileStatusCallbackLink", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPartnerDetailsCallbackRequest calls the generic PartnerDetailsCallback builder with application/json body
+func NewPartnerDetailsCallbackRequest(server string, federationCallbackId FederationCallbackId, body PartnerDetailsCallbackJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPartnerDetailsCallbackRequestWithBody(server, federationCallbackId, "application/json", bodyReader)
+}
+
+// NewPartnerDetailsCallbackRequestWithBody generates requests for PartnerDetailsCallback with any type of body
+func NewPartnerDetailsCallbackRequestWithBody(server string, federationCallbackId FederationCallbackId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "federationCallbackId", runtime.ParamLocationPath, federationCallbackId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/partnerDetailsCallbackLink'", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -5540,6 +5645,53 @@ func NewUpdateFederationRequestWithBody(server string, federationContextId Feder
 	return req, nil
 }
 
+// NewPartnerDetailsRequest calls the generic PartnerDetails builder with application/json body
+func NewPartnerDetailsRequest(server string, federationContextId FederationContextId, body PartnerDetailsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPartnerDetailsRequestWithBody(server, federationContextId, "application/json", bodyReader)
+}
+
+// NewPartnerDetailsRequestWithBody generates requests for PartnerDetails with any type of body
+func NewPartnerDetailsRequestWithBody(server string, federationContextId FederationContextId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "federationContextId", runtime.ParamLocationPath, federationContextId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/partner", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetServiceAPIsDetailsRequest generates requests for GetServiceAPIsDetails
 func NewGetServiceAPIsDetailsRequest(server string, federationContextId FederationContextId, serviceType ServiceType) (*http.Request, error) {
 	var err error
@@ -5935,6 +6087,11 @@ type ClientWithResponsesInterface interface {
 
 	FileStatusCallbackLinkWithResponse(ctx context.Context, federationCallbackId FederationCallbackId, body FileStatusCallbackLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*FileStatusCallbackLinkResponse, error)
 
+	// PartnerDetailsCallbackWithBodyWithResponse request with any body
+	PartnerDetailsCallbackWithBodyWithResponse(ctx context.Context, federationCallbackId FederationCallbackId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PartnerDetailsCallbackResponse, error)
+
+	PartnerDetailsCallbackWithResponse(ctx context.Context, federationCallbackId FederationCallbackId, body PartnerDetailsCallbackJSONRequestBody, reqEditors ...RequestEditorFn) (*PartnerDetailsCallbackResponse, error)
+
 	// PartnerStatusLinkWithBodyWithResponse request with any body
 	PartnerStatusLinkWithBodyWithResponse(ctx context.Context, federationCallbackId FederationCallbackId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PartnerStatusLinkResponse, error)
 
@@ -6195,6 +6352,11 @@ type ClientWithResponsesInterface interface {
 
 	UpdateFederationWithResponse(ctx context.Context, federationContextId FederationContextId, body UpdateFederationJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateFederationResponse, error)
 
+	// PartnerDetailsWithBodyWithResponse request with any body
+	PartnerDetailsWithBodyWithResponse(ctx context.Context, federationContextId FederationContextId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PartnerDetailsResponse, error)
+
+	PartnerDetailsWithResponse(ctx context.Context, federationContextId FederationContextId, body PartnerDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*PartnerDetailsResponse, error)
+
 	// GetServiceAPIsDetailsWithResponse request
 	GetServiceAPIsDetailsWithResponse(ctx context.Context, federationContextId FederationContextId, serviceType ServiceType, reqEditors ...RequestEditorFn) (*GetServiceAPIsDetailsResponse, error)
 
@@ -6453,6 +6615,35 @@ func (r FileStatusCallbackLinkResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r FileStatusCallbackLinkResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type PartnerDetailsCallbackResponse struct {
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *N400
+	ApplicationproblemJSON401 *N401
+	ApplicationproblemJSON404 *N404
+	ApplicationproblemJSON409 *N409
+	ApplicationproblemJSON422 *N422
+	ApplicationproblemJSON500 *N500
+	ApplicationproblemJSON503 *N503
+	ApplicationproblemJSON520 *N520
+}
+
+// Status returns HTTPResponse.Status
+func (r PartnerDetailsCallbackResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PartnerDetailsCallbackResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -8617,6 +8808,36 @@ func (r UpdateFederationResponse) StatusCode() int {
 	return 0
 }
 
+type PartnerDetailsResponse struct {
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *FederationDetailResponseData
+	ApplicationproblemJSON400 *N400
+	ApplicationproblemJSON401 *N401
+	ApplicationproblemJSON404 *N404NotFound
+	ApplicationproblemJSON409 *N409
+	ApplicationproblemJSON422 *N422
+	ApplicationproblemJSON500 *N500
+	ApplicationproblemJSON503 *N503
+	ApplicationproblemJSON520 *N520
+}
+
+// Status returns HTTPResponse.Status
+func (r PartnerDetailsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PartnerDetailsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type GetServiceAPIsDetailsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -8968,6 +9189,23 @@ func (c *ClientWithResponses) FileStatusCallbackLinkWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParseFileStatusCallbackLinkResponse(rsp)
+}
+
+// PartnerDetailsCallbackWithBodyWithResponse request with arbitrary body returning *PartnerDetailsCallbackResponse
+func (c *ClientWithResponses) PartnerDetailsCallbackWithBodyWithResponse(ctx context.Context, federationCallbackId FederationCallbackId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PartnerDetailsCallbackResponse, error) {
+	rsp, err := c.PartnerDetailsCallbackWithBody(ctx, federationCallbackId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePartnerDetailsCallbackResponse(rsp)
+}
+
+func (c *ClientWithResponses) PartnerDetailsCallbackWithResponse(ctx context.Context, federationCallbackId FederationCallbackId, body PartnerDetailsCallbackJSONRequestBody, reqEditors ...RequestEditorFn) (*PartnerDetailsCallbackResponse, error) {
+	rsp, err := c.PartnerDetailsCallback(ctx, federationCallbackId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePartnerDetailsCallbackResponse(rsp)
 }
 
 // PartnerStatusLinkWithBodyWithResponse request with arbitrary body returning *PartnerStatusLinkResponse
@@ -9812,6 +10050,23 @@ func (c *ClientWithResponses) UpdateFederationWithResponse(ctx context.Context, 
 	return ParseUpdateFederationResponse(rsp)
 }
 
+// PartnerDetailsWithBodyWithResponse request with arbitrary body returning *PartnerDetailsResponse
+func (c *ClientWithResponses) PartnerDetailsWithBodyWithResponse(ctx context.Context, federationContextId FederationContextId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PartnerDetailsResponse, error) {
+	rsp, err := c.PartnerDetailsWithBody(ctx, federationContextId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePartnerDetailsResponse(rsp)
+}
+
+func (c *ClientWithResponses) PartnerDetailsWithResponse(ctx context.Context, federationContextId FederationContextId, body PartnerDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*PartnerDetailsResponse, error) {
+	rsp, err := c.PartnerDetails(ctx, federationContextId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePartnerDetailsResponse(rsp)
+}
+
 // GetServiceAPIsDetailsWithResponse request returning *GetServiceAPIsDetailsResponse
 func (c *ClientWithResponses) GetServiceAPIsDetailsWithResponse(ctx context.Context, federationContextId FederationContextId, serviceType ServiceType, reqEditors ...RequestEditorFn) (*GetServiceAPIsDetailsResponse, error) {
 	rsp, err := c.GetServiceAPIsDetails(ctx, federationContextId, serviceType, reqEditors...)
@@ -10443,6 +10698,81 @@ func ParseFileStatusCallbackLinkResponse(rsp *http.Response) (*FileStatusCallbac
 	}
 
 	response := &FileStatusCallbackLinkResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest N409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest N422
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest N503
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 520:
+		var dest N520
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON520 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePartnerDetailsCallbackResponse parses an HTTP response from a PartnerDetailsCallbackWithResponse call
+func ParsePartnerDetailsCallbackResponse(rsp *http.Response) (*PartnerDetailsCallbackResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PartnerDetailsCallbackResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -15829,6 +16159,88 @@ func ParseUpdateFederationResponse(rsp *http.Response) (*UpdateFederationRespons
 			LcmServiceEndPoint           *ServiceEndpoint  `json:"lcmServiceEndPoint,omitempty"`
 			OfferedAvailabilityZones     *[]ZoneDetails    `json:"offeredAvailabilityZones,omitempty"`
 		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest N400
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest N401
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest N404NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest N409
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest N422
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest N500
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest N503
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 520:
+		var dest N520
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON520 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePartnerDetailsResponse parses an HTTP response from a PartnerDetailsWithResponse call
+func ParsePartnerDetailsResponse(rsp *http.Response) (*PartnerDetailsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PartnerDetailsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest FederationDetailResponseData
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

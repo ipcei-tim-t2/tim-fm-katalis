@@ -2243,6 +2243,48 @@ components:
           type: string
           format: date-time
           description: Date and Time zone info of the existing federation renewal. Shall be less than federationExpiryDate
+    FederationDetailResponseData:
+      type: object
+      required:
+        - platformCaps
+        - federationRenewalDate
+        - federationExpiryDate
+      properties:
+        partnerOPFederationId:
+          $ref: '#/components/schemas/FederationIdentifier'
+        partnerOPCountryCode:
+          $ref: '#/components/schemas/CountryCode'
+        edgeDiscoveryServiceEndPoint:
+          $ref: '#/components/schemas/ServiceEndpoint'
+        lcmServiceEndPoint:
+          $ref: '#/components/schemas/ServiceEndpoint'
+        partnerOPMobileNetworkCodes:
+          $ref: '#/components/schemas/MobileNetworkIds'
+        partnerOPFixedNetworkCodes:
+          $ref: '#/components/schemas/FixedNetworkIds'
+        offeredAvailabilityZones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneDetails'
+          minItems: 1
+          description: List of zones, which the operator platform wishes to make available to developers/ISVs of requesting operator platform.
+        platformCaps:
+          $ref: '#/components/schemas/PlatformCaps'
+        federationExpiryDate:
+          type: string
+          format: date-time
+          description: Date and Time zone info of the existing federation expiry
+        federationRenewalDate:
+          type: string
+          format: date-time
+          description: Date and Time zone info of the existing federation renewal. Shall be less than federationExpiryDate
+    FederationDetailsCallbackRequestData:
+      type: object
+      required:
+        - federationContextId
+      properties:
+        federationContextId:
+          $ref: '#/components/schemas/FederationContextId'
     dateAndTimeZoneObject:
       type: string
       format: date-time
@@ -3074,6 +3116,98 @@ paths:
               security:
                 - notifClientCredentials: [fed-mgmt-notif]
   /{federationContextId}/partner:
+    post:
+      summary: Registers a callback to be called when there are updates on details about the federation context with the partner OP. The callback body shall provide info about the zones offered by the partner, partner OP network codes, information about edge discovery and LCM service etc.
+      operationId: PartnerDetails
+      tags:
+        - FederationManagement
+      parameters:
+        - name: federationContextId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/FederationContextId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FederationDetailsCallbackRequestData'
+      responses:
+        "200":
+          description: Federation response data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FederationDetailResponseData'
+        "400":
+          $ref: '#/components/responses/400'
+        "401":
+          $ref: '#/components/responses/401'
+        "404":
+          $ref: '#/components/responses/404NotFound'
+        "409":
+          $ref: '#/components/responses/409'
+        "422":
+          $ref: '#/components/responses/422'
+        "500":
+          $ref: '#/components/responses/500'
+        "503":
+          $ref: '#/components/responses/503'
+        "520":
+          $ref: '#/components/responses/520'
+        default:
+          $ref: '#/components/responses/default'
+      callbacks:
+        onFederationDetailsChangeEvent:
+          '{$request.body#/partnerDetailsCallbackLink}':
+            post:
+              requestBody:
+                description: |
+                  OP uses this callback api to notify partner OP about change in federation details
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        edgeDiscoveryServiceEndPoint:
+                          $ref: '#/components/schemas/ServiceEndpoint'
+                        lcmServiceEndPoint:
+                          $ref: '#/components/schemas/ServiceEndpoint'
+                        allowedMobileNetworkIds:
+                          $ref: '#/components/schemas/MobileNetworkIds'
+                        allowedFixedNetworkIds:
+                          $ref: '#/components/schemas/FixedNetworkIds'
+                        offeredAvailabilityZones:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/ZoneDetails'
+                          minItems: 1
+                        platformCaps:
+                          $ref: '#/components/schemas/PlatformCaps'
+              responses:
+                "204":
+                  description: Expected response to a successful call back processing
+                "400":
+                  $ref: '#/components/responses/400'
+                "401":
+                  $ref: '#/components/responses/401'
+                "404":
+                  $ref: '#/components/responses/404'
+                "409":
+                  $ref: '#/components/responses/409'
+                "422":
+                  $ref: '#/components/responses/422'
+                "500":
+                  $ref: '#/components/responses/500'
+                "503":
+                  $ref: '#/components/responses/503'
+                "520":
+                  $ref: '#/components/responses/520'
+                default:
+                  $ref: '#/components/responses/default'
+              security:
+                - notifClientCredentials: [fed-mgmt-notif]
     get:
       summary: Retrieves details about the federation context with the partner OP. The response shall provide info about the zones offered by the partner, partner OP network codes, information about edge discovery and LCM service etc.
       operationId: GetFederationDetails
@@ -8049,3 +8183,42 @@ paths:
           $ref: "#/components/responses/520"
         default:
           $ref: "#/components/responses/default"
+  /{federationCallbackId}/partnerDetailsCallbackLink':
+    post:
+      operationId: PartnerDetailsCallback
+      parameters:
+        - name: federationCallbackId
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/FederationCallbackId"
+      requestBody:
+        description: |
+          OP uses this callback api to notify partner OP about change in federation details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FederationDetailResponseData'
+      responses:
+        "204":
+          description: Expected response to a successful call back processing
+        "400":
+          $ref: '#/components/responses/400'
+        "401":
+          $ref: '#/components/responses/401'
+        "404":
+          $ref: '#/components/responses/404'
+        "409":
+          $ref: '#/components/responses/409'
+        "422":
+          $ref: '#/components/responses/422'
+        "500":
+          $ref: '#/components/responses/500'
+        "503":
+          $ref: '#/components/responses/503'
+        "520":
+          $ref: '#/components/responses/520'
+        default:
+          $ref: '#/components/responses/default'
+      security:
+        - notifClientCredentials: [fed-mgmt-notif]

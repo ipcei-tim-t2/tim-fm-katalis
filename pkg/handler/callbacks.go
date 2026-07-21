@@ -24,6 +24,21 @@ func (h *handler) FileStatusCallbackLink(c echo.Context, federationCallbackId mo
 	return c.JSON(http.StatusNoContent, nil)
 }
 
+// (POST /{federationCallbackId}/partnerDetailsCallbackLink')
+func (h *handler) PartnerDetailsCallback(c echo.Context, federationCallbackId models.FederationCallbackId) error {
+	ctx := h.getRequestContextFunc(c)
+
+	request, err := bindRequest[models.PartnerDetailsCallbackJSONRequestBody](c)
+	if err != nil {
+		return sendErrorResponse(c, http.StatusBadRequest, err.Error())
+	}
+
+	if _, err := h.metaStoreClient.PartnerDetailsCallback(ctx, federationCallbackId, request); err != nil {
+		return sendErrorResponseFromError(c, err)
+	}
+	return h.GetFederationDetails(c, federationCallbackId)
+}
+
 // Notification payload.
 // (POST /{federationCallbackId}/artefactStatusCallbackLink)
 func (h *handler) ArtefactStatusCallbackLink(c echo.Context, federationCallbackId models.FederationCallbackId) error {

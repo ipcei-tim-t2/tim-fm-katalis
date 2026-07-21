@@ -246,3 +246,10 @@ func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta
 		"[Federation][K8s]",
 	)
 }
+
+func (r *FederationReconciler) DetailsFederation(ctx context.Context, f *v1beta1.Federation) error {
+	return nil
+}
+func (r *FederationReconciler) UpdateFederationDetailsStatus(ctx context.Context, f *v1beta1.Federation) error {
+	return nil
+}

@@ -44,6 +44,9 @@ type ServerInterface interface {
 	// (POST /{federationCallbackId}/fileStatusCallbackLink)
 	FileStatusCallbackLink(ctx echo.Context, federationCallbackId FederationCallbackId) error
 
+	// (POST /{federationCallbackId}/partnerDetailsCallbackLink')
+	PartnerDetailsCallback(ctx echo.Context, federationCallbackId FederationCallbackId) error
+
 	// (POST /{federationCallbackId}/partnerStatusLink)
 	PartnerStatusLink(ctx echo.Context, federationCallbackId FederationCallbackId) error
 
@@ -241,6 +244,9 @@ type ServerInterface interface {
 	// API used by the Originating OP towards the partner OP, to update the parameters associated to the existing federation
 	// (PATCH /{federationContextId}/partner)
 	UpdateFederation(ctx echo.Context, federationContextId FederationContextId) error
+	// Registers a callback to be called when there are updates on details about the federation context with the partner OP. The callback body shall provide info about the zones offered by the partner, partner OP network codes, information about edge discovery and LCM service etc.
+	// (POST /{federationContextId}/partner)
+	PartnerDetails(ctx echo.Context, federationContextId FederationContextId) error
 	// Retrieves the list of Service APIs and associated information that a partner OP supports
 	// (GET /{federationContextId}/partner/service/{serviceType})
 	GetServiceAPIsDetails(ctx echo.Context, federationContextId FederationContextId, serviceType ServiceType) error
@@ -373,6 +379,24 @@ func (w *ServerInterfaceWrapper) FileStatusCallbackLink(ctx echo.Context) error 
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.FileStatusCallbackLink(ctx, federationCallbackId)
+	return err
+}
+
+// PartnerDetailsCallback converts echo context to params.
+func (w *ServerInterfaceWrapper) PartnerDetailsCallback(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "federationCallbackId" -------------
+	var federationCallbackId FederationCallbackId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "federationCallbackId", ctx.Param("federationCallbackId"), &federationCallbackId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter federationCallbackId: %s", err))
+	}
+
+	ctx.Set(NotifClientCredentialsScopes, []string{"fed-mgmt-notif"})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PartnerDetailsCallback(ctx, federationCallbackId)
 	return err
 }
 
@@ -2093,6 +2117,22 @@ func (w *ServerInterfaceWrapper) UpdateFederation(ctx echo.Context) error {
 	return err
 }
 
+// PartnerDetails converts echo context to params.
+func (w *ServerInterfaceWrapper) PartnerDetails(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "federationContextId" -------------
+	var federationContextId FederationContextId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "federationContextId", ctx.Param("federationContextId"), &federationContextId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter federationContextId: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PartnerDetails(ctx, federationContextId)
+	return err
+}
+
 // GetServiceAPIsDetails converts echo context to params.
 func (w *ServerInterfaceWrapper) GetServiceAPIsDetails(ctx echo.Context) error {
 	var err error
@@ -2283,6 +2323,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/:federationCallbackId/artefactStatusCallbackLink", wrapper.ArtefactStatusCallbackLink)
 	router.POST(baseURL+"/:federationCallbackId/availZoneNotifLink", wrapper.AvailZoneNotifLink)
 	router.POST(baseURL+"/:federationCallbackId/fileStatusCallbackLink", wrapper.FileStatusCallbackLink)
+	router.POST(baseURL+"/:federationCallbackId/partnerDetailsCallbackLink'", wrapper.PartnerDetailsCallback)
 	router.POST(baseURL+"/:federationCallbackId/partnerStatusLink", wrapper.PartnerStatusLink)
 	router.POST(baseURL+"/:federationCallbackId/resourceReservationCallbackLink", wrapper.ResourceReservationCallbackLink)
 	router.POST(baseURL+"/:federationContextId/alarms", wrapper.CreateAlarmReportingSubscription)
@@ -2349,6 +2390,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.DELETE(baseURL+"/:federationContextId/partner", wrapper.DeleteFederationDetails)
 	router.GET(baseURL+"/:federationContextId/partner", wrapper.GetFederationDetails)
 	router.PATCH(baseURL+"/:federationContextId/partner", wrapper.UpdateFederation)
+	router.POST(baseURL+"/:federationContextId/partner", wrapper.PartnerDetails)
 	router.GET(baseURL+"/:federationContextId/partner/service/:serviceType", wrapper.GetServiceAPIsDetails)
 	router.GET(baseURL+"/:federationContextId/platform-caps", wrapper.GetPlatformCapabilities)
 	router.POST(baseURL+"/:federationContextId/renew", wrapper.RenewFederation)
@@ -3317,6 +3359,120 @@ type FileStatusCallbackLinkdefaultResponse struct {
 }
 
 func (response FileStatusCallbackLinkdefaultResponse) VisitFileStatusCallbackLinkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(response.StatusCode)
+	return nil
+}
+
+type PartnerDetailsCallbackRequestObject struct {
+	FederationCallbackId FederationCallbackId `json:"federationCallbackId"`
+	Body                 *PartnerDetailsCallbackJSONRequestBody
+}
+
+type PartnerDetailsCallbackResponseObject interface {
+	VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error
+}
+
+type PartnerDetailsCallback204Response struct {
+}
+
+func (response PartnerDetailsCallback204Response) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PartnerDetailsCallback400ApplicationProblemPlusJSONResponse struct {
+	N400ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback400ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallback401ApplicationProblemPlusJSONResponse struct {
+	N401ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback401ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallback404ApplicationProblemPlusJSONResponse struct {
+	N404ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback404ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallback409ApplicationProblemPlusJSONResponse struct {
+	N409ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback409ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallback422ApplicationProblemPlusJSONResponse struct {
+	N422ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback422ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallback500ApplicationProblemPlusJSONResponse struct {
+	N500ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback500ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallback503ApplicationProblemPlusJSONResponse struct {
+	N503ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback503ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallback520ApplicationProblemPlusJSONResponse struct {
+	N520ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetailsCallback520ApplicationProblemPlusJSONResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(520)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsCallbackdefaultResponse struct {
+	StatusCode int
+}
+
+func (response PartnerDetailsCallbackdefaultResponse) VisitPartnerDetailsCallbackResponse(w http.ResponseWriter) error {
 	w.WriteHeader(response.StatusCode)
 	return nil
 }
@@ -11170,6 +11326,121 @@ func (response UpdateFederationdefaultResponse) VisitUpdateFederationResponse(w 
 	return nil
 }
 
+type PartnerDetailsRequestObject struct {
+	FederationContextId FederationContextId `json:"federationContextId"`
+	Body                *PartnerDetailsJSONRequestBody
+}
+
+type PartnerDetailsResponseObject interface {
+	VisitPartnerDetailsResponse(w http.ResponseWriter) error
+}
+
+type PartnerDetails200JSONResponse FederationDetailResponseData
+
+func (response PartnerDetails200JSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails400ApplicationProblemPlusJSONResponse struct {
+	N400ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails400ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails401ApplicationProblemPlusJSONResponse struct {
+	N401ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails401ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails404ApplicationProblemPlusJSONResponse struct {
+	N404NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails404ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails409ApplicationProblemPlusJSONResponse struct {
+	N409ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails409ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails422ApplicationProblemPlusJSONResponse struct {
+	N422ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails422ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails500ApplicationProblemPlusJSONResponse struct {
+	N500ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails500ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails503ApplicationProblemPlusJSONResponse struct {
+	N503ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails503ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetails520ApplicationProblemPlusJSONResponse struct {
+	N520ApplicationProblemPlusJSONResponse
+}
+
+func (response PartnerDetails520ApplicationProblemPlusJSONResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(520)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PartnerDetailsdefaultResponse struct {
+	StatusCode int
+}
+
+func (response PartnerDetailsdefaultResponse) VisitPartnerDetailsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(response.StatusCode)
+	return nil
+}
+
 type GetServiceAPIsDetailsRequestObject struct {
 	FederationContextId FederationContextId `json:"federationContextId"`
 	ServiceType         ServiceType         `json:"serviceType"`
@@ -12024,6 +12295,9 @@ type StrictServerInterface interface {
 	// (POST /{federationCallbackId}/fileStatusCallbackLink)
 	FileStatusCallbackLink(ctx context.Context, request FileStatusCallbackLinkRequestObject) (FileStatusCallbackLinkResponseObject, error)
 
+	// (POST /{federationCallbackId}/partnerDetailsCallbackLink')
+	PartnerDetailsCallback(ctx context.Context, request PartnerDetailsCallbackRequestObject) (PartnerDetailsCallbackResponseObject, error)
+
 	// (POST /{federationCallbackId}/partnerStatusLink)
 	PartnerStatusLink(ctx context.Context, request PartnerStatusLinkRequestObject) (PartnerStatusLinkResponseObject, error)
 
@@ -12221,6 +12495,9 @@ type StrictServerInterface interface {
 	// API used by the Originating OP towards the partner OP, to update the parameters associated to the existing federation
 	// (PATCH /{federationContextId}/partner)
 	UpdateFederation(ctx context.Context, request UpdateFederationRequestObject) (UpdateFederationResponseObject, error)
+	// Registers a callback to be called when there are updates on details about the federation context with the partner OP. The callback body shall provide info about the zones offered by the partner, partner OP network codes, information about edge discovery and LCM service etc.
+	// (POST /{federationContextId}/partner)
+	PartnerDetails(ctx context.Context, request PartnerDetailsRequestObject) (PartnerDetailsResponseObject, error)
 	// Retrieves the list of Service APIs and associated information that a partner OP supports
 	// (GET /{federationContextId}/partner/service/{serviceType})
 	GetServiceAPIsDetails(ctx context.Context, request GetServiceAPIsDetailsRequestObject) (GetServiceAPIsDetailsResponseObject, error)
@@ -12480,6 +12757,37 @@ func (sh *strictHandler) FileStatusCallbackLink(ctx echo.Context, federationCall
 		return err
 	} else if validResponse, ok := response.(FileStatusCallbackLinkResponseObject); ok {
 		return validResponse.VisitFileStatusCallbackLinkResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PartnerDetailsCallback operation middleware
+func (sh *strictHandler) PartnerDetailsCallback(ctx echo.Context, federationCallbackId FederationCallbackId) error {
+	var request PartnerDetailsCallbackRequestObject
+
+	request.FederationCallbackId = federationCallbackId
+
+	var body PartnerDetailsCallbackJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PartnerDetailsCallback(ctx.Request().Context(), request.(PartnerDetailsCallbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PartnerDetailsCallback")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PartnerDetailsCallbackResponseObject); ok {
+		return validResponse.VisitPartnerDetailsCallbackResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -14404,6 +14712,37 @@ func (sh *strictHandler) UpdateFederation(ctx echo.Context, federationContextId 
 		return err
 	} else if validResponse, ok := response.(UpdateFederationResponseObject); ok {
 		return validResponse.VisitUpdateFederationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// PartnerDetails operation middleware
+func (sh *strictHandler) PartnerDetails(ctx echo.Context, federationContextId FederationContextId) error {
+	var request PartnerDetailsRequestObject
+
+	request.FederationContextId = federationContextId
+
+	var body PartnerDetailsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PartnerDetails(ctx.Request().Context(), request.(PartnerDetailsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PartnerDetails")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(PartnerDetailsResponseObject); ok {
+		return validResponse.VisitPartnerDetailsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

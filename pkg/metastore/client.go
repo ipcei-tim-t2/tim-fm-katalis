@@ -14,9 +14,11 @@ var uuidV5Fn = uuid.V5
 
 type Client interface {
 	GetFederation(ctx context.Context, federationContextID string) (*Federation, error)
+	GetK8SFederation(ctx context.Context, federationContextID string) (*v1beta1.Federation, error)
 	CreateFederation(ctx context.Context, fed *Federation) (*v1beta1.Federation, error)
 	UpdateFederationStatus(ctx context.Context, federationCallbackID string, updates *models.PartnerStatusLinkJSONRequestBody) error
 	RemoveFederation(ctx context.Context, federationContextID string) error
+	PartnerDetailsCallback(ctx context.Context, federationContextId models.FederationContextId, request *models.PartnerDetailsCallbackJSONRequestBody) (*v1beta1.Federation, error)
 
 	GetImage(ctx context.Context, federationContextID, id string) (*Image, error)
 	UploadImage(ctx context.Context, file *UploadImage) (*v1beta1.Image, error)

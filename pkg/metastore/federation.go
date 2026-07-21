@@ -113,6 +113,14 @@ func (c *k8sClient) GetFederation(ctx context.Context, federationContextID strin
 		OfferedAvailabilityZones: &offeredZones,
 	}, nil
 }
+
+func (c *k8sClient) GetK8SFederation(ctx context.Context, federationContextID string) (*v1beta1.Federation, error) {
+	fed, err := c.searchFederation(ctx, federationContextID, "HOST")
+	if err != nil {
+		return nil, err
+	}
+	return fed, nil
+}
 func (c *k8sClient) UpdateFederationStatus(ctx context.Context, federationCallbackID string, updates *models.PartnerStatusLinkJSONRequestBody) error {
 	fed, err := c.searchFederation(ctx, federationCallbackID, "GUEST")
 	if err != nil {
@@ -241,6 +249,68 @@ func (c *k8sClient) AddAvailabilityZones(ctx context.Context, federationContextI
 		}
 	}
 	return c.patchK8sStatus(originalFed, fed)
+}
+
+func (c *k8sClient) PartnerDetailsCallback(ctx context.Context, federationContextId models.FederationContextId, request *models.PartnerDetailsCallbackJSONRequestBody) (*v1beta1.Federation, error) {
+	fed, err := c.searchFederation(ctx, federationContextId, "HOST")
+	if err != nil {
+		return nil, err
+	}
+	origFed := fed.DeepCopy()
+	if request.EdgeDiscoveryServiceEndPoint != nil {
+		fed.Status.EdgeDiscoveryServiceEndPoint = &v1beta1.ServiceEndpoint{
+			Fqdn:          *request.EdgeDiscoveryServiceEndPoint.Fqdn,
+			Port:          request.EdgeDiscoveryServiceEndPoint.Port,
+			Ipv4Addresses: *request.EdgeDiscoveryServiceEndPoint.Ipv4Addresses,
+			// Ipv6Addresses: *request.EdgeDiscoveryServiceEndPoint.Ipv6Addresses,
+		}
+	}
+	if request.LcmServiceEndPoint != nil {
+		fed.Status.LcmServiceEndPoint = &v1beta1.ServiceEndpoint{
+			Fqdn:          *request.LcmServiceEndPoint.Fqdn,
+			Port:          request.LcmServiceEndPoint.Port,
+			Ipv4Addresses: *request.LcmServiceEndPoint.Ipv4Addresses,
+			// Ipv6Addresses: *request.LcmServiceEndPoint.Ipv6Addresses,
+		}
+	}
+	if request.OfferedAvailabilityZones != nil {
+		offeredZones := make([]v1beta1.ZoneDetails, len(*request.OfferedAvailabilityZones))
+		for i, zd := range *request.OfferedAvailabilityZones {
+			var geoLocation string
+			if zd.Geolocation != nil {
+				geoLocation = *zd.Geolocation
+			}
+			offeredZones[i] = v1beta1.ZoneDetails{
+				GeographyDetails: zd.GeographyDetails,
+				Geolocation:      geoLocation,
+				ZoneId:           zd.ZoneId,
+			}
+		}
+		fed.Status.ZoneDetails = offeredZones
+	}
+	if request.PartnerOPCountryCode != nil {
+		fed.Status.PartnerOPCountryCode = *request.PartnerOPCountryCode
+	}
+	if request.PartnerOPFederationId != nil {
+		fed.Status.PartnerOPFederationId = *request.PartnerOPFederationId
+	}
+	if request.PartnerOPFixedNetworkCodes != nil {
+		fed.Status.FixedNetworkIds = *request.PartnerOPFixedNetworkCodes
+	}
+	if request.PartnerOPMobileNetworkCodes != nil {
+		fed.Status.MobileNetworkIds = &v1beta1.MobileNetworkIds{
+			Mcc:  *request.PartnerOPMobileNetworkCodes.Mcc,
+			Mncs: *request.PartnerOPMobileNetworkCodes.Mncs,
+		}
+	}
+	fed.Status.FederationExpiryDate = metav1.NewTime(request.FederationExpiryDate)
+	fed.Status.FederationRenewalDate = metav1.NewTime(request.FederationRenewalDate)
+	fed.Status.PlatformCaps = request.PlatformCaps
+
+	if err := c.patchK8sStatus(origFed, fed); err != nil {
+		return nil, err
+	}
+	return fed, nil
 }
 
 func mapServiceEndpointToK8s(apiEndpoint *models.ServiceEndpoint) *v1beta1.ServiceEndpoint {
