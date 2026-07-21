@@ -156,7 +156,7 @@ func (h *handler) InstallApp(c echo.Context, federationContextId models.Federati
 // Terminate an application instance on a partner OP zone.
 // (DELETE /{federationContextId}/application/lcm/app/{appId}/instance/{appInstanceId}/zone/{zoneId})
 func (h *handler) RemoveApp(c echo.Context, federationContextId models.FederationContextId, appId models.AppIdentifier, appInstanceId models.InstanceIdentifier, zoneId models.ZoneIdentifier) error {
-	if err := h.depClient.Uninstall(h.getRequestContextFunc(c), federationContextId, appInstanceId, appId); err != nil {
+	if err := h.depClient.Uninstall(h.getRequestContextFunc(c), federationContextId, appId, appInstanceId); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusOK, nil)
