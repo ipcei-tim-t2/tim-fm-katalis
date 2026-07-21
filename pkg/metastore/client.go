@@ -39,7 +39,7 @@ type Client interface {
 	AddApplicationDeployment(ctx context.Context, dep *ApplicationInstance) (*v1beta1.ApplicationDeployment, error)
 	GetApplicationDeployment(ctx context.Context, federationContextID, id string) (*ApplicationInstance, error)
 	UpdateApplicationDeploymentStatus(ctx context.Context, federationCallbackID string, updates *models.AppInstCallbackLinkJSONRequestBody) error
-	RemoveApplicationDeployment(ctx context.Context, federationContextID, id string) error
+	RemoveApplicationDeployment(ctx context.Context, federationContextID, appInstanceId, appId string) error
 
 	GetApplicationDeploymentDetails(ctx context.Context, federationContextID, id string) (*ApplicationInstanceDetails, error)
 

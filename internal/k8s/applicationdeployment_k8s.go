@@ -38,7 +38,7 @@ func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx contex
 	appDeployHost := &v1beta1.ApplicationDeployment{
 		TypeMeta: appDeploy.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId),
+			Name:      "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId),
 			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
 		},
 		Spec: v1beta1.ApplicationDeploymentSpec{
@@ -75,7 +75,7 @@ func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx contex
 
 func (r *ApplicationDeploymentReconciler) UpdateApplicationDeploymentStatus(ctx context.Context, appDeploy *v1beta1.ApplicationDeployment, fed *v1beta1.Federation) error {
 	appDeployHost := &v1beta1.ApplicationDeployment{}
-	remoteName := "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
+	remoteName := "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 	if err := GetRemoteResource(
 		ctx,
 		r.Client,
@@ -94,7 +94,7 @@ func (r *ApplicationDeploymentReconciler) UpdateApplicationDeploymentStatus(ctx 
 }
 
 func (r *ApplicationDeploymentReconciler) DeleteApplicationDeployment(ctx context.Context, appDeploy *v1beta1.ApplicationDeployment, fed *v1beta1.Federation) error {
-	remoteName := "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
+	remoteName := "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 	return DeleteRemoteResource(
 		ctx,
 		r.Client,

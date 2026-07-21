@@ -18,8 +18,6 @@ package controller
 
 import (
 	"context"
-	"crypto/md5"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -182,9 +180,9 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		// Host ApplicationDeployment handling
 		if isNewAppDeploy {
 			// Deve rispettare il pattern: [A-Za-z0-9][A-Za-z0-9_]{6,62}[A-Za-z0-9]$`
-			appDeploy.Status.AppInstanceInfo.AppInstIdentifier = fmt.Sprintf("%x", md5.Sum([]byte(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId+appDeploy.Spec.ZoneId)))
+			appDeploy.Status.AppInstanceInfo.AppInstIdentifier = uuid.V5(appDeploy.Spec.FederationContextId + appDeploy.Spec.AppId + appDeploy.Spec.AppInstanceId + appDeploy.Spec.ZoneId)
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
-			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
+			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 		} else {
 			if isRest {
 				if err := extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed); err != nil {
@@ -199,7 +197,7 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		// Guest ApplicationDeployment handling
 		if isNewAppDeploy {
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
-			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
+			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 
 			// Check if the ZONE si AVAILABLE
 			zoneObj := &v1beta1.AvailabilityZone{}

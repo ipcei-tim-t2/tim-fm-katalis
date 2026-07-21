@@ -15,7 +15,7 @@ var _ Client = &client{}
 
 type Client interface {
 	Install(ctx context.Context, app *InstallDeployment) (*v1beta1.ApplicationDeployment, string, error)
-	Uninstall(ctx context.Context, federationContextID, id string) error
+	Uninstall(ctx context.Context, federationContextID, appId, appInstanceId string) error
 }
 
 func NewClient(k8sClient k8scl.Client, namespace string) *client {
@@ -41,8 +41,8 @@ func (c *client) Install(ctx context.Context, dep *InstallDeployment) (*v1beta1.
 	return obj, uuid.V5(dep.AppId + dep.AppProviderId), nil
 }
 
-func (c *client) Uninstall(ctx context.Context, federationContextID, id string) error {
-	if err := c.appMetaClient.RemoveApplicationDeployment(ctx, federationContextID, id); err != nil && !errors.Is(err, metastore.ErrNotFound) {
+func (c *client) Uninstall(ctx context.Context, federationContextID, appId, appInstanceId string) error {
+	if err := c.appMetaClient.RemoveApplicationDeployment(ctx, federationContextID, appId, appInstanceId); err != nil && !errors.Is(err, metastore.ErrNotFound) {
 		return err
 	}
 

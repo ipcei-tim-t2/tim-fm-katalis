@@ -21,11 +21,9 @@ import (
 	"errors"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 	opgmodels "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
-	uu "github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -211,7 +209,7 @@ func (r *ApplicationOnboardingReconciler) DeleteApplicationOnboarding(ctx contex
 	return nil
 }
 
-func (r *ApplicationOnboardingReconciler) UpdateApplicationOnboardingStatus(ctx context.Context, a *v1beta1.ApplicationOnboarding, feder *v1beta1.Federation) error {
+func (r *ApplicationOnboardingReconciler) UpdateApplicationOnboardingStatus(ctx context.Context, a *v1beta1.ApplicationOnboarding, fed *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 	// Check if callback is configured
 	if a.Spec.AppInfo.AppStatusCallbackLink == "" {
@@ -232,17 +230,13 @@ func (r *ApplicationOnboardingReconciler) UpdateApplicationOnboardingStatus(ctx 
 		},
 	}
 	// Get callback client (pointing to Guest's callback URL via Federation.spec.partner.statusLink)
-	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	res, err := r.GetOPGClient(
-		fedId.String(),
+		fed.Status.FederationContextId,
 		a.Spec.AppInfo.AppStatusCallbackLink,
-		feder.Spec.FederationData.ClientId,
+		fed.Spec.FederationData.ClientId,
 	).AppStatusCallbackLinkWithResponse(
 		context.TODO(),
-		feder.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
 		callbackBody)
 	if err != nil {
 		log.Error(err, ">>> [App][REST] Error sending App callback")

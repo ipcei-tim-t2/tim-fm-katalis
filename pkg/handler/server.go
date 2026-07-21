@@ -156,7 +156,7 @@ func (h *handler) InstallApp(c echo.Context, federationContextId models.Federati
 // Terminate an application instance on a partner OP zone.
 // (DELETE /{federationContextId}/application/lcm/app/{appId}/instance/{appInstanceId}/zone/{zoneId})
 func (h *handler) RemoveApp(c echo.Context, federationContextId models.FederationContextId, appId models.AppIdentifier, appInstanceId models.InstanceIdentifier, zoneId models.ZoneIdentifier) error {
-	if err := h.depClient.Uninstall(h.getRequestContextFunc(c), federationContextId, appInstanceId); err != nil {
+	if err := h.depClient.Uninstall(h.getRequestContextFunc(c), federationContextId, appInstanceId, appId); err != nil {
 		return sendErrorResponseFromError(c, err)
 	}
 	return c.JSON(http.StatusOK, nil)
@@ -183,12 +183,15 @@ func (h *handler) PartnerDetails(c echo.Context, federationContextId models.Fede
 		return sendErrorResponseFromError(c, err)
 	}
 
-	offeredZones := make([]models.ZoneDetails, len(k8sFed.Status.ZoneDetails))
-	for i, zd := range k8sFed.Status.ZoneDetails {
-		offeredZones[i] = models.ZoneDetails{
-			ZoneId:           zd.ZoneId,
-			Geolocation:      &zd.Geolocation,
-			GeographyDetails: zd.GeographyDetails,
+	var offeredZones []models.ZoneDetails
+	if len(k8sFed.Status.ZoneDetails) > 0 {
+		offeredZones := make([]models.ZoneDetails, len(k8sFed.Status.ZoneDetails))
+		for i, zd := range k8sFed.Status.ZoneDetails {
+			offeredZones[i] = models.ZoneDetails{
+				ZoneId:           zd.ZoneId,
+				Geolocation:      &zd.Geolocation,
+				GeographyDetails: zd.GeographyDetails,
+			}
 		}
 	}
 	var partnerMobileNetCodes *models.MobileNetworkIds

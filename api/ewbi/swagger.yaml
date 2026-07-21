@@ -4766,6 +4766,8 @@ paths:
                   description: Version info of the application
                 appProviderId:
                   $ref: '#/components/schemas/AppProviderId'
+                appInstanceId:
+                  $ref: '#/components/schemas/InstanceIdentifier'
                 zoneInfo:
                   type: object
                   required:

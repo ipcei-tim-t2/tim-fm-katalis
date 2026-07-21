@@ -1,8 +1,6 @@
 package metastore
 
 import (
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
@@ -29,7 +27,7 @@ type ApplicationInstance struct {
 // }
 
 func (d *ApplicationInstance) k8sCustomResource(namespace string, opts ...Opt) (*v1beta1.ApplicationDeployment, error) {
-	appId := "appdeploy-" + uu.V5(d.FederationContextId+d.AppProviderId+string(d.AppId[:]))
+	appId := "appdeploy-" + uu.V5(d.FederationContextId+string(d.AppId[:])+*d.AppInstanceId)
 	obj := &v1beta1.ApplicationDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appId,
@@ -40,6 +38,7 @@ func (d *ApplicationInstance) k8sCustomResource(namespace string, opts ...Opt) (
 			RelationType:        string(v1beta1.FederationRelationHost),
 			AppProviderId:       d.AppProviderId,
 			AppId:               d.AppId,
+			AppInstanceId:       *d.AppInstanceId,
 			ZoneId:              d.ZoneInfo.ZoneId,
 			AppDetails: &v1beta1.AppDetails{
 				AppVersion: d.AppVersion,
@@ -59,10 +58,6 @@ func (d *ApplicationInstance) k8sCustomResource(namespace string, opts ...Opt) (
 	}
 
 	return obj, nil
-}
-
-func k8sCustomResourceNameFromApplicationDeployment(federationContextID, appID string) string {
-	return fmt.Sprintf("%s-%s", applicationDeploymentPrefix, uuidV5Fn(federationContextID+"/"+appID))
 }
 
 func applicationDeploymentFromK8sCustomResource(appInstanceID string, appInstance v1beta1.ApplicationDeployment) (*ApplicationInstanceDetails, error) {

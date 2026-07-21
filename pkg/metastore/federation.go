@@ -251,8 +251,8 @@ func (c *k8sClient) AddAvailabilityZones(ctx context.Context, federationContextI
 	return c.patchK8sStatus(originalFed, fed)
 }
 
-func (c *k8sClient) PartnerDetailsCallback(ctx context.Context, federationContextId models.FederationContextId, request *models.PartnerDetailsCallbackJSONRequestBody) (*v1beta1.Federation, error) {
-	fed, err := c.searchFederation(ctx, federationContextId, "HOST")
+func (c *k8sClient) PartnerDetailsCallback(ctx context.Context, federationCallbackId models.FederationContextId, request *models.PartnerDetailsCallbackJSONRequestBody) (*v1beta1.Federation, error) {
+	fed, err := c.searchFederation(ctx, federationCallbackId, "HOST")
 	if err != nil {
 		return nil, err
 	}

@@ -672,7 +672,7 @@ func (r *FederationReconciler) DetailsFederation(ctx context.Context, fed *v1bet
 
 	opgClient := r.GetOPGClient(
 		fed.Status.FederationContextId,
-		fed.Spec.FederationData.RestOptions.PartnerStatusLink,
+		fed.Spec.FederationData.RestOptions.TokenUrl,
 		fed.Spec.FederationData.ClientId,
 	)
 
@@ -773,16 +773,24 @@ func (r *FederationReconciler) DetailsFederation(ctx context.Context, fed *v1bet
 func (r *FederationReconciler) UpdateFederationDetailsStatus(ctx context.Context, fed *v1beta1.Federation) error {
 	log := ctrl.Log
 
+	// Check if callback is configured
+	if fed.Spec.FederationData.RestOptions.PartnerStatusLink == "" {
+		log.Info(">>> [AppDep][REST] No callback StatusLink configured in Federation, skipping callback")
+		return nil
+	}
 	if fed.Status.PlatformCaps == nil {
 		return fmt.Errorf("Missing platform caps for federation %s", fed.Name)
 	}
 
-	offeredZones := make([]models.ZoneDetails, len(fed.Status.ZoneDetails))
-	for i, zd := range fed.Status.ZoneDetails {
-		offeredZones[i] = models.ZoneDetails{
-			ZoneId:           zd.ZoneId,
-			Geolocation:      &zd.Geolocation,
-			GeographyDetails: zd.GeographyDetails,
+	var offeredZones []models.ZoneDetails
+	if len(fed.Status.ZoneDetails) > 0 {
+		offeredZones := make([]models.ZoneDetails, len(fed.Status.ZoneDetails))
+		for i, zd := range fed.Status.ZoneDetails {
+			offeredZones[i] = models.ZoneDetails{
+				ZoneId:           zd.ZoneId,
+				Geolocation:      &zd.Geolocation,
+				GeographyDetails: zd.GeographyDetails,
+			}
 		}
 	}
 	var partnerMobileNetCodes *models.MobileNetworkIds
@@ -812,21 +820,11 @@ func (r *FederationReconciler) UpdateFederationDetailsStatus(ctx context.Context
 	}
 
 	log.Info(">>> [Federation][REST] Sending App callback to Guest", "name", fed.Name, "namespace", fed.Namespace, "callbackURL", fed.Spec.FederationData.RestOptions.PartnerStatusLink)
-	zones := []models.ZoneDetails{}
-	if len(fed.Status.ZoneDetails) > 0 {
-		for _, z := range fed.Status.ZoneDetails {
-			zones = append(zones, models.ZoneDetails{
-				GeographyDetails: z.GeographyDetails,
-				Geolocation:      &z.Geolocation,
-				ZoneId:           z.ZoneId,
-			})
 
-		}
-	}
 	callbackBody := opgmodels.PartnerDetailsCallbackJSONRequestBody{
 		EdgeDiscoveryServiceEndPoint: edgeDiscoveryServiceEndPoint,
 		LcmServiceEndPoint:           lcmServiceEndPoint,
-		OfferedAvailabilityZones:     &zones,
+		OfferedAvailabilityZones:     &offeredZones,
 		PartnerOPMobileNetworkCodes:  partnerMobileNetCodes,
 		FederationExpiryDate:         fed.Status.FederationExpiryDate.Time,
 		FederationRenewalDate:        fed.Status.FederationRenewalDate.Time,
@@ -845,7 +843,7 @@ func (r *FederationReconciler) UpdateFederationDetailsStatus(ctx context.Context
 
 	res, err := opgClient.PartnerDetailsCallbackWithResponse(
 		context.TODO(),
-		fed.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
 		callbackBody,
 	)
 
