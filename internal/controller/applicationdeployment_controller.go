@@ -200,24 +200,26 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 
 			// Check if the ZONE si AVAILABLE
-			zoneObj := &v1beta1.AvailabilityZone{}
-			zoneList := &v1beta1.AvailabilityZoneList{}
-			if err := r.List(
-				ctx,
-				zoneList,
-				client.InNamespace(appDeploy.Namespace),
-				client.MatchingLabels{
-					v1beta1.ResourceIdLabel: "zone-" + uuid.V5(appDeploy.Spec.ZoneId+appDeploy.Spec.FederationContextId),
-				}); err != nil {
-				return ctrl.Result{}, err
-			}
-			if len(zoneList.Items) == 0 {
-				log.Info(">>> [AppOnboard] No Zone found for AppDeploy ", "name", appDeploy.Name, "naemspace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId)
-			}
-			zoneObj = &zoneList.Items[0]
-			if zoneObj.Status.State != v1beta1.ZoneStateAvailable {
-				log.Info(">>> [AppOnboard] Zone is not AVAILABLE for ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "appId", appDeploy.Spec.ZoneId, "state", zoneObj.Status.State)
-				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+			if !isRest {
+				zoneObj := &v1beta1.AvailabilityZone{}
+				zoneList := &v1beta1.AvailabilityZoneList{}
+				if err := r.List(
+					ctx,
+					zoneList,
+					client.InNamespace(appDeploy.Namespace),
+					client.MatchingLabels{
+						v1beta1.ResourceIdLabel: "zone-" + uuid.V5(appDeploy.Spec.ZoneId+appDeploy.Spec.FederationContextId),
+					}); err != nil {
+					return ctrl.Result{}, err
+				}
+				if len(zoneList.Items) == 0 {
+					log.Info(">>> [AppOnboard] No Zone found for AppDeploy ", "name", appDeploy.Name, "naemspace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId)
+				}
+				zoneObj = &zoneList.Items[0]
+				if zoneObj.Status.State != v1beta1.ZoneStateAvailable {
+					log.Info(">>> [AppOnboard] Zone is not AVAILABLE for ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "appId", appDeploy.Spec.ZoneId, "state", zoneObj.Status.State)
+					return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+				}
 			}
 			// checking if Application is Onboarded
 			appOnboardObj := &v1beta1.ApplicationOnboarding{}
