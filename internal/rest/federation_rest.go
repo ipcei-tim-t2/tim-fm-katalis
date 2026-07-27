@@ -394,6 +394,7 @@ func (r *FederationReconciler) GetHealthFederation(ctx context.Context, fed *v1b
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateTemporaryFailure
 	}
+	fed.Annotations[v1beta1.GetHealthInfoAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) GetPlatformCapsFederation(ctx context.Context, fed *v1beta1.Federation) error {
@@ -476,6 +477,7 @@ func (r *FederationReconciler) GetPlatformCapsFederation(ctx context.Context, fe
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateTemporaryFailure
 	}
+	fed.Annotations[v1beta1.GetPlatformCapsAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) GetServiceAPIFederation(ctx context.Context, fed *v1beta1.Federation) error {
@@ -537,6 +539,7 @@ func (r *FederationReconciler) GetServiceAPIFederation(ctx context.Context, fed 
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateTemporaryFailure
 	}
+	fed.Annotations[v1beta1.GetServiceAPIsAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) RenewalFederation(ctx context.Context, fed *v1beta1.Federation) error {
@@ -596,6 +599,7 @@ func (r *FederationReconciler) RenewalFederation(ctx context.Context, fed *v1bet
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateFailed
 	}
+	fed.Annotations[v1beta1.FederationRenewalAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta1.Federation) error {
@@ -657,62 +661,195 @@ func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta
 // Update (Callback)
 func (r *FederationReconciler) UpdateFederationStatus(ctx context.Context, fed *v1beta1.Federation) error {
 	log := ctrl.Log
+	log.Info(">>> [Federation][REST] UpdateFederationStatus not implemented.", "name", fed.Name, "namespace", fed.Namespace)
+	return nil
+}
+
+func (r *FederationReconciler) DetailsFederation(ctx context.Context, fed *v1beta1.Federation) error {
+	log := ctrl.Log
+	log.Info(">>> [Federation][REST] Calling DetailsFederation", "name", fed.Name, "namespace", fed.Namespace)
+
+	callbackBody := opgmodels.PartnerDetailsJSONRequestBody{
+		FederationContextId: &fed.Status.FederationContextId,
+	}
+	log.Info(">>> [Federation][REST] PartnerDetails body", "body", callbackBody)
+
+	opgClient := r.GetOPGClient(
+		fed.Status.FederationContextId,
+		fed.Spec.FederationData.RestOptions.TokenUrl,
+		fed.Spec.FederationData.ClientId,
+	)
+
+	res, err := opgClient.PartnerDetailsWithResponse(
+		context.TODO(),
+		fed.Spec.FederationData.ClientId,
+		callbackBody,
+	)
+
+	if err != nil {
+		log.Error(err, ">>> [Federation][REST] Error sending App callback")
+		return err
+	}
+	statusCode := res.StatusCode()
+	switch {
+	case statusCode == 200:
+		log.Info(">>> [Federation][REST] 200 - Expected response to a successful call back signup", "status", statusCode)
+		if res.JSON200.EdgeDiscoveryServiceEndPoint != nil {
+			fed.Status.EdgeDiscoveryServiceEndPoint = &v1beta1.ServiceEndpoint{
+				Fqdn:          *res.JSON200.EdgeDiscoveryServiceEndPoint.Fqdn,
+				Port:          res.JSON200.EdgeDiscoveryServiceEndPoint.Port,
+				Ipv4Addresses: *res.JSON200.EdgeDiscoveryServiceEndPoint.Ipv4Addresses,
+				// Ipv6Addresses: *res.JSON200.EdgeDiscoveryServiceEndPoint.Ipv6Addresses,
+			}
+		}
+		if res.JSON200.LcmServiceEndPoint != nil {
+			fed.Status.LcmServiceEndPoint = &v1beta1.ServiceEndpoint{
+				Fqdn:          *res.JSON200.LcmServiceEndPoint.Fqdn,
+				Port:          res.JSON200.LcmServiceEndPoint.Port,
+				Ipv4Addresses: *res.JSON200.LcmServiceEndPoint.Ipv4Addresses,
+				// Ipv6Addresses: *res.JSON200.LcmServiceEndPoint.Ipv6Addresses,
+			}
+		}
+		if res.JSON200.OfferedAvailabilityZones != nil {
+			offeredZones := make([]v1beta1.ZoneDetails, len(*res.JSON200.OfferedAvailabilityZones))
+			for i, zd := range *res.JSON200.OfferedAvailabilityZones {
+				var geoLocation string
+				if zd.Geolocation != nil {
+					geoLocation = *zd.Geolocation
+				}
+				offeredZones[i] = v1beta1.ZoneDetails{
+					GeographyDetails: zd.GeographyDetails,
+					Geolocation:      geoLocation,
+					ZoneId:           zd.ZoneId,
+				}
+			}
+			fed.Status.ZoneDetails = offeredZones
+		}
+		if res.JSON200.PartnerOPCountryCode != nil {
+			fed.Status.PartnerOPCountryCode = *res.JSON200.PartnerOPCountryCode
+		}
+		if res.JSON200.PartnerOPFederationId != nil {
+			fed.Status.PartnerOPFederationId = *res.JSON200.PartnerOPFederationId
+		}
+		if res.JSON200.PartnerOPFixedNetworkCodes != nil {
+			fed.Status.FixedNetworkIds = *res.JSON200.PartnerOPFixedNetworkCodes
+		}
+		if res.JSON200.PartnerOPMobileNetworkCodes != nil {
+			fed.Status.MobileNetworkIds = &v1beta1.MobileNetworkIds{
+				Mcc:  *res.JSON200.PartnerOPMobileNetworkCodes.Mcc,
+				Mncs: *res.JSON200.PartnerOPMobileNetworkCodes.Mncs,
+			}
+		}
+		fed.Status.FederationExpiryDate = metav1.NewTime(res.JSON200.FederationExpiryDate)
+		fed.Status.FederationRenewalDate = metav1.NewTime(res.JSON200.FederationRenewalDate)
+		fed.Status.PlatformCaps = res.JSON200.PlatformCaps
+	case statusCode == 400:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON400)
+		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 401:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON401)
+		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 404:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON404)
+		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 409:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON409)
+		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 422:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON422)
+		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 500:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON500)
+		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 503:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON503)
+		fed.Status.State = v1beta1.FederationStateFailed
+	case statusCode == 520:
+		handleFederationProblemDetails(log, statusCode, res.ApplicationproblemJSON520)
+		fed.Status.State = v1beta1.FederationStateFailed
+	default:
+		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
+		fed.Status.State = v1beta1.FederationStateFailed
+	}
+	return nil
+}
+
+func (r *FederationReconciler) UpdateFederationDetailsStatus(ctx context.Context, fed *v1beta1.Federation) error {
+	log := ctrl.Log
+
 	// Check if callback is configured
 	if fed.Spec.FederationData.RestOptions.PartnerStatusLink == "" {
-		log.Info(">>> [Federation][REST] No callback StatusLink configured, skipping FEDERATION callback")
+		log.Info(">>> [AppDep][REST] No callback StatusLink configured in Federation, skipping callback")
 		return nil
+	}
+	if fed.Status.PlatformCaps == nil {
+		return fmt.Errorf("Missing platform caps for federation %s", fed.Name)
 	}
 
-	ud := fed.Status.UpdateDetails
-	if ud == nil {
-		log.Info(">>> [Federation][REST] No callback UpdateDetails configured, skipping FEDERATION callback")
-		return nil
-	}
-
-	if ud.OperationType == "" {
-		log.Info(">>> [Federation][REST] No callback OperationType configured, skipping FEDERATION callback")
-		return nil
-	}
-
-	if ud.ObjectType == "" {
-		log.Info(">>> [Federation][REST] No callback ObjectType configured, skipping FEDERATION callback")
-		return nil
-	}
-	// In Kubernetes si usa IsZero() per le date
-	if ud.UpdateDate.IsZero() {
-		log.Info(">>> [Federation][REST] No callback UpdateDate configured, skipping FEDERATION callback")
-		return nil
-	}
-	log.Info(">>> [Federation][REST] Sending App callback to Guest", "name", fed.Name, "namespace", fed.Namespace, "callbackURL", fed.Spec.FederationData.RestOptions.PartnerStatusLink)
-	zones := []models.ZoneDetails{}
+	var offeredZones []models.ZoneDetails
 	if len(fed.Status.ZoneDetails) > 0 {
-		for _, z := range fed.Status.ZoneDetails {
-			zones = append(zones, models.ZoneDetails{
-				GeographyDetails: z.GeographyDetails,
-				Geolocation:      &z.Geolocation,
-				ZoneId:           z.ZoneId,
-			})
-
+		offeredZones := make([]models.ZoneDetails, len(fed.Status.ZoneDetails))
+		for i, zd := range fed.Status.ZoneDetails {
+			offeredZones[i] = models.ZoneDetails{
+				ZoneId:           zd.ZoneId,
+				Geolocation:      &zd.Geolocation,
+				GeographyDetails: zd.GeographyDetails,
+			}
 		}
 	}
-	callbackBody := opgmodels.PartnerStatusLinkJSONRequestBody{
-		FederationContextId: &fed.Status.FederationContextId,
-		AddZones:            &zones,
-		FederationStatus:    (*opgmodels.Status)(&fed.Status.State),
-		OperationType:       (opgmodels.PartnerStatusLinkJSONBodyOperationType)(fed.Status.UpdateDetails.OperationType),
-		ObjectType:          (opgmodels.PartnerStatusLinkJSONBodyObjectType)(fed.Status.UpdateDetails.ObjectType),
-		ModificationDate:    fed.Status.UpdateDetails.UpdateDate.Time,
+	var partnerMobileNetCodes *models.MobileNetworkIds
+	if fed.Status.MobileNetworkIds != nil {
+		partnerMobileNetCodes = &models.MobileNetworkIds{
+			Mcc:  &fed.Status.MobileNetworkIds.Mcc,
+			Mncs: &fed.Status.MobileNetworkIds.Mncs,
+		}
+	}
+	var edgeDiscoveryServiceEndPoint *models.ServiceEndpoint
+	if fed.Status.EdgeDiscoveryServiceEndPoint != nil {
+		edgeDiscoveryServiceEndPoint = &models.ServiceEndpoint{
+			Fqdn:          &fed.Status.EdgeDiscoveryServiceEndPoint.Fqdn,
+			Ipv4Addresses: &fed.Status.EdgeDiscoveryServiceEndPoint.Ipv4Addresses,
+			// Ipv6Addresses: &k8sFed.Status.EdgeDiscoveryServiceEndPoint.Ipv6Addresses,
+			Port: fed.Status.EdgeDiscoveryServiceEndPoint.Port,
+		}
+	}
+	var lcmServiceEndPoint *models.ServiceEndpoint
+	if fed.Status.LcmServiceEndPoint != nil {
+		lcmServiceEndPoint = &models.ServiceEndpoint{
+			Fqdn:          &fed.Status.LcmServiceEndPoint.Fqdn,
+			Ipv4Addresses: &fed.Status.LcmServiceEndPoint.Ipv4Addresses,
+			// Ipv6Addresses: &k8sFed.Status.LcmServiceEndPoint.Ipv6Addresses,
+			Port: fed.Status.LcmServiceEndPoint.Port,
+		}
+	}
+
+	log.Info(">>> [Federation][REST] Sending App callback to Guest", "name", fed.Name, "namespace", fed.Namespace, "callbackURL", fed.Spec.FederationData.RestOptions.PartnerStatusLink)
+
+	callbackBody := opgmodels.PartnerDetailsCallbackJSONRequestBody{
+		EdgeDiscoveryServiceEndPoint: edgeDiscoveryServiceEndPoint,
+		LcmServiceEndPoint:           lcmServiceEndPoint,
+		OfferedAvailabilityZones:     &offeredZones,
+		PartnerOPMobileNetworkCodes:  partnerMobileNetCodes,
+		FederationExpiryDate:         fed.Status.FederationExpiryDate.Time,
+		FederationRenewalDate:        fed.Status.FederationRenewalDate.Time,
+		PartnerOPCountryCode:         &fed.Status.PartnerOPCountryCode,
+		PartnerOPFederationId:        &fed.Status.PartnerOPFederationId,
+		PartnerOPFixedNetworkCodes:   &fed.Status.FixedNetworkIds,
+		PlatformCaps:                 fed.Status.PlatformCaps,
 	}
 	log.Info(">>> [Federation][REST] Callback body", "body", callbackBody)
 	// Get callback client (pointing to Guest's callback URL via Federation.spec.partner.statusLink)
-	res, err := r.GetOPGClient(
+	opgClient := r.GetOPGClient(
 		fed.Status.FederationContextId,
 		fed.Spec.FederationData.RestOptions.PartnerStatusLink,
-		fed.Spec.FederationData.ClientId,
-	).PartnerStatusLinkWithResponse(
+		"host",
+	)
+
+	res, err := opgClient.PartnerDetailsCallbackWithResponse(
 		context.TODO(),
-		fed.Spec.FederationData.ClientId,
-		callbackBody)
+		fed.Status.FederationContextId,
+		callbackBody,
+	)
 
 	if err != nil {
 		log.Error(err, ">>> [Federation][REST] Error sending App callback")

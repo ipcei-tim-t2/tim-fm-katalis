@@ -18,8 +18,6 @@ package controller
 
 import (
 	"context"
-	"crypto/md5"
-	"fmt"
 	"reflect"
 	"time"
 
@@ -182,9 +180,9 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		// Host ApplicationDeployment handling
 		if isNewAppDeploy {
 			// Deve rispettare il pattern: [A-Za-z0-9][A-Za-z0-9_]{6,62}[A-Za-z0-9]$`
-			appDeploy.Status.AppInstanceInfo.AppInstIdentifier = fmt.Sprintf("%x", md5.Sum([]byte(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId+appDeploy.Spec.ZoneId)))
+			appDeploy.Status.AppInstanceInfo.AppInstIdentifier = uuid.Base62(appDeploy.Spec.FederationContextId, appDeploy.Spec.AppId, appDeploy.Spec.AppInstanceId)
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
-			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
+			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 		} else {
 			if isRest {
 				if err := extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed); err != nil {
@@ -199,27 +197,30 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		// Guest ApplicationDeployment handling
 		if isNewAppDeploy {
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
-			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.AppId+appDeploy.Spec.FederationContextId)
+			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 
 			// Check if the ZONE si AVAILABLE
-			zoneObj := &v1beta1.AvailabilityZone{}
-			zoneList := &v1beta1.AvailabilityZoneList{}
-			if err := r.List(
-				ctx,
-				zoneList,
-				client.InNamespace(appDeploy.Namespace),
-				client.MatchingLabels{
-					v1beta1.ResourceIdLabel: "zone-" + uuid.V5(appDeploy.Spec.ZoneId+appDeploy.Spec.FederationContextId),
-				}); err != nil {
-				return ctrl.Result{}, err
-			}
-			if len(zoneList.Items) == 0 {
-				log.Info(">>> [AppOnboard] No Zone found for AppDeploy ", "name", appDeploy.Name, "naemspace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId)
-			}
-			zoneObj = &zoneList.Items[0]
-			if zoneObj.Status.State != v1beta1.ZoneStateAvailable {
-				log.Info(">>> [AppOnboard] Zone is not AVAILABLE for ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "appId", appDeploy.Spec.ZoneId, "state", zoneObj.Status.State)
-				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+			if !isRest {
+				zoneObj := &v1beta1.AvailabilityZone{}
+				zoneList := &v1beta1.AvailabilityZoneList{}
+				if err := r.List(
+					ctx,
+					zoneList,
+					client.InNamespace(appDeploy.Namespace),
+					client.MatchingLabels{
+						v1beta1.ResourceIdLabel: "zone-" + uuid.V5(appDeploy.Spec.ZoneId+appDeploy.Spec.FederationContextId),
+					}); err != nil {
+					return ctrl.Result{}, err
+				}
+				if len(zoneList.Items) == 0 {
+					log.Info(">>> [AppOnboard] No Zone found for AppDeploy ", "name", appDeploy.Name, "naemspace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId)
+					return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+				}
+				zoneObj = &zoneList.Items[0]
+				if zoneObj.Status.State != v1beta1.ZoneStateAvailable {
+					log.Info(">>> [AppOnboard] Zone is not AVAILABLE for ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "appId", appDeploy.Spec.ZoneId, "state", zoneObj.Status.State)
+					return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+				}
 			}
 			// checking if Application is Onboarded
 			appOnboardObj := &v1beta1.ApplicationOnboarding{}
@@ -235,6 +236,7 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 			}
 			if len(appOnboardList.Items) == 0 {
 				log.Info(">>> [AppOnboard] No AppOnboard found for AppDeploy ", "name", appDeploy.Name, "naemspace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId)
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 			}
 			appOnboardObj = &appOnboardList.Items[0]
 			if appOnboardObj.Status.State != v1beta1.ApplicationOnboardingStateOnboarded {

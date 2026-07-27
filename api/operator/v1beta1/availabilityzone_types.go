@@ -256,6 +256,7 @@ type AvailabilityZoneSpec struct {
 // AvailabilityZoneStatus defines the observed state of AvailabilityZone.
 type AvailabilityZoneStatus struct {
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=FAILED;TEMPORARY_FAILURE;AVAILABLE;LOCKED;NOT_AVAILABLE
 	State ZoneState `json:"state,omitempty"`
 	// Resources exclusively reserved for the originator OP.
 	// +kubebuilder:validation:Optional

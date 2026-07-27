@@ -141,8 +141,8 @@ func (c *k8sClient) RemoveApplication(ctx context.Context, federationContextID, 
 	return nil
 }
 
-func (c *k8sClient) RemoveApplicationDeployment(ctx context.Context, federationContextID, id string) error {
-	appIns := k8sCustomResourceNameFromApplicationDeployment(federationContextID, id)
+func (c *k8sClient) RemoveApplicationDeployment(ctx context.Context, federationContextID, appInstanceId, appId string) error {
+	appIns := "appdeploy-" + uuidV5Fn(federationContextID+appId+appInstanceId)
 	if err := c.kubernetes.Delete(context.TODO(), &v1beta1.ApplicationDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appIns,

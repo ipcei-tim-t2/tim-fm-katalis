@@ -21,11 +21,9 @@ import (
 	"errors"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 	opgmodels "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
-	uu "github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -42,7 +40,7 @@ func handleApplicationDeploymentProblemDetails(log logr.Logger, code int, p *opg
 	log.Info(">>> [AppDep][REST] Response with error", "error", code, "details", p)
 }
 
-func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx context.Context, a *v1beta1.ApplicationDeployment, feder *v1beta1.Federation) error {
+func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx context.Context, a *v1beta1.ApplicationDeployment, fed *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 	zone := struct {
 		FlavourId           string                                                   `json:"flavourId"`
@@ -66,17 +64,13 @@ func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx contex
 	params := opgmodels.InstallAppParams{
 		IdempotencyKey: "1",
 	}
-	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	res, err := r.GetOPGClient(
-		fedId.String(),
-		feder.Spec.FederationData.RestOptions.TokenUrl,
-		feder.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
+		fed.Spec.FederationData.RestOptions.TokenUrl,
+		fed.Spec.FederationData.ClientId,
 	).InstallAppWithResponse(
 		context.TODO(),
-		feder.Status.FederationContextId,
+		fed.Status.FederationContextId,
 		&params,
 		reqBody)
 
@@ -130,21 +124,17 @@ func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx contex
 	return nil
 }
 
-func (r *ApplicationDeploymentReconciler) DeleteApplicationDeployment(ctx context.Context, a *v1beta1.ApplicationDeployment, feder *v1beta1.Federation) error {
+func (r *ApplicationDeploymentReconciler) DeleteApplicationDeployment(ctx context.Context, a *v1beta1.ApplicationDeployment, fed *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 	log.Info(">>> [AppDep][REST] Deleting external appDep")
 	// we should delete the appDep
-	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	res, err := r.GetOPGClient(
-		fedId.String(),
-		feder.Spec.FederationData.RestOptions.TokenUrl,
-		feder.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
+		fed.Spec.FederationData.RestOptions.TokenUrl,
+		fed.Spec.FederationData.ClientId,
 	).RemoveAppWithResponse(
 		context.TODO(),
-		feder.Status.FederationContextId,
+		fed.Status.FederationContextId,
 		a.Spec.AppId,
 		a.Spec.AppInstanceId,
 		a.Spec.ZoneId,
@@ -197,11 +187,11 @@ func (r *ApplicationDeploymentReconciler) DeleteApplicationDeployment(ctx contex
 	return nil
 }
 
-func (r *ApplicationDeploymentReconciler) UpdateApplicationDeploymentStatus(ctx context.Context, a *v1beta1.ApplicationDeployment, feder *v1beta1.Federation) error {
+func (r *ApplicationDeploymentReconciler) UpdateApplicationDeploymentStatus(ctx context.Context, a *v1beta1.ApplicationDeployment, fed *v1beta1.Federation) error {
 	log := log.FromContext(ctx)
 
 	// Check if callback is configured
-	if feder.Spec.FederationData.RestOptions.PartnerStatusLink == "" {
+	if fed.Spec.FederationData.RestOptions.PartnerStatusLink == "" {
 		log.Info(">>> [AppDep][REST] No callback StatusLink configured in Federation, skipping callback")
 		return nil
 	}
@@ -209,7 +199,7 @@ func (r *ApplicationDeploymentReconciler) UpdateApplicationDeploymentStatus(ctx 
 	log.Info(">>> [AppDep][REST] Sending AppDep callback to Guest",
 		"appInstanceId", a.Spec.AppInstanceId,
 		"state", a.Status.AppInstanceInfo.AppInstanceState,
-		"statusLink", feder.Spec.FederationData.RestOptions.PartnerStatusLink)
+		"statusLink", fed.Spec.FederationData.RestOptions.PartnerStatusLink)
 	// Build callback body with current status
 	// AppInstCallbackLinkJSONRequestBody requires: AppId, AppInstanceId, AppInstanceInfo, ZoneId
 	state := opgmodels.InstanceState(a.Status.AppInstanceInfo.AppInstanceState)
@@ -253,19 +243,15 @@ func (r *ApplicationDeploymentReconciler) UpdateApplicationDeploymentStatus(ctx 
 		}
 		callbackBody.AppInstanceInfo.AccesspointInfo = &accessPointInfo
 	}
-	fedId, err := uuid.Parse("fed-" + uu.V5(feder.Spec.FederationData.OrigOPFederationId+feder.Spec.FederationData.InitialDate.String()+feder.Spec.FederationData.OrigOPCountryCode))
-	if err != nil {
-		return err
-	}
 	// Get callback client (pointing to Guest's callback URL)
 	// Using a different cache key to separate callback client from regular client
 	res, err := r.GetOPGClient(
-		fedId.String(),
-		feder.Spec.FederationData.RestOptions.PartnerStatusLink,
-		feder.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
+		fed.Spec.FederationData.RestOptions.PartnerStatusLink,
+		"host",
 	).AppInstCallbackLinkWithResponse(
 		context.TODO(),
-		feder.Spec.FederationData.ClientId,
+		fed.Status.FederationContextId,
 		callbackBody,
 	)
 	if err != nil {

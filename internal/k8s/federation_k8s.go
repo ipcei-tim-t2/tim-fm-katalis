@@ -38,7 +38,7 @@ func (r *FederationReconciler) CreateFederation(ctx context.Context, fed *v1beta
 	fedHost := &v1beta1.Federation{
 		TypeMeta: fed.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String()),
+			Name:      "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode),
 			Namespace: fed.Spec.FederationData.K8sOptions.Namespace,
 		},
 		Spec: v1beta1.FederationSpec{
@@ -245,4 +245,11 @@ func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta
 		fed.Namespace,
 		"[Federation][K8s]",
 	)
+}
+
+func (r *FederationReconciler) DetailsFederation(ctx context.Context, f *v1beta1.Federation) error {
+	return nil
+}
+func (r *FederationReconciler) UpdateFederationDetailsStatus(ctx context.Context, f *v1beta1.Federation) error {
+	return nil
 }
