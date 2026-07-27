@@ -64,12 +64,11 @@ func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx contex
 		v1beta1.GroupVersion.Version,
 		v1beta1.PluralApplicationDeployment,
 		"app-deploy-controller",
-		"[AppDep][K8s]",
+		"[AppDeploy][K8s]",
 	)
 	if err != nil {
 		return err
 	}
-	appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
 	return nil
 }
 
@@ -85,7 +84,7 @@ func (r *ApplicationDeploymentReconciler) UpdateApplicationDeploymentStatus(ctx 
 		remoteName,
 		appDeploy.Name,
 		appDeploy.Namespace,
-		"[AppDep][K8s]",
+		"[AppDeploy][K8s]",
 	); err != nil {
 		return err
 	}
@@ -104,6 +103,6 @@ func (r *ApplicationDeploymentReconciler) DeleteApplicationDeployment(ctx contex
 		remoteName,
 		appDeploy.Name,
 		appDeploy.Namespace,
-		"[AppDep][K8s]",
+		"[AppDeploy][K8s]",
 	)
 }
