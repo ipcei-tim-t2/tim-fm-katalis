@@ -301,7 +301,7 @@ func (r *FederationReconciler) Reconcile(
 		// New Federation: Create it on the host
 		if isNewFed {
 			fed.Status.State = v1beta1.FederationStateNotAvailable
-			fed.Labels[v1beta1.ResourceIdLabel] = "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.InitialDate.String())
+			fed.Labels[v1beta1.ResourceIdLabel] = "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode)
 			if err := extClient.CreateFederation(ctx, &fed); err != nil {
 				log.Error(err, ">>> [Federation] Error APPLYING/UPDATING SPEC Federation", "name", fed.Name, "namespace", fed.Namespace)
 				return ctrl.Result{}, err
