@@ -152,7 +152,7 @@ type ImageSpec struct {
 type ImageStatus struct {
 	// Current state of the artefact upload
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=PENDING;UPLOADING;UPLOADED;FAILED
+	// +kubebuilder:validation:Enum=PENDING;READY;ERROR;UNKNOWN
 	State ImageState `json:"state,omitempty"`
 
 	// Message indicating details about the current state
