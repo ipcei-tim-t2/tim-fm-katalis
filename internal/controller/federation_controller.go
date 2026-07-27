@@ -446,25 +446,20 @@ func (r *FederationReconciler) hostFederationActions(ctx context.Context, fed *v
 	if fed.Status.State == v1beta1.FederationStateAvailable || fed.Status.State == v1beta1.FederationStateLocked {
 		if _, exists := annotations[v1beta1.FederationRenewalAnnotation]; exists && annotations[v1beta1.FederationRenewalAnnotation] == "required" {
 			log.Info(">>> [Federation] Received renewal request for Federation", "name", fed.Name, "namespace", fed.Namespace)
-			fed.Annotations[v1beta1.FederationRenewalAnnotation] = "not-required"
 		}
 	}
 	if fed.Status.State == v1beta1.FederationStateAvailable {
 		if _, exists := annotations[v1beta1.UpdateDataAnnotation]; exists && fed.Annotations[v1beta1.UpdateDataAnnotation] == "required" {
 			log.Info(">>> [Federation] Received update to UPDATE FEDERATION DATA", "name", fed.Name, "namespace", fed.Namespace)
-			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 		if _, exists := annotations[v1beta1.GetHealthInfoAnnotation]; exists && fed.Annotations[v1beta1.GetHealthInfoAnnotation] == "required" {
 			log.Info(">>> [Federation] Received request to GET HEALTH INFO", "name", fed.Name, "namespace", fed.Namespace)
-			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 		if _, exists := annotations[v1beta1.GetPlatformCapsAnnotation]; exists && fed.Annotations[v1beta1.GetPlatformCapsAnnotation] == "required" {
 			log.Info(">>> [Federation] Received request to GET PLATFORM CAPABILITIES", "name", fed.Name, "namespace", fed.Namespace)
-			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 		if _, exists := annotations[v1beta1.GetUpdateDetailsAnnotation]; exists && fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] == "required" {
 			log.Info(">>> [Federation] Received request to GET SUPPORTED SERVER API", "name", fed.Name, "namespace", fed.Namespace)
-			fed.Annotations[v1beta1.GetUpdateDetailsAnnotation] = "not-required"
 		}
 	}
 	return nil

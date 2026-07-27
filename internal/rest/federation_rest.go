@@ -394,6 +394,7 @@ func (r *FederationReconciler) GetHealthFederation(ctx context.Context, fed *v1b
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateTemporaryFailure
 	}
+	fed.Annotations[v1beta1.GetHealthInfoAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) GetPlatformCapsFederation(ctx context.Context, fed *v1beta1.Federation) error {
@@ -476,6 +477,7 @@ func (r *FederationReconciler) GetPlatformCapsFederation(ctx context.Context, fe
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateTemporaryFailure
 	}
+	fed.Annotations[v1beta1.GetPlatformCapsAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) GetServiceAPIFederation(ctx context.Context, fed *v1beta1.Federation) error {
@@ -537,6 +539,7 @@ func (r *FederationReconciler) GetServiceAPIFederation(ctx context.Context, fed 
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateTemporaryFailure
 	}
+	fed.Annotations[v1beta1.GetServiceAPIsAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) RenewalFederation(ctx context.Context, fed *v1beta1.Federation) error {
@@ -596,6 +599,7 @@ func (r *FederationReconciler) RenewalFederation(ctx context.Context, fed *v1bet
 		log.Info(">>> [Federation][REST] Unexpected Status Code", "name", fed.Name, "namespace", fed.Namespace, "status", statusCode)
 		fed.Status.State = v1beta1.FederationStateFailed
 	}
+	fed.Annotations[v1beta1.FederationRenewalAnnotation] = "not-required"
 	return nil
 }
 func (r *FederationReconciler) DeleteFederation(ctx context.Context, fed *v1beta1.Federation) error {
