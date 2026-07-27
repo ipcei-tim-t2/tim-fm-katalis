@@ -180,7 +180,7 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		// Host ApplicationDeployment handling
 		if isNewAppDeploy {
 			// Deve rispettare il pattern: [A-Za-z0-9][A-Za-z0-9_]{6,62}[A-Za-z0-9]$`
-			appDeploy.Status.AppInstanceInfo.AppInstIdentifier = appDeploy.Spec.AppInstanceId
+			appDeploy.Status.AppInstanceInfo.AppInstIdentifier = uuid.Base62(appDeploy.Spec.FederationContextId, appDeploy.Spec.AppId, appDeploy.Spec.AppInstanceId)
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
 			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 		} else {
