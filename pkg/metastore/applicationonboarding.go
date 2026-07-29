@@ -1,12 +1,15 @@
 package metastore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8scli "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/icza/gog"
+	"github.com/pkg/errors"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/models"
 	camara "github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/server"
@@ -56,6 +59,23 @@ func (a *OnboardApplication) k8sCustomResource(namespace string, opts ...Opt) (*
 	}
 
 	return obj, nil
+}
+
+func (c *k8sClient) searchApplication(ctx context.Context, federationContextId string, appId string, role string) (*v1beta1.ApplicationOnboarding, error) {
+	var appList v1beta1.ApplicationOnboardingList
+	if err := c.kubernetes.List(ctx, &appList, &k8scli.ListOptions{Namespace: c.getNamespace()}); err != nil {
+		return nil, err
+	}
+	if len(appList.Items) == 0 {
+		return nil, errors.Errorf("No applications found for federationContextId: %s and appId: %s and role: %s. Empty list", federationContextId, appId, role)
+	}
+	for i := range appList.Items {
+		app := appList.Items[i]
+		if app.Spec.AppInfo.AppId == appId && app.Spec.FederationContextId == federationContextId && app.Spec.RelationType == role {
+			return &app, nil
+		}
+	}
+	return nil, errors.Errorf("Application not found for federationContextId: %s and appId: %s and role: %s", federationContextId, appId, role)
 }
 
 func (a *OnboardApplication) artefacts() []string {

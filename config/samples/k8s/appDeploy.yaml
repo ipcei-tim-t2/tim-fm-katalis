@@ -2,13 +2,13 @@ apiVersion: opg.ewbi.katalis.com/v1beta1
 kind: ApplicationDeployment
 metadata:
   namespace: guest
-  name: appdeply-34f5fht632dty6543567yh43
+  name: appdeploy-34f5fht632dty6543567yh43
 spec:
   relationType: GUEST
-  federationContextId: b84838d5-4fd6-5a62-8e23-c71c9960c962 # get this from Federation's status
+  federationContextId: 59e69878-ff37-5794-ba4e-c4cdebdde893
   appId: app_4d559f1bf00858c2
-  appInstanceId: app_inst_k8s
-  zoneId: 2344e4567-e89b-12d3-a456-426614174000
+  appInstanceId: 49pGXkNBaGpjA2mR4OjJ4shvH7CGvZYevDe4lRJFnKdyysqnl7
+  zoneId: 2a8fffaf-50de-4f93-8c6f-05f1c84b5a5f
   appProviderId: katalis_provider
   appDetails:
     appVersion: 1.23.3

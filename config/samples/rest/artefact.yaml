@@ -5,11 +5,11 @@ metadata:
   name: artefact-234e4567
 spec:
   relationType: GUEST
-  federationContextId: c02456b8f-f53e-5894-921e-03c7db7e0ec6
-  artefactId: 234e4567-e89b-12d3-a456-426614174000
-  artefactNotifLink: "http://tim-fm-api.host.svc.cluster.local:6443"
+  federationContextId: c3d13748-0b70-5b1c-8a01-d97e2ca502e7
+  artefactId: 234e4567-e89b-12d3-a456-426614174001
+  artefactNotifLink: "http://katalis-fm-api.guest.svc.cluster.local:8080"
   artefactBody:
-    appProviderId: katalis
+    appProviderId: katalis_
     artefactName: "nginx_helm"
     artefactVersionInfo: "14"
     artefactDescription: "nginx_helm"
@@ -17,14 +17,18 @@ spec:
     artefactDescriptorType: HELM
     repoType: PUBLICREPO
     artefactRepoLocation:
-      repoURl: "https://charts.bitnami.com/bitnami"
-    ComponentSpec: 
-      - componentName: "nginx"
+      repoURL: "https://charts.bitnami.com/bitnami"
+    componentSpec: 
+      - componentName: "nginx_comp"
         images:
-         - 123e4567-e89b-12d3-a456-426614174001
+         - 123e4567-e89b-12d3-a456-426614174002
         numOfInstances: 1
         restartPolicy: RESTART_POLICY_ALWAYS
         computeResourceProfile:
           cpuArchType: ISA_X86_64
           memory: 512
           numCPU: "1"
+        commandLineParams:
+          command: 
+            - test
+          commandArgs: []

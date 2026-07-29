@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -105,6 +106,7 @@ func (c *k8sClient) searchKubernetesObject(objectList k8scli.ObjectList, searchL
 	if err != nil {
 		kind := getListKind(objectList)
 		log.WithError(err).Errorf("failed to search '%s' with labels '%v'", kind, searchLabels)
+		fmt.Println(string(debug.Stack()))
 		return nil, fmt.Errorf("%s %w", kind, ErrNotFound)
 	}
 	return item, nil

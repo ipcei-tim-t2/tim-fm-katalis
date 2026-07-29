@@ -5,16 +5,24 @@ metadata:
   name: apponboard-45559f1bre564rhr54fe 
 spec:
   relationType: GUEST
-  federationContextId: 3d559f1b-f008-58c2-a2f8-0596892a0f7a # get this from Federation's status
+  federationContextId: c3d13748-0b70-5b1c-8a01-d97e2ca502e7
   appInfo:
-    appStatusCallbackLink:  "http://tim-fm-api.host.svc.cluster.local:6443"
-    appId: 3e559f1b-f008-58c2-a2f8-0596892a0f7a
+    appStatusCallbackLink:  "http://katalis-fm-api.guest.svc.cluster.local:8080"
+    appId: a3e559f1bf00858c2a2f80596892a0f7
     appProviderId: nearbycomputing
     appDeploymentZones:
-      - zoneId: 2344e4567-e89b-12d3-a456-426614174000
+      - zoneId: 2a8fffaf-50de-4f93-8c6f-05f1c84b5a5f
         countryCode: IT
     appMetaData:
-      appName: appName
+      appName: appName01
       version: 1.0.0
-      accessToken: accessToken
+      accessToken: accessTokenaccessTokenaccessToken
       appDescription: This is a sample application for onboarding
+    appQoSProfile:
+      latencyConstraints: NONE
+      bandwidthRequired: 1
+      multiUserClients: APP_TYPE_SINGLE_USER
+      noOfUsersPerAppInst: 1
+      appProvisioning: true
+    appComponentSpecs: 
+      - artefactId: 234e4567-e89b-12d3-a456-426614174001

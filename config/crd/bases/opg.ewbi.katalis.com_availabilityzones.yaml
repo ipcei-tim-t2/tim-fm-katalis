@@ -435,6 +435,12 @@ spec:
                 minItems: 1
                 type: array
               state:
+                enum:
+                - FAILED
+                - TEMPORARY_FAILURE
+                - AVAILABLE
+                - LOCKED
+                - NOT_AVAILABLE
                 type: string
               zoneServiceLevelObjsInfo:
                 description: It is a measure of the actual amount of data that is

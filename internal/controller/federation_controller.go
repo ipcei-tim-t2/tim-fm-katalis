@@ -285,11 +285,6 @@ func (r *FederationReconciler) Reconcile(
 					log.Error(err, ">>> [Federation][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
 					return ctrl.Result{}, err
 				}
-				log.Info(">>> [Federation][REST] Execution CALLBACK DETAILS OPERATION via OPG EWBI API", "name", fed.Name, "namespace", fed.Namespace)
-				if err := extClient.UpdateFederationDetailsStatus(ctx, &fed); err != nil {
-					log.Error(err, ">>> [Federation][REST] Error during CALLBACK DETAILS OPERATION via OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
-					return ctrl.Result{}, err
-				}
 			}
 			if err := r.hostFederationActions(ctx, &fed, isRest, extClient, annotations); err != nil {
 				return ctrl.Result{}, err
@@ -306,9 +301,6 @@ func (r *FederationReconciler) Reconcile(
 				log.Error(err, ">>> [Federation] Error APPLYING/UPDATING SPEC Federation", "name", fed.Name, "namespace", fed.Namespace)
 				return ctrl.Result{}, err
 			}
-			if isRest {
-				extClient.DetailsFederation(ctx, &fed)
-			}
 		} else {
 			switch fed.Status.State {
 			case v1beta1.FederationStateLocked:
@@ -321,11 +313,6 @@ func (r *FederationReconciler) Reconcile(
 						}
 					}
 					fed.Annotations[v1beta1.FederationWatcherAnnotation] = "stopped"
-					// if err := r.Update(ctx, &fed); err != nil {
-					// 	log.Error(err, ">>> [Federation] Failed to update", "name", fed.Name, "namespace", fed.Namespace)
-					// 	return ctrl.Result{}, err
-					// }
-					// skipStatusPatch = true
 				}
 				return ctrl.Result{}, nil
 			case v1beta1.FederationStateAvailable:

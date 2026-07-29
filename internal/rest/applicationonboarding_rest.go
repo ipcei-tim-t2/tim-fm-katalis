@@ -233,7 +233,7 @@ func (r *ApplicationOnboardingReconciler) UpdateApplicationOnboardingStatus(ctx 
 	res, err := r.GetOPGClient(
 		fed.Status.FederationContextId,
 		a.Spec.AppInfo.AppStatusCallbackLink,
-		fed.Spec.FederationData.ClientId,
+		"host",
 	).AppStatusCallbackLinkWithResponse(
 		context.TODO(),
 		fed.Status.FederationContextId,

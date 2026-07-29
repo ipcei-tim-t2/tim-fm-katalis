@@ -191,6 +191,7 @@ func (r *ArtefactReconciler) UpdateArtefactStatus(ctx context.Context, art *v1be
 	statusCode := res.StatusCode()
 	switch {
 	case statusCode == 200:
+	case statusCode == 204:
 		log.Info(">>> [Artefact][REST] Successfully sent Artefact callback to Guest.", "name", art.Name, "namespace", art.Namespace)
 	case statusCode == 400:
 		handleArtefactProblemDetails(log, statusCode, res.ApplicationproblemJSON400)

@@ -36,11 +36,10 @@ func (c *k8sClient) AddApplicationDeployment(ctx context.Context, dep *Applicati
 			return nil, errors.Wrap(ErrBadRequest, err.Error())
 		}
 	}
-	opt, err := c.buildOwnerReferenceOption(dep.FederationContextId)
-	if err != nil {
+	if _, err := c.searchFederation(ctx, dep.FederationContextId, "HOST"); err != nil {
 		return nil, err
 	}
-	obj, err := dep.k8sCustomResource(c.getNamespace(), opt)
+	obj, err := dep.k8sCustomResource(c.getNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -64,13 +63,12 @@ func (c *k8sClient) getFederation(federationContextID string) (*v1beta1.Federati
 }
 
 func (c *k8sClient) GetApplication(ctx context.Context, federationContextID, id string) (*Application, error) {
-	app, err := c.getKubernetesObject(id, &v1beta1.ApplicationOnboardingList{}, federationContextID)
-	if err != nil {
+	if _, err := c.searchFederation(ctx, federationContextID, "HOST"); err != nil {
 		return nil, err
 	}
-	res, ok := app.(*v1beta1.ApplicationOnboarding)
-	if !ok {
-		return nil, missMatchErr("application", id, federationContextID, &v1beta1.ApplicationOnboarding{}, app)
+	res, err := c.searchApplication(ctx, federationContextID, id, "HOST")
+	if err != nil {
+		return nil, err
 	}
 	return applicationFromK8sCustomResource(*res)
 }
@@ -113,11 +111,10 @@ func (c *k8sClient) OnboardApplication(ctx context.Context, app *OnboardApplicat
 			}
 		}
 	}
-	opt, err := c.buildOwnerReferenceOption(app.FederationContextId)
-	if err != nil {
+	if _, err := c.searchFederation(ctx, app.FederationContextId, "HOST"); err != nil {
 		return nil, err
 	}
-	obj, err := app.k8sCustomResource(c.getNamespace(), opt)
+	obj, err := app.k8sCustomResource(c.getNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -155,14 +152,9 @@ func (c *k8sClient) RemoveApplicationDeployment(ctx context.Context, federationC
 }
 
 func (c *k8sClient) UpdateApplicationStatus(ctx context.Context, federationCallbackID string, updates *models.AppStatusCallbackLinkJSONRequestBody) error {
-	id := updates.AppId
-	obj, err := c.getKubernetesCallbackObject(id, &v1beta1.ApplicationOnboardingList{}, federationCallbackID)
+	res, err := c.searchApplication(ctx, federationCallbackID, updates.AppId, "GUEST")
 	if err != nil {
 		return err
-	}
-	res, ok := obj.(*v1beta1.ApplicationOnboarding)
-	if !ok {
-		return missMatchErr("application", id, federationCallbackID, &v1beta1.ApplicationOnboarding{}, obj)
 	}
 	if len(updates.StatusInfo) > 0 {
 		state := string(updates.StatusInfo[0].OnboardStatusInfo)
@@ -174,14 +166,9 @@ func (c *k8sClient) UpdateApplicationStatus(ctx context.Context, federationCallb
 }
 
 func (c *k8sClient) UpdateApplicationDeploymentStatus(ctx context.Context, federationCallbackID string, updates *models.AppInstCallbackLinkJSONRequestBody) error {
-	id := updates.AppInstanceId
-	obj, err := c.getKubernetesCallbackObject(id, &v1beta1.ApplicationDeploymentList{}, federationCallbackID)
+	res, err := c.searchApplicationDeployment(ctx, federationCallbackID, updates.AppInstanceId, "GUEST")
 	if err != nil {
 		return err
-	}
-	res, ok := obj.(*v1beta1.ApplicationDeployment)
-	if !ok {
-		return missMatchErr("application instance", id, federationCallbackID, &v1beta1.ApplicationDeployment{}, obj)
 	}
 	if updates.AppInstanceInfo.AppInstanceState != nil {
 		//state := string(*updates.AppInstanceInfo.AppInstanceState)
@@ -193,14 +180,12 @@ func (c *k8sClient) UpdateApplicationDeploymentStatus(ctx context.Context, feder
 }
 
 func (c *k8sClient) GetApplicationDeploymentDetails(ctx context.Context, federationContextID, id string) (*ApplicationInstanceDetails, error) {
-	//return nil, errors.Errorf("method not implemented")
-	application, err := c.getKubernetesObject(id, &v1beta1.ApplicationDeploymentList{}, federationContextID)
-	if err != nil {
+	if _, err := c.searchFederation(ctx, federationContextID, "HOST"); err != nil {
 		return nil, err
 	}
-	res, ok := application.(*v1beta1.ApplicationDeployment)
-	if !ok {
-		return nil, missMatchErr("application deployment", id, federationContextID, &v1beta1.ApplicationDeployment{}, application)
+	res, err := c.searchApplicationDeployment(ctx, federationContextID, id, "HOST")
+	if err != nil {
+		return nil, err
 	}
 	return applicationDeploymentFromK8sCustomResource(id, *res)
 }

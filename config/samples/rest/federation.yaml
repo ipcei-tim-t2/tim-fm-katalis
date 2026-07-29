@@ -2,19 +2,19 @@ apiVersion: opg.ewbi.katalis.com/v1beta1
 kind: Federation
 metadata:
   namespace: guest
-  name: fed-e6a16b85-49c3-5bd5-84ef-8bd9d582c228
+  name: fed-telecomitalia-rest
 spec:
   federationData:
     relationType: GUEST
     technologyType: REST
-    origOPFederationId: "paperino2"
+    origOPFederationId: "testfednew"
     origOPCountryCode: "IT"
-    initialDate: "2026-07-14T21:48:00+02:00"
+    initialDate: "2026-07-29T09:00:00+02:00"
     clientId: 4acde22c-d245-480d-b01e-24e38e01806d
     clientSecret: 4rr55445-d245-480d-b01e-24e38e01806d
     restOptions:
-      tokenUrl: "http://tim-fm-api.host.svc.cluster.local:6443"
-      partnerStatusLink: "http://tim-fm-api.guest.svc.cluster.local:6443"
+      tokenUrl: "http://katalis-fm-api.host.svc.cluster.local:8080"
+      partnerStatusLink: "http://katalis-fm-api.guest.svc.cluster.local:8080"
 
   # optional field
   # fixedNetworkIds:

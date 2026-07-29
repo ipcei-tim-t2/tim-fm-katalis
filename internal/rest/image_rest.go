@@ -183,6 +183,7 @@ func (r *ImageReconciler) UpdateImageStatus(ctx context.Context, image *v1beta1.
 	statusCode := res.StatusCode()
 	switch {
 	case statusCode == 200:
+	case statusCode == 204:
 		log.Info(">>> [Image][REST] Successfully sent Image callback to Guest.", "name", image.Name, "namespace", image.Namespace)
 	case statusCode == 400:
 		handleFileProblemDetails(log, statusCode, res.ApplicationproblemJSON400)

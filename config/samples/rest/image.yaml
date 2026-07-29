@@ -5,8 +5,8 @@ metadata:
   name: image-123e4567
 spec:
   relationType: GUEST
-  federationContextId: 2547a104-895a-52c3-899d-2e7643c4270c
-  imageId: 123e4567-e89b-12d3-a456-426614174001
+  federationContextId: c3d13748-0b70-5b1c-8a01-d97e2ca502e7
+  imageId: 123e4567-e89b-12d3-a456-426614174002
   imageBody:
     appProviderId: nearbycomputing
     imageName: "nginx_latest"
@@ -19,4 +19,4 @@ spec:
       license: OS_LICENSE_TYPE_FREE
       version: OS_VERSION_UBUNTU_2204_LTS
     imgInsSetArch: ISA_X86_64
-  imageNotifLink: "http://tim-fm-api.guest.svc.cluster.local:6443"
+  imageNotifLink: "http://katalis-fm-api.guest.svc.cluster.local:8080"

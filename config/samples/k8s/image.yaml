@@ -5,7 +5,7 @@ metadata:
   name: image-66c9fcf3-4609-58e2-8868-123001d4f14c
 spec:
   relationType: GUEST
-  federationContextId:  b84838d5-4fd6-5a62-8e23-c71c9960c962
+  federationContextId:  59e69878-ff37-5794-ba4e-c4cdebdde893
   imageId: 123e4567-e89b-12d3-a456-426614174000
   imageBody:
     appProviderId: nearbycomputing
