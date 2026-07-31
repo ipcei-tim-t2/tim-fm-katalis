@@ -187,7 +187,6 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 		// Guest ApplicationOnboarding handling
 		if isNewAppOnboard {
 			appOnboard.Status.State = v1beta1.ApplicationOnboardingStatePending
-			appOnboard.Labels[v1beta1.ResourceIdLabel] = "apponboard-" + uuid.V5(appOnboard.Spec.AppInfo.AppId+appOnboard.Spec.FederationContextId)
 			appComponentSpec := appOnboard.Spec.AppInfo.AppComponentSpecs
 
 			for _, appComponent := range appComponentSpec {
@@ -215,6 +214,10 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 				log.Error(err, ">>> [AppOnboard] Error APPLYING/UPDATING SPEC ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 				return ctrl.Result{}, err
 			}
+			if appOnboard.Labels == nil {
+				appOnboard.Labels = make(map[string]string)
+			}
+			appOnboard.Labels[v1beta1.ResourceIdLabel] = "apponboard-" + uuid.V5(appOnboard.Spec.AppInfo.AppId+appOnboard.Spec.FederationContextId)
 			log.Info(">>> [AppOnboard] SUCCESSFULLY APPLIED SPEC AND SET INITIAL STATUS.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 		} else {
 			if isRest {
