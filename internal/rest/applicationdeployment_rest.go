@@ -57,6 +57,7 @@ func (r *ApplicationDeploymentReconciler) CreateApplicationDeployment(ctx contex
 	reqBody := opgmodels.InstallAppJSONRequestBody{
 		AppId:               a.Spec.AppId,
 		AppInstCallbackLink: a.Spec.AppDetails.AppInstCallbackLink,
+		AppInstanceId:       &a.Spec.AppInstanceId,
 		AppProviderId:       a.Spec.AppProviderId,
 		AppVersion:          a.Spec.AppDetails.AppVersion,
 		ZoneInfo:            zone,
