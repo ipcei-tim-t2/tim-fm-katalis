@@ -187,7 +187,6 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		// Guest ApplicationDeployment handling
 		if isNewAppDeploy {
 			appDeploy.Status.AppInstanceInfo.AppInstanceState = v1beta1.ApplicationDeploymentStatePending
-			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 
 			// Check if the ZONE si AVAILABLE
 			if !isRest {
@@ -237,6 +236,10 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 				log.Error(err, ">>> [AppDeploy] Error APPLYING/UPDATING SPEC ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 				return ctrl.Result{}, err
 			}
+			if appDeploy.Labels == nil {
+				appDeploy.Labels = make(map[string]string)
+			}
+			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 		} else {
 			if isRest {
 				log.Info(">>> [AppDeploy][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
