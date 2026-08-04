@@ -44,7 +44,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner  }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: [operator] Extract metadata (tags, labels) for Docker
         id: meta_operator
         uses: docker/metadata-action@v5
