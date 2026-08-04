@@ -1,0 +1,169 @@
+name: build-push-federation-manager
+run-name: ${{ github.actor }} is building and pushing the Federation Manager container images
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - alignment-gsma-api-cicd # testing purposes
+#      - dev
+#      - integration
+    tags:
+      - "v*.*.*"
+      - "qa-v*.*.*"
+      - "mvp-v*.*.*"
+      - "mwc-v*.*.*"
+      - "ambition-v*.*.*"
+      - "fid-v*.*.*"
+
+env:
+  REGISTRY: ${{ vars.REGISTRY }}
+  OPERATOR_IMAGE_NAME: ${{ vars.OPERATOR_IMAGE_NAME }}
+  API_IMAGE_NAME: ${{ vars.API_IMAGE_NAME }}
+  GITOPS_REPO: ${{ vars.GITOPS_REPO }}
+  GITOPS_VALUES_DEV: ${{ vars.GITOPS_VALUES_DEV }}
+  GITOPS_VALUES_INTEGRATION: ${{ vars.GITOPS_VALUES_INTEGRATION }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.3.0
+
+      - name: Login to the GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner  }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: [operator] Extract metadata (tags, labels) for Docker
+        id: meta_operator
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OPERATOR_IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=ref,event=tag
+
+      - name: [api] Extract metadata (tags, labels) for Docker
+        id: meta_api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=ref,event=tag
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Debug Dockerfile path
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 3 -name Dockerfile -print
+
+      - name: [operator] Build and push Docker image
+        id: push_operator
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta_operator.outputs.tags }}
+          labels: ${{ steps.meta_operator.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+
+      - name: [api] Build and push Docker image
+        id: push_api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: ${{ steps.meta_api.outputs.tags }}
+          labels: ${{ steps.meta_api.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+
+      - name: [operator] Generate artifact attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.OPERATOR_IMAGE_NAME }}
+          subject-digest: ${{ steps.push_operator.outputs.digest }}
+          push-to-registry: true
+
+      - name: [api] Generate artifact attestation
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
+          subject-digest: ${{ steps.push_api.outputs.digest }}
+          push-to-registry: true
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+
+      - name: Checkout GitOps repository
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GITOPS_REPO_TOKEN }}
+          path: gitops
+          ref: ${{ github.ref_name == 'alignment-gsma-api-cicd' && 'dev' || github.ref_name }}
+
+      - name: Resolve target values file
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        id: target
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "integration" ]]; then
+            echo "file=${GITOPS_VALUES_INTEGRATION}" >> "$GITHUB_OUTPUT"
+          else
+            echo "file=${GITOPS_VALUES_DEV}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update digest in GitOps values
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        uses: mikefarah/yq@v4.44.2
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        with:
+          cmd: |
+            FILE="gitops/${{ steps.target.outputs.file }}"
+            test -f "$FILE"
+            yq -i '.image.digest = strenv(DIGEST)' "$FILE"
+
+      - name: Commit and push GitOps change
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration')
+        shell: bash
+        run: |
+          cd gitops
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+          git add "${{ steps.target.outputs.file }}"
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit --author="${GITHUB_ACTOR} <${GITHUB_ACTOR}@users.noreply.github.com>" \
+            -m "ci: update ${GITHUB_REF_NAME} image digest to ${{ steps.push.outputs.digest }}"
+
+          git push origin HEAD:${GITHUB_REF_NAME}
