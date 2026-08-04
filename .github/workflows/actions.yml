@@ -78,6 +78,14 @@ jobs:
           ls -la
           find . -maxdepth 3 -name Dockerfile -print
 
+      - name: Run make targets
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        id: make
+        shell: bash
+        run: |
+          make generate
+          make manifests
+
       - name: "[operator] Build and push Docker image"
         id: push_operator
         uses: docker/build-push-action@v6
