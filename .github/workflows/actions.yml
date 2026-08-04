@@ -133,7 +133,8 @@ jobs:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GITOPS_REPO_TOKEN }}
           path: gitops
-          ref: ${{ github.ref_name == 'alignment-gsma-api-cicd' && 'dev' || github.ref_name }}
+          ref: KFM-209-federation-manager-cicd
+#          ref: ${{ github.ref_name == 'alignment-gsma-api-cicd' && 'dev' || github.ref_name }}
 
       - name: Resolve target values file
         if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
@@ -174,4 +175,5 @@ jobs:
           git commit --author="${GITHUB_ACTOR} <${GITHUB_ACTOR}@users.noreply.github.com>" \
             -m "ci: update ${GITHUB_REF_NAME} image digest to ${{ steps.push.outputs.digest }}"
 
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git push origin HEAD:KFM-209-federation-manager-cicd
+          # git push origin HEAD:${GITHUB_REF_NAME}
