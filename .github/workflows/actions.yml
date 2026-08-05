@@ -151,12 +151,18 @@ jobs:
         if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
         uses: mikefarah/yq@v4.44.2
         env:
-          DIGEST: ${{ steps.push.outputs.digest }}
+          DIGEST_OPERATOR: ${{ steps.push_operator.outputs.digest }}
+          TAG_OPERATOR: ${{ steps.meta_operator.outputs.version }}
+          DIGEST_API: ${{ steps.push_api.outputs.digest }}
+          TAG_API: ${{ steps.meta_api.outputs.version }}
         with:
           cmd: |
             FILE="gitops/${{ steps.target.outputs.file }}"
             test -f "$FILE"
-            yq -i '.image.digest = strenv(DIGEST)' "$FILE"
+            yq -i '.controllerManager.image.digest = strenv(DIGEST_OPERATOR)' "$FILE"
+            yq -i '.controllerManager.image.tag = strenv(TAG_OPERATOR)' "$FILE"
+            yq -i '.federation.image.digest = strenv(DIGEST_API)' "$FILE"
+            yq -i '.federation.image.tag = strenv(TAG_API)' "$FILE"
 
       - name: Commit and push GitOps change
         if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
@@ -173,7 +179,7 @@ jobs:
           fi
 
           git commit --author="${GITHUB_ACTOR} <${GITHUB_ACTOR}@users.noreply.github.com>" \
-            -m "ci: update ${GITHUB_REF_NAME} image digest to ${{ steps.push.outputs.digest }}"
+            -m "ci: update ${GITHUB_REF_NAME} image version to api:${{ steps.meta_api.outputs.version }} and operator:${{ steps.meta_operator.outputs.version }}"
 
           git push origin HEAD:KFM-209-federation-manager-cicd
           # git push origin HEAD:${GITHUB_REF_NAME}
