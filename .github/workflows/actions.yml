@@ -159,8 +159,8 @@ jobs:
           cmd: |
             FILE="gitops/${{ steps.target.outputs.file }}"
             test -f "$FILE"
-            yq -i '.controllerManager.image.digest = strenv(DIGEST_OPERATOR)' "$FILE"
-            yq -i '.controllerManager.image.tag = strenv(TAG_OPERATOR)' "$FILE"
+            yq -i '.controllerManager.container.image.digest = strenv(DIGEST_OPERATOR)' "$FILE"
+            yq -i '.controllerManager.container.image.tag = strenv(TAG_OPERATOR)' "$FILE"
             yq -i '.federation.image.digest = strenv(DIGEST_API)' "$FILE"
             yq -i '.federation.image.tag = strenv(TAG_API)' "$FILE"
 
