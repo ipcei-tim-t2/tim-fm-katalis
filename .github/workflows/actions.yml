@@ -5,9 +5,8 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - alignment-gsma-api-cicd # testing purposes
-#      - dev
-#      - integration
+      - dev
+      - integration
     tags:
       - "v*.*.*"
       - "qa-v*.*.*"
@@ -93,7 +92,7 @@ jobs:
           find . -maxdepth 3 -name Dockerfile -print
 
       - name: Run make targets
-        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration')
         id: make
         shell: bash
         run: |
@@ -141,17 +140,16 @@ jobs:
         uses: softprops/action-gh-release@v2
 
       - name: Checkout GitOps repository
-        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration')
         uses: actions/checkout@v4
         with:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GITOPS_REPO_TOKEN }}
           path: gitops
-          ref: KFM-209-federation-manager-cicd
-#          ref: ${{ github.ref_name == 'alignment-gsma-api-cicd' && 'dev' || github.ref_name }}
+          ref: ${{ github.ref_name }}
 
       - name: Resolve target values file
-        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration')
         id: target
         shell: bash
         run: |
@@ -162,7 +160,7 @@ jobs:
           fi
 
       - name: Update digest in GitOps values
-        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration')
         uses: mikefarah/yq@v4.44.2
         env:
           DIGEST_OPERATOR: ${{ steps.push_operator.outputs.digest }}
@@ -179,7 +177,7 @@ jobs:
             yq -i '.federation.image.tag = strenv(TAG_API)' "$FILE"
 
       - name: Commit and push GitOps change
-        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration' || github.ref_name == 'alignment-gsma-api-cicd')
+        if: github.event_name == 'push' && (github.ref_name == 'dev' || github.ref_name == 'integration')
         shell: bash
         run: |
           cd gitops
