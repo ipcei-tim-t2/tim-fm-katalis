@@ -98,8 +98,12 @@ func (r *ZoneReconciler) Reconcile(
 	defer func() {
 		isDeleting := !zone.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
-			log.Error(err, ">>> [AZ] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", zone.Name, "namespace", zone.Namespace)
-			zone.Status.State = v1beta1.ZoneStateFailed
+			if isTransientError(err) {
+				log.Info(">>> [AZ] Transient error detected in Reconcile, will retry without changing state", "name", zone.Name, "namespace", zone.Namespace, "error", err.Error())
+			} else {
+				log.Error(err, ">>> [AZ] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", zone.Name, "namespace", zone.Namespace)
+				zone.Status.State = v1beta1.ZoneStateFailed
+			}
 		}
 
 		// Metadata Patch (Annotations, Labels, Finalizers)

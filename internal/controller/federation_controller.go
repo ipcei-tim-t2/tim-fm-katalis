@@ -152,8 +152,12 @@ func (r *FederationReconciler) Reconcile(
 	defer func() {
 		isDeleting := !fed.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
-			log.Error(err, ">>> [Federation] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", fed.Name, "namespace", fed.Namespace)
-			fed.Status.State = v1beta1.FederationStateFailed
+			if isTransientError(err) {
+				log.Info(">>> [Federation] Transient error detected in Reconcile, will retry without changing state", "name", fed.Name, "namespace", fed.Namespace, "error", err.Error())
+			} else {
+				log.Error(err, ">>> [Federation] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", fed.Name, "namespace", fed.Namespace)
+				fed.Status.State = v1beta1.FederationStateFailed
+			}
 		}
 
 		// Metadata Patch (Annotations, Labels, Finalizers)
@@ -320,17 +324,12 @@ func (r *FederationReconciler) Reconcile(
 				if isRest {
 					log.Info(">>> [Federation][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
 				} else {
+					if err := k8s.RestartAllRemoteWatcher(ctx, r.Client, &fed, r.Scheme, fed.Namespace, fed.Status.FederationContextId, watchers...); err != nil {
+						log.Error(err, ">>> [Federation][K8s] Error RESTARTING remote watchers.", "name", fed.Name, "namespace", fed.Namespace)
+						return ctrl.Result{}, err
+					}
 					if fed.Annotations[v1beta1.FederationWatcherAnnotation] == "not-stopped" {
-						if err := k8s.RestartAllRemoteWatcher(ctx, r.Client, &fed, r.Scheme, fed.Namespace, fed.Status.FederationContextId, watchers...); err != nil {
-							log.Error(err, ">>> [Federation][K8s] Error RESTARTING remote watchers.", "name", fed.Name, "namespace", fed.Namespace)
-							return ctrl.Result{}, err
-						}
 						fed.Annotations[v1beta1.FederationWatcherAnnotation] = "stopped"
-						// if err := r.Update(ctx, &fed); err != nil {
-						// 	log.Error(err, ">>> [Federation] Failed to update", "name", fed.Name, "namespace", fed.Namespace)
-						// 	return ctrl.Result{}, err
-						// }
-						// skipStatusPatch = true
 						return ctrl.Result{}, nil
 					}
 					log.Info(">>> [Federation][K8s] Syncing status...", "name", fed.Name, "namespace", fed.Namespace)

@@ -96,8 +96,12 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	defer func() {
 		isDeleting := !art.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
-			log.Error(err, ">>> [Artefact] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", art.Name, "namespace", art.Namespace)
-			art.Status.State = v1beta1.ArtefactStateError
+			if isTransientError(err) {
+				log.Info(">>> [Artefact] Transient error detected in Reconcile, will retry without changing state", "name", art.Name, "namespace", art.Namespace, "error", err.Error())
+			} else {
+				log.Error(err, ">>> [Artefact] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", art.Name, "namespace", art.Namespace)
+				art.Status.State = v1beta1.ArtefactStateError
+			}
 		}
 
 		// Metadata Patch (Annotations, Labels, Finalizers)
@@ -144,7 +148,6 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 	extClient := r.getExternalClient(isRest)
 	if err != nil {
 		log.Error(err, ">>> [Artefact] Should always have a parent federation.", "name", art.Name, "namespace", art.Namespace)
-		art.Status.State = v1beta1.ArtefactStateError
 		return ctrl.Result{}, err
 	}
 
