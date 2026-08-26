@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"reflect"
+	"time"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/indexer"
@@ -161,6 +162,15 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 	// Handle deletion of the image resource
 	if !image.GetDeletionTimestamp().IsZero() {
 		if isGuest {
+			hasDependents, depErr := r.resourcesDependOnImage(ctx, image.Namespace, image.Spec.FederationContextId, image.Spec.ImageId)
+			if depErr != nil {
+				log.Error(depErr, ">>> [Image] Error checking for dependent resources before deletion.", "name", image.Name, "namespace", image.Namespace)
+				return ctrl.Result{}, depErr
+			}
+			if hasDependents {
+				log.Info(">>> [Image] BLOCKED deletion: dependent Artefacts still reference this imageId.", "name", image.Name, "namespace", image.Namespace, "imageId", image.Spec.ImageId)
+				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+			}
 			if err := extClient.DeleteImage(ctx, &image, fed); err != nil {
 				log.Error(err, ">>> [Image] Error deleting Image.", "name", image.Name, "namespace", image.Namespace)
 				return ctrl.Result{}, err
@@ -223,4 +233,24 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func (r *ImageReconciler) resourcesDependOnImage(ctx context.Context, namespace string, federationContextId string, imageId string) (bool, error) {
+	var artefactList v1beta1.ArtefactList
+	if err := r.List(ctx, &artefactList, client.InNamespace(namespace)); err != nil {
+		return false, err
+	}
+	for _, art := range artefactList.Items {
+		if art.Spec.FederationContextId != federationContextId || art.Spec.ArtefactBody == nil {
+			continue
+		}
+		for _, component := range art.Spec.ArtefactBody.ComponentSpec {
+			for _, imgId := range component.Images {
+				if imgId == imageId {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
 }
