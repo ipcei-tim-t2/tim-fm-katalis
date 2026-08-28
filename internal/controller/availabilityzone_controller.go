@@ -161,9 +161,9 @@ func (r *ZoneReconciler) Reconcile(
 				log.Error(err, ">>> [AZ] Error deleting external AZ.", "name", zone.Name, "namespace", zone.Namespace)
 				return ctrl.Result{}, err
 			}
-			if controllerutil.RemoveFinalizer(&zone, v1beta1.AvailabilityZoneFinalizer) {
-				log.Info(">>> [AZ] Removed basic finalizer for AZ, exiting...", "name", zone.Name, "namespace", zone.Namespace)
-			}
+		}
+		if controllerutil.RemoveFinalizer(&zone, v1beta1.AvailabilityZoneFinalizer) {
+			log.Info(">>> [AZ] Removed basic finalizer for AZ, exiting...", "name", zone.Name, "namespace", zone.Namespace)
 		}
 		return ctrl.Result{}, nil
 	}
