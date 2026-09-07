@@ -25,6 +25,14 @@ metadata:
   namespace: foo
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - opg.ewbi.katalis.com
   resources:
   - applicationdeployments
