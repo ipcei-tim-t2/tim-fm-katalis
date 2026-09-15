@@ -97,8 +97,12 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 	defer func() {
 		isDeleting := !image.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
-			log.Error(err, ">>> [Image] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", image.Name, "namespace", image.Namespace)
-			image.Status.State = v1beta1.ImageStateError
+			if isTransientError(err) {
+				log.Info(">>> [Image] Transient error detected in Reconcile, will retry without changing state", "name", image.Name, "namespace", image.Namespace, "error", err.Error())
+			} else {
+				log.Error(err, ">>> [Image] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", image.Name, "namespace", image.Namespace)
+				image.Status.State = v1beta1.ImageStateError
+			}
 		}
 
 		// Metadata Patch (Annotations, Labels, Finalizers)
@@ -149,7 +153,6 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 	extClient := r.getExternalClient(isRest) // Get the appropriate external client based on the federation technology
 	if err != nil {
 		log.Error(err, ">>> [Image] Should always have a parent federation.", "name", image.Name, "namespace", image.Namespace)
-		image.Status.State = v1beta1.ImageStateError
 		return ctrl.Result{}, err
 	}
 

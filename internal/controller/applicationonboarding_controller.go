@@ -96,8 +96,12 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 	defer func() {
 		isDeleting := !appOnboard.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
-			log.Error(err, ">>> [AppOnboard] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
-			appOnboard.Status.State = v1beta1.ApplicationOnboardingStateFailed
+			if isTransientError(err) {
+				log.Info(">>> [AppOnboard] Transient error detected in Reconcile, will retry without changing state", "name", appOnboard.Name, "namespace", appOnboard.Namespace, "error", err.Error())
+			} else {
+				log.Error(err, ">>> [AppOnboard] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
+				appOnboard.Status.State = v1beta1.ApplicationOnboardingStateFailed
+			}
 		}
 
 		// Metadata Patch (Annotations, Labels, Finalizers)
