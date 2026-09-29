@@ -41,6 +41,7 @@ rules:
   - availabilityzones
   - federations
   - images
+  - resourceconsumptionmonitorings
   verbs:
   - '*'
 - apiGroups:
@@ -52,6 +53,7 @@ rules:
   - availabilityzones/finalizers
   - federations/finalizers
   - images/finalizers
+  - resourceconsumptionmonitorings/finalizers
   verbs:
   - update
 - apiGroups:
@@ -63,6 +65,7 @@ rules:
   - availabilityzones/status
   - federations/status
   - images/status
+  - resourceconsumptionmonitorings/status
   verbs:
   - get
   - patch

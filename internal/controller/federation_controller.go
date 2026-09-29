@@ -259,6 +259,7 @@ func (r *FederationReconciler) Reconcile(
 		&v1beta1.ArtefactList{},
 		&v1beta1.ApplicationDeploymentList{},
 		&v1beta1.ApplicationOnboardingList{},
+		&v1beta1.ResourceConsumptionMonitoringList{},
 	}
 	if !isGuest {
 		// Host federation handling
