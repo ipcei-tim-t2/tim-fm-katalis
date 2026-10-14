@@ -40,6 +40,7 @@ import (
 	opgewbiv1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/controller"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/options"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
@@ -173,6 +174,11 @@ func main() {
 
 	if err != nil {
 		setupLog.Error(err, ">>> [MAIN] Unable to start manager")
+		os.Exit(1)
+	}
+
+	if err := metrics.Setup(mgr); err != nil {
+		setupLog.Error(err, ">>> [MAIN] Unable to set up custom metrics")
 		os.Exit(1)
 	}
 

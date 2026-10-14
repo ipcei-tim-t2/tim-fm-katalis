@@ -31,6 +31,7 @@ import (
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
@@ -97,6 +98,7 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 		isDeleting := !appOnboard.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
 			if isTransientError(err) {
+				metrics.TransientErrors.WithLabelValues(metrics.KindApplicationOnboarding).Inc()
 				log.Info(">>> [AppOnboard] Transient error detected in Reconcile, will retry without changing state", "name", appOnboard.Name, "namespace", appOnboard.Namespace, "error", err.Error())
 			} else {
 				log.Error(err, ">>> [AppOnboard] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
@@ -168,10 +170,13 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 				return ctrl.Result{}, depErr
 			}
 			if hasDependents {
+				metrics.DeletionBlocked.WithLabelValues(metrics.KindApplicationOnboarding).Inc()
 				log.Info(">>> [AppOnboard] BLOCKED deletion: dependent ApplicationDeployment(s) still reference this appId.", "name", appOnboard.Name, "namespace", appOnboard.Namespace, "appId", appId)
 				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 			}
-			if err := extClient.DeleteApplicationOnboarding(ctx, &appOnboard, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindApplicationOnboarding, "delete", isRest, func() error {
+				return extClient.DeleteApplicationOnboarding(ctx, &appOnboard, fed)
+			}); err != nil {
 				log.Error(err, ">>> [AppOnboard] Error deleting ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 				appOnboard.Status.State = v1beta1.ApplicationOnboardingStateFailed
 				return ctrl.Result{}, err
@@ -201,7 +206,9 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 		} else {
 			// Callback for REST and GET for K8s
 			if isRest {
-				if err := extClient.UpdateApplicationOnboardingStatus(ctx, &appOnboard, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindApplicationOnboarding, "update_status", isRest, func() error {
+					return extClient.UpdateApplicationOnboardingStatus(ctx, &appOnboard, fed)
+				}); err != nil {
 					log.Error(err, ">>> [AppOnboard][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 					return ctrl.Result{}, err
 				}
@@ -237,7 +244,9 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 					return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 				}
 			}
-			if err := extClient.CreateApplicationOnboarding(ctx, &appOnboard, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindApplicationOnboarding, "create", isRest, func() error {
+				return extClient.CreateApplicationOnboarding(ctx, &appOnboard, fed)
+			}); err != nil {
 				log.Error(err, ">>> [AppOnboard] Error APPLYING/UPDATING SPEC ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -250,7 +259,9 @@ func (r *ApplicationOnboardingReconciler) Reconcile(ctx context.Context, req ctr
 			if isRest {
 				log.Info(">>> [AppOnboard][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 			} else {
-				if err := extClient.UpdateApplicationOnboardingStatus(ctx, &appOnboard, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindApplicationOnboarding, "update_status", isRest, func() error {
+					return extClient.UpdateApplicationOnboardingStatus(ctx, &appOnboard, fed)
+				}); err != nil {
 					log.Error(err, ">>> [AppOnboard][K8s] Error updating ApplicationOnboarding.", "name", appOnboard.Name, "namespace", appOnboard.Namespace)
 					return ctrl.Result{}, err
 				}

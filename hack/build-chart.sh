@@ -29,6 +29,12 @@ spec:
       control-plane: katalis-fm-api
   template:
     metadata:
+      {{- if .Values.metrics.enable }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.federation.metrics.port }}"
+        prometheus.io/path: /metrics
+      {{- end }}
       labels:
         {{- include "chart.labels" . | nindent 8 }}
         control-plane: katalis-fm-api
@@ -54,6 +60,8 @@ spec:
             value: "{{ .Values.federation.services.federation.name }}:{{ .Values.federation.services.federation.port }}"
           - name: CAMARA_HOST_AGENT_ADDR
             value: "0.0.0.0:8080"
+          - name: CAMARA_METRICS_ADDR
+            value: "{{ if .Values.metrics.enable }}0.0.0.0:{{ .Values.federation.metrics.port }}{{ end }}"
           - name: USERBUSTER_HOST
             value: "{{ .Values.federation.externalServices.userBuster.name }}"
           - name: USERBUSTER_PORT
@@ -62,6 +70,11 @@ spec:
           - containerPort: 8080
             name: api
             protocol: TCP
+          {{- if .Values.metrics.enable }}
+          - containerPort: {{ .Values.federation.metrics.port }}
+            name: metrics
+            protocol: TCP
+          {{- end }}
           resources:
             {{- toYaml .Values.federation.resources | nindent 12 }}
           securityContext:
@@ -89,6 +102,28 @@ spec:
       {{- if .Values.federation.services.federation.nodePort }}
       nodePort: {{ .Values.federation.services.federation.nodePort }}
       {{- end }}
+  selector:
+    control-plane: katalis-fm-api
+{{- end }}
+EOF
+
+cat > dist/chart/templates/federation/metrics-service.yaml <<'EOF'
+{{- if and .Values.federation.enable .Values.metrics.enable }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.federation.services.federation.name }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+    control-plane: katalis-fm-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.federation.metrics.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
   selector:
     control-plane: katalis-fm-api
 {{- end }}
@@ -251,6 +286,8 @@ federation:
   terminationGracePeriodSeconds: 10
   log:
     level: "info"
+  metrics:
+    port: 9090
   externalServices:
     hydra:
       name: katalis-fm-hydra-admin
@@ -290,7 +327,7 @@ crd:
 # To disable metrics export set false, and ensure that the
 # ControllerManager argument "--metrics-bind-address=:8443" is removed.
 metrics:
-  enable: false
+  enable: true
 
 # [PROMETHEUS]: To enable a ServiceMonitor to export metrics to Prometheus set true
 prometheus:
@@ -463,6 +500,14 @@ sed -i \
 sed -i \
   's/name: opg-ewbi-manager-role$/name: opg-ewbi-manager-role-{{ .Release.Namespace }}/g' \
   dist/chart/templates/rbac/role_binding.yaml
+sed -i \
+  -e 's/name: opg-ewbi-metrics-auth-role$/name: opg-ewbi-metrics-auth-role-{{ .Release.Namespace }}/g' \
+  -e 's/name: opg-ewbi-metrics-auth-rolebinding$/name: opg-ewbi-metrics-auth-rolebinding-{{ .Release.Namespace }}/' \
+  dist/chart/templates/rbac/metrics_auth_role.yaml \
+  dist/chart/templates/rbac/metrics_auth_role_binding.yaml
+sed -i \
+  's/name: opg-ewbi-metrics-reader$/name: opg-ewbi-metrics-reader-{{ .Release.Namespace }}/' \
+  dist/chart/templates/rbac/metrics_reader_role.yaml
 
 cat > dist/chart-crd/Chart.yaml <<'EOF'
 apiVersion: v2

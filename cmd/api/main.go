@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -15,6 +16,7 @@ import (
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/ewbi/server"
 	v1beta1 "github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/config"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/httpmetrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/handler"
 )
 
@@ -35,6 +37,17 @@ func main() {
 	}
 
 	e := echo.New()
+	e.Use(httpmetrics.Middleware())
+	if conf.Camara.MetricsAddr != "" {
+		go func() {
+			mux := http.NewServeMux()
+			mux.Handle("/metrics", httpmetrics.Handler())
+			if err := http.ListenAndServe(conf.Camara.MetricsAddr, mux); err != nil {
+				log.WithError(err).
+					Fatal("failed to run metrics server")
+			}
+		}()
+	}
 	// Captures request and response payloads and log them
 	if conf.Camara.LogLevel == "debug" {
 		e.Use(middleware.BodyDump(func(c echo.Context, reqBody, resBody []byte) {

@@ -31,6 +31,7 @@ import (
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
@@ -95,6 +96,7 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 		isDeleting := !appDeploy.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
 			if isTransientError(err) {
+				metrics.TransientErrors.WithLabelValues(metrics.KindApplicationDeployment).Inc()
 				log.Info(">>> [AppDeploy] Transient error detected in Reconcile, will retry without changing state", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "error", err.Error())
 			} else {
 				log.Error(err, ">>> [AppDeploy] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
@@ -159,7 +161,9 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 	// Handle deletion of the ApplicationDeployment resource
 	if !appDeploy.GetDeletionTimestamp().IsZero() {
 		if isGuest {
-			if err := extClient.DeleteApplicationDeployment(ctx, &appDeploy, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindApplicationDeployment, "delete", isRest, func() error {
+				return extClient.DeleteApplicationDeployment(ctx, &appDeploy, fed)
+			}); err != nil {
 				log.Error(err, ">>> [AppDeploy] Error deleting ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -189,7 +193,9 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 			appDeploy.Labels[v1beta1.ResourceIdLabel] = "appdeploy-" + uuid.V5(appDeploy.Spec.FederationContextId+appDeploy.Spec.AppId+appDeploy.Spec.AppInstanceId)
 		} else {
 			if isRest {
-				if err := extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindApplicationDeployment, "update_status", isRest, func() error {
+					return extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed)
+				}); err != nil {
 					log.Error(err, ">>> [AppDeploy] Error during CALLBACK OPERATION via OPG EWBI API.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 					return ctrl.Result{}, err
 				}
@@ -246,7 +252,9 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 				log.Info(">>> [AppOnboard] ApplicationOnboarding is not ONBOARDED for ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace, "appId", appDeploy.Spec.AppId, "state", appOnboardObj.Status.State)
 				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 			}
-			if err := extClient.CreateApplicationDeployment(ctx, &appDeploy, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindApplicationDeployment, "create", isRest, func() error {
+				return extClient.CreateApplicationDeployment(ctx, &appDeploy, fed)
+			}); err != nil {
 				log.Error(err, ">>> [AppDeploy] Error APPLYING/UPDATING SPEC ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -258,7 +266,9 @@ func (r *ApplicationDeploymentReconciler) Reconcile(ctx context.Context, req ctr
 			if isRest {
 				log.Info(">>> [AppDeploy][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 			} else {
-				if err := extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindApplicationDeployment, "update_status", isRest, func() error {
+					return extClient.UpdateApplicationDeploymentStatus(ctx, &appDeploy, fed)
+				}); err != nil {
 					log.Error(err, ">>> [AppDeploy] Error updating ApplicationDeployment.", "name", appDeploy.Name, "namespace", appDeploy.Namespace)
 					return ctrl.Result{}, err
 				}

@@ -31,9 +31,16 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 )
 
 var activeResourceWatchers sync.Map
+
+type resourceWatcher struct {
+	cancel   context.CancelFunc
+	resource string
+}
 
 var FederationRemoteEvents = make(chan event.GenericEvent)
 var ImageRemoteEvents = make(chan event.GenericEvent)
@@ -45,13 +52,18 @@ var AvailabilityZoneRemoteEvents = make(chan event.GenericEvent)
 func StartRemoteResourceWatcher(ctx context.Context, dynClient dynamic.Interface, namespace, localResourceName, localResourceNS string, group, version, resource string) {
 	watchKey := fmt.Sprintf("%s/%s", namespace, localResourceName)
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
-	if _, loaded := activeResourceWatchers.LoadOrStore(watchKey, cancelFunc); loaded {
+	if _, loaded := activeResourceWatchers.LoadOrStore(watchKey, resourceWatcher{cancel: cancelFunc, resource: resource}); loaded {
 		cancelFunc()
 		return
 	}
+	metrics.RemoteWatchersActive.WithLabelValues(resource).Inc()
 	gvr := schema.GroupVersionResource{Group: group, Version: version, Resource: resource}
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, 0, namespace, nil)
 	informer := factory.ForResource(gvr).Informer()
+	_ = informer.SetWatchErrorHandler(func(r *cache.Reflector, err error) {
+		metrics.RemoteWatcherErrors.WithLabelValues(resource).Inc()
+		cache.DefaultWatchErrorHandler(r, err)
+	})
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -119,10 +131,11 @@ func HasActiveWatcher(namespace, localResourceName string) bool {
 
 func StopRemoteResourceWatcher(namespace, localResourceName string) bool {
 	watchKey := fmt.Sprintf("%s/%s", namespace, localResourceName)
-	if cancelVal, loaded := activeResourceWatchers.LoadAndDelete(watchKey); loaded {
-		cancelFunc, ok := cancelVal.(context.CancelFunc)
+	if val, loaded := activeResourceWatchers.LoadAndDelete(watchKey); loaded {
+		watcher, ok := val.(resourceWatcher)
 		if ok {
-			cancelFunc()
+			watcher.cancel()
+			metrics.RemoteWatchersActive.WithLabelValues(watcher.resource).Dec()
 			return true
 		} else {
 			return false
@@ -206,6 +219,7 @@ func RestartAllRemoteWatcher(ctx context.Context, c client.Client, fed *v1beta1.
 				}
 				dynClient = dc
 			}
+			metrics.RemoteWatcherRestarts.WithLabelValues(resourcePlural).Inc()
 			StartRemoteResourceWatcher(ctx, dynClient, fed.Spec.FederationData.K8sOptions.Namespace, resourceName, resourceNamespace, resourceGroup, resourceVersion, resourcePlural)
 		}
 	}

@@ -31,6 +31,7 @@ import (
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
@@ -97,6 +98,7 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 		isDeleting := !art.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
 			if isTransientError(err) {
+				metrics.TransientErrors.WithLabelValues(metrics.KindArtefact).Inc()
 				log.Info(">>> [Artefact] Transient error detected in Reconcile, will retry without changing state", "name", art.Name, "namespace", art.Namespace, "error", err.Error())
 			} else {
 				log.Error(err, ">>> [Artefact] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", art.Name, "namespace", art.Namespace)
@@ -166,10 +168,13 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 				return ctrl.Result{}, depErr
 			}
 			if hasDependents {
+				metrics.DeletionBlocked.WithLabelValues(metrics.KindArtefact).Inc()
 				log.Info(">>> [Artefact] BLOCKED deletion: dependent ApplicationOnboarding(s) still reference this artefactId.", "name", art.Name, "namespace", art.Namespace, "artefactId", art.Spec.ArtefactId)
 				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 			}
-			if err := extClient.DeleteArtefact(ctx, &art, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindArtefact, "delete", isRest, func() error {
+				return extClient.DeleteArtefact(ctx, &art, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Artefact] Error deleting Artefact.", "name", art.Name, "namespace", art.Namespace)
 				art.Status.State = v1beta1.ArtefactStateError
 				return ctrl.Result{}, err
@@ -199,7 +204,9 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			art.Labels[v1beta1.ResourceIdLabel] = "art-" + uuid.V5(art.Spec.ArtefactId+art.Spec.FederationContextId)
 		} else {
 			if isRest {
-				if err := extClient.UpdateArtefactStatus(ctx, &art, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindArtefact, "update_status", isRest, func() error {
+					return extClient.UpdateArtefactStatus(ctx, &art, fed)
+				}); err != nil {
 					log.Error(err, ">>> [Artefact][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", art.Name, "namespace", art.Namespace)
 					return ctrl.Result{}, err
 				}
@@ -238,7 +245,9 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 					}
 				}
 			}
-			if err := extClient.CreateArtefact(ctx, &art, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindArtefact, "create", isRest, func() error {
+				return extClient.CreateArtefact(ctx, &art, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Artefact] Error APPLYING/UPDATING SPEC Artefact.", "name", art.Name, "namespace", art.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -248,7 +257,9 @@ func (r *ArtefactReconciler) Reconcile(ctx context.Context, req ctrl.Request) (r
 			if isRest {
 				log.Info(">>> [Artefact][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", art.Name, "namespace", art.Namespace)
 			} else {
-				if err := extClient.UpdateArtefactStatus(ctx, &art, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindArtefact, "update_status", isRest, func() error {
+					return extClient.UpdateArtefactStatus(ctx, &art, fed)
+				}); err != nil {
 					log.Error(err, ">>> [Artefact][K8s] Error updating Artefact.", "name", art.Name, "namespace", art.Namespace)
 					return ctrl.Result{}, err
 				}

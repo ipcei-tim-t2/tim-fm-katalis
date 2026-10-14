@@ -31,6 +31,7 @@ import (
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
@@ -100,6 +101,7 @@ func (r *ZoneReconciler) Reconcile(
 		isDeleting := !zone.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
 			if isTransientError(err) {
+				metrics.TransientErrors.WithLabelValues(metrics.KindAvailabilityZone).Inc()
 				log.Info(">>> [AZ] Transient error detected in Reconcile, will retry without changing state", "name", zone.Name, "namespace", zone.Namespace, "error", err.Error())
 			} else {
 				log.Error(err, ">>> [AZ] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", zone.Name, "namespace", zone.Namespace)
@@ -168,10 +170,13 @@ func (r *ZoneReconciler) Reconcile(
 				return ctrl.Result{}, depErr
 			}
 			if hasDependents {
+				metrics.DeletionBlocked.WithLabelValues(metrics.KindAvailabilityZone).Inc()
 				log.Info(">>> [AZ] BLOCKED deletion: dependent ApplicationDeployment(s) still reference this zoneId.", "name", zone.Name, "namespace", zone.Namespace, "zoneId", zone.Spec.ZoneId)
 				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 			}
-			if err := extClient.DeleteZone(ctx, &zone, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindAvailabilityZone, "delete", isRest, func() error {
+				return extClient.DeleteZone(ctx, &zone, fed)
+			}); err != nil {
 				log.Error(err, ">>> [AZ] Error deleting external AZ.", "name", zone.Name, "namespace", zone.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -201,7 +206,9 @@ func (r *ZoneReconciler) Reconcile(
 		} else {
 			if isRest {
 				//CALLBACK from REST
-				if err := extClient.UpdateZoneStatus(ctx, &zone, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindAvailabilityZone, "update_status", isRest, func() error {
+					return extClient.UpdateZoneStatus(ctx, &zone, fed)
+				}); err != nil {
 					log.Error(err, ">>> [AZ][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", zone.Name, "namespace", zone.Namespace)
 					return ctrl.Result{}, err
 				}
@@ -214,7 +221,9 @@ func (r *ZoneReconciler) Reconcile(
 		if isNewZone {
 			zone.Status.State = v1beta1.ZoneStateNotAvailable
 			zone.Labels[v1beta1.ResourceIdLabel] = "zone-" + uuid.V5(zone.Spec.ZoneId+zone.Spec.FederationContextId)
-			if err := extClient.AcceptZone(ctx, &zone, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindAvailabilityZone, "create", isRest, func() error {
+				return extClient.AcceptZone(ctx, &zone, fed)
+			}); err != nil {
 				log.Error(err, ">>> [AZ] Error accepting Zone", "name", zone.Name, "namespace", zone.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -224,7 +233,9 @@ func (r *ZoneReconciler) Reconcile(
 				log.Info(">>> [AZ][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API", "name", zone.Name, "namespace", zone.Namespace)
 			} else {
 				// WATCHER for K8s
-				if err := extClient.UpdateZoneStatus(ctx, &zone, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindAvailabilityZone, "update_status", isRest, func() error {
+					return extClient.UpdateZoneStatus(ctx, &zone, fed)
+				}); err != nil {
 					log.Error(err, ">>> [AZ][K8s] Error updating Zone.", "name", zone.Name, "namespace", zone.Namespace)
 					return ctrl.Result{}, err
 				}

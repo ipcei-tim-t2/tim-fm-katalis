@@ -34,6 +34,7 @@ import (
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
 	policy "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s/policy"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
 
@@ -155,6 +156,7 @@ func (r *FederationReconciler) Reconcile(
 		isDeleting := !fed.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
 			if isTransientError(err) {
+				metrics.TransientErrors.WithLabelValues(metrics.KindFederation).Inc()
 				log.Info(">>> [Federation] Transient error detected in Reconcile, will retry without changing state", "name", fed.Name, "namespace", fed.Namespace, "error", err.Error())
 			} else {
 				log.Error(err, ">>> [Federation] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", fed.Name, "namespace", fed.Namespace)
@@ -226,10 +228,13 @@ func (r *FederationReconciler) Reconcile(
 				return ctrl.Result{}, depErr
 			}
 			if hasDependents {
+				metrics.DeletionBlocked.WithLabelValues(metrics.KindFederation).Inc()
 				log.Info(">>> [Federation] BLOCKED deletion: dependent resources still reference this federationContextId.", "name", fed.Name, "namespace", fed.Namespace, "federationContextId", fed.Status.FederationContextId)
 				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 			}
-			if err := extClient.DeleteFederation(ctx, &fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindFederation, "delete", isRest, func() error {
+				return extClient.DeleteFederation(ctx, &fed)
+			}); err != nil {
 				log.Error(err, ">>> [Federation] Error during the deletion.", "name", fed.Name, "namespace", fed.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -296,7 +301,9 @@ func (r *FederationReconciler) Reconcile(
 			// If isRest is true, the host send a CALLBACK to the GUEST to update the federation status via OPG EWBI API
 			if isRest {
 				log.Info(">>> [Federation][REST] Execution CALLBACK OPERATION via OPG EWBI API", "name", fed.Name, "namespace", fed.Namespace)
-				if err := extClient.UpdateFederationStatus(ctx, &fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindFederation, "update_status", isRest, func() error {
+					return extClient.UpdateFederationStatus(ctx, &fed)
+				}); err != nil {
 					log.Error(err, ">>> [Federation][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
 					return ctrl.Result{}, err
 				}
@@ -312,7 +319,9 @@ func (r *FederationReconciler) Reconcile(
 		if isNewFed {
 			fed.Status.State = v1beta1.FederationStateNotAvailable
 			fed.Labels[v1beta1.ResourceIdLabel] = "fed-" + uuid.V5(fed.Spec.FederationData.OrigOPFederationId+fed.Spec.FederationData.OrigOPCountryCode)
-			if err := extClient.CreateFederation(ctx, &fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindFederation, "create", isRest, func() error {
+				return extClient.CreateFederation(ctx, &fed)
+			}); err != nil {
 				log.Error(err, ">>> [Federation] Error APPLYING/UPDATING SPEC Federation", "name", fed.Name, "namespace", fed.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -344,7 +353,9 @@ func (r *FederationReconciler) Reconcile(
 						return ctrl.Result{}, nil
 					}
 					log.Info(">>> [Federation][K8s] Syncing status...", "name", fed.Name, "namespace", fed.Namespace)
-					if err := r.K8sClient.UpdateFederationStatus(ctx, &fed); err != nil {
+					if err := metrics.ObservePartnerOperation(metrics.KindFederation, "update_status", isRest, func() error {
+						return r.K8sClient.UpdateFederationStatus(ctx, &fed)
+					}); err != nil {
 						return ctrl.Result{}, err
 					}
 				}
@@ -353,7 +364,9 @@ func (r *FederationReconciler) Reconcile(
 					log.Info(">>> [Federation][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
 				} else {
 					log.Info(">>> [Federation][K8s] Syncing status...", "name", fed.Name, "namespace", fed.Namespace)
-					if err := r.K8sClient.UpdateFederationStatus(ctx, &fed); err != nil {
+					if err := metrics.ObservePartnerOperation(metrics.KindFederation, "update_status", isRest, func() error {
+						return r.K8sClient.UpdateFederationStatus(ctx, &fed)
+					}); err != nil {
 						log.Error(err, ">>> [Federation][K8s] Error syncing status.", "name", fed.Name, "namespace", fed.Namespace)
 						return ctrl.Result{}, err
 					}
@@ -418,7 +431,9 @@ func (r *FederationReconciler) guestFederationActions(ctx context.Context, fed *
 	if fed.Status.State == v1beta1.FederationStateAvailable || fed.Status.State == v1beta1.FederationStateLocked {
 		if _, exists := annotations[v1beta1.FederationRenewalAnnotation]; exists && annotations[v1beta1.FederationRenewalAnnotation] == "required" {
 			log.Info(">>> [Federation][K8s] Renewal Federation", "name", fed.Name, "namespace", fed.Namespace)
-			if err := extClient.RenewalFederation(ctx, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindFederation, "renewal", isRest, func() error {
+				return extClient.RenewalFederation(ctx, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Federation][K8s] Error (Renewal Federation).", "name", fed.Name, "namespace", fed.Namespace)
 				return err
 			}
@@ -434,7 +449,9 @@ func (r *FederationReconciler) guestFederationActions(ctx context.Context, fed *
 			} else {
 				log.Info(">>> [Federation][K8s] Applying UpdateDataRevision -> Performing K8s operation", "name", fed.Name, "namespace", fed.Namespace)
 			}
-			if err := extClient.PatchFederation(ctx, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindFederation, "patch", isRest, func() error {
+				return extClient.PatchFederation(ctx, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Federation] Error (UpdateFederationData)", "name", fed.Name, "namespace", fed.Namespace)
 				return err
 			}
@@ -447,7 +464,9 @@ func (r *FederationReconciler) guestFederationActions(ctx context.Context, fed *
 			} else {
 				log.Info(">>> [Federation][K8s] Applying HealthCheckRevision -> Performing K8s operation", "name", fed.Name, "namespace", fed.Namespace)
 			}
-			if err := extClient.GetHealthFederation(ctx, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindFederation, "get_health", isRest, func() error {
+				return extClient.GetHealthFederation(ctx, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Federation] Error (HealthCheckInfo)", "name", fed.Name, "namespace", fed.Namespace)
 				return err
 			}
@@ -460,7 +479,9 @@ func (r *FederationReconciler) guestFederationActions(ctx context.Context, fed *
 			} else {
 				log.Info(">>> [Federation][K8s] Applying CapTypeRevision -> Performing K8s operation", "name", fed.Name, "namespace", fed.Namespace)
 			}
-			if err := extClient.GetPlatformCapsFederation(ctx, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindFederation, "get_platform_caps", isRest, func() error {
+				return extClient.GetPlatformCapsFederation(ctx, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Federation] Error (CapTypeInfo)", "name", fed.Name, "namespace", fed.Namespace)
 				return err
 			}
@@ -473,7 +494,9 @@ func (r *FederationReconciler) guestFederationActions(ctx context.Context, fed *
 			} else {
 				log.Info(">>> [Federation][K8s] Applying SupportedServerAPIRevision -> Performing K8s operation", "name", fed.Name, "namespace", fed.Namespace)
 			}
-			if err := extClient.GetServiceAPIFederation(ctx, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindFederation, "get_service_apis", isRest, func() error {
+				return extClient.GetServiceAPIFederation(ctx, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Federation] Error (SupportedServerAPIInfo)", "name", fed.Name, "namespace", fed.Namespace)
 				return err
 			}

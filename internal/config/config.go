@@ -8,6 +8,7 @@ import (
 
 type Camara struct {
 	HostAgentAddr string `split_words:"true" default:"0.0.0.0:8080"`
+	MetricsAddr   string `split_words:"true" default:"0.0.0.0:9090"`
 	LogLevel      string `split_words:"true" default:"info"`
 	ApiRoot       string `split_words:"true" default:"nearbyone.operator-name.nearbycomputing.com"`
 }

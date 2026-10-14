@@ -24,6 +24,7 @@ import (
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/indexer"
 	k8s "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/metrics"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
 	rest "github.com/neonephos-katalis/opg-ewbi-operator/internal/rest"
 	"github.com/neonephos-katalis/opg-ewbi-operator/pkg/uuid"
@@ -99,6 +100,7 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 		isDeleting := !image.GetDeletionTimestamp().IsZero()
 		if err != nil && !isDeleting {
 			if isTransientError(err) {
+				metrics.TransientErrors.WithLabelValues(metrics.KindImage).Inc()
 				log.Info(">>> [Image] Transient error detected in Reconcile, will retry without changing state", "name", image.Name, "namespace", image.Namespace, "error", err.Error())
 			} else {
 				log.Error(err, ">>> [Image] UNEXPECTED ERROR detected in Reconcile, setting state to Failed before patching", "name", image.Name, "namespace", image.Namespace)
@@ -171,10 +173,13 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 				return ctrl.Result{}, depErr
 			}
 			if hasDependents {
+				metrics.DeletionBlocked.WithLabelValues(metrics.KindImage).Inc()
 				log.Info(">>> [Image] BLOCKED deletion: dependent Artefacts still reference this imageId.", "name", image.Name, "namespace", image.Namespace, "imageId", image.Spec.ImageId)
 				return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 			}
-			if err := extClient.DeleteImage(ctx, &image, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindImage, "delete", isRest, func() error {
+				return extClient.DeleteImage(ctx, &image, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Image] Error deleting Image.", "name", image.Name, "namespace", image.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -204,7 +209,9 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 		} else {
 			// Callback for REST and GET for K8s
 			if isRest {
-				if err := extClient.UpdateImageStatus(ctx, &image, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindImage, "update_status", isRest, func() error {
+					return extClient.UpdateImageStatus(ctx, &image, fed)
+				}); err != nil {
 					log.Error(err, ">>> [Image][REST] Error during CALLBACK OPERATION via OPG EWBI API.", "name", image.Name, "namespace", image.Namespace)
 					return ctrl.Result{}, err
 				}
@@ -219,7 +226,9 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 		if isNewImage {
 			image.Status.State = v1beta1.ImageStatePending
 			image.Labels[v1beta1.ResourceIdLabel] = "image-" + uuid.V5(image.Spec.ImageId+image.Spec.FederationContextId)
-			if err := extClient.CreateImage(ctx, &image, fed); err != nil {
+			if err := metrics.ObservePartnerOperation(metrics.KindImage, "create", isRest, func() error {
+				return extClient.CreateImage(ctx, &image, fed)
+			}); err != nil {
 				log.Error(err, ">>> [Image] Error APPLYING/UPDATING SPEC Image.", "name", image.Name, "namespace", image.Namespace)
 				return ctrl.Result{}, err
 			}
@@ -228,7 +237,9 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res 
 			if isRest {
 				log.Info(">>> [Image][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", image.Name, "namespace", image.Namespace)
 			} else {
-				if err := extClient.UpdateImageStatus(ctx, &image, fed); err != nil {
+				if err := metrics.ObservePartnerOperation(metrics.KindImage, "update_status", isRest, func() error {
+					return extClient.UpdateImageStatus(ctx, &image, fed)
+				}); err != nil {
 					log.Error(err, ">>> [Image][K8s] Error updating Image.", "name", image.Name, "namespace", image.Namespace)
 					return ctrl.Result{}, err
 				}
