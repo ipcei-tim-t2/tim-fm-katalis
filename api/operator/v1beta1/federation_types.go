@@ -17,6 +17,7 @@
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -67,11 +68,11 @@ const (
 // +kubebuilder:validation:XValidation:rule="self.technologyType == 'REST' ? has(self.restOptions) && !has(self.k8sOptions) : true",message="If technologyType is 'REST', restOptions must be specified and k8sOptions must be omitted"
 // +kubebuilder:validation:XValidation:rule="self.technologyType == 'K8S' ? has(self.k8sOptions) && !has(self.restOptions) : true",message="If technologyType is 'K8S', k8sOptions must be specified and restOptions must be omitted"
 // +kubebuilder:validation:XValidation:rule="!has(self.technologyType) || size(self.technologyType) == 0 ? !has(self.restOptions) && !has(self.k8sOptions) : true",message="technologyType is required to set restOptions or k8sOptions"
-// +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST') ? (has(self.clientId) && self.clientId.matches('^[A-Za-z0-9][A-Za-z0-9-]*$')) : true",message="clientId is required for GUEST"
-// +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST') ? (has(self.clientSecret) && self.clientSecret.matches('^[A-Za-z0-9][A-Za-z0-9-]*$')) : true",message="clientSecret is required for GUEST"
+// +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST' && !(has(self.k8sOptions) && has(self.k8sOptions.auth))) ? (has(self.clientId) && self.clientId.matches('^[A-Za-z0-9][A-Za-z0-9-]*$')) : true",message="clientId is required for GUEST when auth is not configured"
+// +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST' && !(has(self.k8sOptions) && has(self.k8sOptions.auth))) ? (has(self.clientSecret) && self.clientSecret.matches('^[A-Za-z0-9][A-Za-z0-9-]*$')) : true",message="clientSecret is required for GUEST when auth is not configured"
 // +kubebuilder:validation:XValidation:rule="(has(self.relationType) && self.relationType == 'GUEST' && has(self.restOptions)) ? has(self.restOptions.tokenUrl) : true",message="tokenUrl is required for GUEST federations using REST"
-// +kubebuilder:validation:XValidation:rule="self.relationType == 'GUEST' && has(self.k8sOptions) ? has(self.k8sOptions.secretName) && size(self.k8sOptions.secretName) > 0 : true", message="secretName in k8sOptions is required when relationType is GUEST"
-// +kubebuilder:validation:XValidation:rule="self.relationType == 'GUEST' && has(self.k8sOptions) ? has(self.k8sOptions.contextName) && size(self.k8sOptions.contextName) > 0 : true", message="contextName in k8sOptions is required when relationType is GUEST"
+// +kubebuilder:validation:XValidation:rule="self.relationType == 'GUEST' && has(self.k8sOptions) ? (has(self.k8sOptions.auth) ? (has(self.k8sOptions.clusterConnection) && size(self.k8sOptions.clusterConnection.hostApiServerUrl) > 0) : (has(self.k8sOptions.secretName) && size(self.k8sOptions.secretName) > 0 && has(self.k8sOptions.contextName) && size(self.k8sOptions.contextName) > 0)) : true",message="For GUEST with K8S technology, either auth with clusterConnection or legacy secretName with contextName must be specified"
+// +kubebuilder:validation:XValidation:rule="has(self.k8sOptions) && has(self.k8sOptions.auth) ? (has(self.k8sOptions.auth.tokenUrl) && size(self.k8sOptions.auth.tokenUrl) > 0 && has(self.k8sOptions.auth.clientId) && size(self.k8sOptions.auth.clientId) > 0 && has(self.k8sOptions.auth.clientSecretRef) && size(self.k8sOptions.auth.clientSecretRef.name) > 0 && size(self.k8sOptions.auth.clientSecretRef.key) > 0) : true",message="auth requires tokenUrl, clientId, and clientSecretRef (name and key)"
 type FederationData struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Enum=HOST;GUEST
@@ -100,8 +101,10 @@ type FederationData struct {
 	RestOptions *RestOptions `json:"restOptions,omitempty"`
 	// +kubebuilder:validation:Optional
 	K8sOptions *K8sOptions `json:"k8sOptions,omitempty"`
+	// Deprecated: use K8sOptions.Auth for Zero-Trust authentication. Kept for backward compatibility.
 	// +kubebuilder:validation:Optional
 	ClientId string `json:"clientId,omitempty"`
+	// Deprecated: use K8sOptions.Auth.ClientSecretRef for vault-agnostic secret management. Kept for backward compatibility.
 	// +kubebuilder:validation:Optional
 	ClientSecret string `json:"clientSecret,omitempty"`
 }
@@ -113,11 +116,65 @@ type RestOptions struct {
 	// +kubebuilder:validation:Pattern=`^https?://[^\s/$.?#].[^\s]*$`
 	PartnerStatusLink string `json:"partnerStatusLink"`
 }
+
+// OidcAuthOptions defines the parameters for M2M OIDC authentication with the Host IdP.
+type OidcAuthOptions struct {
+	// TokenUrl is the endpoint to request the OAuth2/OIDC token (e.g. Keycloak token endpoint).
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^https?://[^\s/$.?#].[^\s]*$`
+	TokenUrl string `json:"tokenUrl"`
+
+	// ClientId is the client identifier registered in the Host Identity Provider.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9][A-Za-z0-9-_]*$`
+	ClientId string `json:"clientId"`
+
+	// ClientSecretRef references the local Kubernetes Secret populated by External Secrets Operator (ESO).
+	// +kubebuilder:validation:Required
+	ClientSecretRef corev1.SecretKeySelector `json:"clientSecretRef"`
+
+	// Audience specifies the target audience for the token (verified by Host K8s API server).
+	// +kubebuilder:validation:Optional
+	Audience string `json:"audience,omitempty"`
+
+	// Scopes optionally specifies custom OAuth2/OIDC scopes (default: ["openid"]).
+	// +kubebuilder:validation:Optional
+	Scopes []string `json:"scopes,omitempty"`
+}
+
+// ClusterConnectionInfo defines the connection details to reach the Host Kubernetes cluster without static credentials.
+type ClusterConnectionInfo struct {
+	// HostApiServerUrl is the URL of the Host Kubernetes API Server (e.g. https://host-k8s:6443).
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^https?://[^\s/$.?#].[^\s]*$`
+	HostApiServerUrl string `json:"hostApiServerUrl"`
+
+	// CaSecretRef references an optional Secret containing the CA certificate of the Host API server.
+	// +kubebuilder:validation:Optional
+	CaSecretRef *corev1.SecretKeySelector `json:"caSecretRef,omitempty"`
+
+	// InsecureSkipTLSVerify disables TLS certificate verification (for local test environments only).
+	// +kubebuilder:validation:Optional
+	InsecureSkipTLSVerify bool `json:"insecureSkipTLSVerify,omitempty"`
+}
+
 type K8sOptions struct {
 	// +kubebuilder:validation:Required
 	Namespace string `json:"namespace,omitempty"`
+
+	// ClusterConnection defines network coordinates of the remote Host cluster without static credentials.
+	// +kubebuilder:validation:Optional
+	ClusterConnection *ClusterConnectionInfo `json:"clusterConnection,omitempty"`
+
+	// Auth defines OIDC M2M credentials reference for Zero-Trust communication.
+	// +kubebuilder:validation:Optional
+	Auth *OidcAuthOptions `json:"auth,omitempty"`
+
+	// Legacy support: static kubeconfig secret name.
 	// +kubebuilder:validation:Optional
 	SecretName string `json:"secretName,omitempty"`
+
+	// Legacy support: static kubeconfig context name.
 	// +kubebuilder:validation:Optional
 	ContextName string `json:"contextName,omitempty"`
 }
@@ -412,6 +469,27 @@ type FederationStatus struct {
 
 	// +kubebuilder:validation:Optional
 	Service *Service `json:"service,omitempty"`
+
+	// TokenInfo contains metadata about the OIDC access token lifecycle and authentication state.
+	// The raw JWT token is intentionally NOT stored here for security reasons.
+	// +kubebuilder:validation:Optional
+	TokenInfo *TokenInfo `json:"tokenInfo,omitempty"`
+}
+
+// TokenInfo defines metadata for OIDC authentication lifecycle observation.
+// Crucially, the raw JWT Bearer token is NEVER persisted in status for Zero-Trust security.
+type TokenInfo struct {
+	// TokenExpiryDate indicates when the current OIDC access token will expire.
+	// +kubebuilder:validation:Optional
+	TokenExpiryDate metav1.Time `json:"tokenExpiryDate,omitempty"`
+
+	// TokenIssuedAt indicates when the current OIDC access token was issued.
+	// +kubebuilder:validation:Optional
+	TokenIssuedAt metav1.Time `json:"tokenIssuedAt,omitempty"`
+
+	// AuthState indicates the authentication status (e.g. AUTHENTICATED, REFRESHING, FAILED).
+	// +kubebuilder:validation:Optional
+	AuthState string `json:"authState,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/auth"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s"
 	policy "github.com/neonephos-katalis/opg-ewbi-operator/internal/k8s/policy"
 	"github.com/neonephos-katalis/opg-ewbi-operator/internal/opg"
@@ -48,7 +49,7 @@ type FederationReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	opg.OPGClientsMapInterface
-	K8sClient  *k8s.FederationReconciler
+	K8sClient  ExternalFederationClient
 	K8sPolicy  *policy.FederationReconciler
 	RestClient *rest.FederationReconciler
 }
@@ -219,6 +220,7 @@ func (r *FederationReconciler) Reconcile(
 
 	// Handle deletion of the federation resource
 	if !fed.GetDeletionTimestamp().IsZero() {
+		auth.DefaultTokenManager.Invalidate(fed.Namespace + "/" + fed.Name)
 		if isGuest {
 			hasDependents, depErr := r.resourcesDependOnFederation(ctx, fed.Namespace, fed.Status.FederationContextId)
 			if depErr != nil {
@@ -309,6 +311,26 @@ func (r *FederationReconciler) Reconcile(
 		}
 	} else {
 		// Guest federation handling
+		// Handle Zero-Trust OIDC M2M authentication and token lifecycle if configured
+		var tokenRequeue time.Duration
+		if !isRest && fed.Spec.FederationData != nil && fed.Spec.FederationData.K8sOptions != nil && fed.Spec.FederationData.K8sOptions.Auth != nil {
+			tokenResp, tokenErr := auth.DefaultTokenManager.GetToken(ctx, r.Client, &fed)
+			if tokenErr != nil {
+				log.Error(tokenErr, ">>> [Federation][OIDC] Failed to authenticate with Host IdP", "name", fed.Name, "namespace", fed.Namespace)
+				fed.Status.TokenInfo = &v1beta1.TokenInfo{
+					AuthState: "AUTH_FAILED",
+				}
+				return ctrl.Result{RequeueAfter: 15 * time.Second}, tokenErr
+			}
+			fed.Status.TokenInfo = &v1beta1.TokenInfo{
+				TokenExpiryDate: metav1.NewTime(tokenResp.Expiry),
+				TokenIssuedAt:   metav1.NewTime(tokenResp.IssuedAt),
+				AuthState:       "AUTHENTICATED",
+			}
+			tokenRequeue = auth.CalculateRefreshDuration(tokenResp.IssuedAt, tokenResp.Expiry, time.Now(), auth.DefaultRefreshFactor)
+			log.Info(">>> [Federation][OIDC] Active M2M Session with Host IdP", "name", fed.Name, "namespace", fed.Namespace, "expiresAt", tokenResp.Expiry, "refreshIn", tokenRequeue)
+		}
+
 		// New Federation: Create it on the host
 		if isNewFed {
 			fed.Status.State = v1beta1.FederationStateNotAvailable
@@ -345,7 +367,7 @@ func (r *FederationReconciler) Reconcile(
 						return ctrl.Result{}, nil
 					}
 					log.Info(">>> [Federation][K8s] Syncing status...", "name", fed.Name, "namespace", fed.Namespace)
-					if err := r.K8sClient.UpdateFederationStatus(ctx, &fed); err != nil {
+					if err := extClient.UpdateFederationStatus(ctx, &fed); err != nil {
 						return ctrl.Result{}, err
 					}
 				}
@@ -354,7 +376,7 @@ func (r *FederationReconciler) Reconcile(
 					log.Info(">>> [Federation][REST] Received UPDATEs via CALLBACK OPERATION with OPG EWBI API.", "name", fed.Name, "namespace", fed.Namespace)
 				} else {
 					log.Info(">>> [Federation][K8s] Syncing status...", "name", fed.Name, "namespace", fed.Namespace)
-					if err := r.K8sClient.UpdateFederationStatus(ctx, &fed); err != nil {
+					if err := extClient.UpdateFederationStatus(ctx, &fed); err != nil {
 						log.Error(err, ">>> [Federation][K8s] Error syncing status.", "name", fed.Name, "namespace", fed.Namespace)
 						return ctrl.Result{}, err
 					}
@@ -364,6 +386,9 @@ func (r *FederationReconciler) Reconcile(
 			if err := r.guestFederationActions(ctx, &fed, isRest, extClient, annotations); err != nil {
 				return ctrl.Result{}, err
 			}
+		}
+		if tokenRequeue > 0 {
+			return ctrl.Result{RequeueAfter: tokenRequeue}, nil
 		}
 	}
 	return ctrl.Result{}, nil

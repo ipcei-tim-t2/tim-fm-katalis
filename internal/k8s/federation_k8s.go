@@ -227,7 +227,11 @@ func (r *FederationReconciler) UpdateFederationStatus(ctx context.Context, fed *
 			return nil
 		}
 	}
+	preservedTokenInfo := fed.Status.TokenInfo
 	fed.Status = fedHost.Status
+	if preservedTokenInfo != nil {
+		fed.Status.TokenInfo = preservedTokenInfo
+	}
 	return nil
 }
 

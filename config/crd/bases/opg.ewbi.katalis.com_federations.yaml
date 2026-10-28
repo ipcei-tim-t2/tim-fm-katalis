@@ -72,8 +72,12 @@ spec:
               federationData:
                 properties:
                   clientId:
+                    description: 'Deprecated: use K8sOptions.Auth for Zero-Trust authentication.
+                      Kept for backward compatibility.'
                     type: string
                   clientSecret:
+                    description: 'Deprecated: use K8sOptions.Auth.ClientSecretRef
+                      for vault-agnostic secret management. Kept for backward compatibility.'
                     type: string
                   initialDate:
                     description: |-
@@ -83,11 +87,108 @@ spec:
                     type: string
                   k8sOptions:
                     properties:
+                      auth:
+                        description: Auth defines OIDC M2M credentials reference for
+                          Zero-Trust communication.
+                        properties:
+                          audience:
+                            description: Audience specifies the target audience for
+                              the token (verified by Host K8s API server).
+                            type: string
+                          clientId:
+                            description: ClientId is the client identifier registered
+                              in the Host Identity Provider.
+                            pattern: ^[A-Za-z0-9][A-Za-z0-9-_]*$
+                            type: string
+                          clientSecretRef:
+                            description: ClientSecretRef references the local Kubernetes
+                              Secret populated by External Secrets Operator (ESO).
+                            properties:
+                              key:
+                                description: The key of the secret to select from.  Must
+                                  be a valid secret key.
+                                type: string
+                              name:
+                                default: ""
+                                description: |-
+                                  Name of the referent.
+                                  This field is effectively required, but due to backwards compatibility is
+                                  allowed to be empty. Instances of this type with an empty value here are
+                                  almost certainly wrong.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                type: string
+                              optional:
+                                description: Specify whether the Secret or its key
+                                  must be defined
+                                type: boolean
+                            required:
+                            - key
+                            type: object
+                            x-kubernetes-map-type: atomic
+                          scopes:
+                            description: 'Scopes optionally specifies custom OAuth2/OIDC
+                              scopes (default: ["openid"]).'
+                            items:
+                              type: string
+                            type: array
+                          tokenUrl:
+                            description: TokenUrl is the endpoint to request the OAuth2/OIDC
+                              token (e.g. Keycloak token endpoint).
+                            pattern: ^https?://[^\s/$.?#].[^\s]*$
+                            type: string
+                        required:
+                        - clientId
+                        - clientSecretRef
+                        - tokenUrl
+                        type: object
+                      clusterConnection:
+                        description: ClusterConnection defines network coordinates
+                          of the remote Host cluster without static credentials.
+                        properties:
+                          caSecretRef:
+                            description: CaSecretRef references an optional Secret
+                              containing the CA certificate of the Host API server.
+                            properties:
+                              key:
+                                description: The key of the secret to select from.  Must
+                                  be a valid secret key.
+                                type: string
+                              name:
+                                default: ""
+                                description: |-
+                                  Name of the referent.
+                                  This field is effectively required, but due to backwards compatibility is
+                                  allowed to be empty. Instances of this type with an empty value here are
+                                  almost certainly wrong.
+                                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                type: string
+                              optional:
+                                description: Specify whether the Secret or its key
+                                  must be defined
+                                type: boolean
+                            required:
+                            - key
+                            type: object
+                            x-kubernetes-map-type: atomic
+                          hostApiServerUrl:
+                            description: HostApiServerUrl is the URL of the Host Kubernetes
+                              API Server (e.g. https://host-k8s:6443).
+                            pattern: ^https?://[^\s/$.?#].[^\s]*$
+                            type: string
+                          insecureSkipTLSVerify:
+                            description: InsecureSkipTLSVerify disables TLS certificate
+                              verification (for local test environments only).
+                            type: boolean
+                        required:
+                        - hostApiServerUrl
+                        type: object
                       contextName:
+                        description: 'Legacy support: static kubeconfig context name.'
                         type: string
                       namespace:
                         type: string
                       secretName:
+                        description: 'Legacy support: static kubeconfig secret name.'
                         type: string
                     required:
                     - namespace
@@ -141,27 +242,33 @@ spec:
                 - message: technologyType is required to set restOptions or k8sOptions
                   rule: '!has(self.technologyType) || size(self.technologyType) ==
                     0 ? !has(self.restOptions) && !has(self.k8sOptions) : true'
-                - message: clientId is required for GUEST
-                  rule: '(has(self.relationType) && self.relationType == ''GUEST'')
-                    ? (has(self.clientId) && self.clientId.matches(''^[A-Za-z0-9][A-Za-z0-9-]*$''))
-                    : true'
-                - message: clientSecret is required for GUEST
-                  rule: '(has(self.relationType) && self.relationType == ''GUEST'')
-                    ? (has(self.clientSecret) && self.clientSecret.matches(''^[A-Za-z0-9][A-Za-z0-9-]*$''))
+                - message: clientId is required for GUEST when auth is not configured
+                  rule: '(has(self.relationType) && self.relationType == ''GUEST''
+                    && !(has(self.k8sOptions) && has(self.k8sOptions.auth))) ? (has(self.clientId)
+                    && self.clientId.matches(''^[A-Za-z0-9][A-Za-z0-9-]*$'')) : true'
+                - message: clientSecret is required for GUEST when auth is not configured
+                  rule: '(has(self.relationType) && self.relationType == ''GUEST''
+                    && !(has(self.k8sOptions) && has(self.k8sOptions.auth))) ? (has(self.clientSecret)
+                    && self.clientSecret.matches(''^[A-Za-z0-9][A-Za-z0-9-]*$''))
                     : true'
                 - message: tokenUrl is required for GUEST federations using REST
                   rule: '(has(self.relationType) && self.relationType == ''GUEST''
                     && has(self.restOptions)) ? has(self.restOptions.tokenUrl) : true'
-                - message: secretName in k8sOptions is required when relationType
-                    is GUEST
+                - message: For GUEST with K8S technology, either auth with clusterConnection
+                    or legacy secretName with contextName must be specified
                   rule: 'self.relationType == ''GUEST'' && has(self.k8sOptions) ?
-                    has(self.k8sOptions.secretName) && size(self.k8sOptions.secretName)
-                    > 0 : true'
-                - message: contextName in k8sOptions is required when relationType
-                    is GUEST
-                  rule: 'self.relationType == ''GUEST'' && has(self.k8sOptions) ?
-                    has(self.k8sOptions.contextName) && size(self.k8sOptions.contextName)
-                    > 0 : true'
+                    (has(self.k8sOptions.auth) ? (has(self.k8sOptions.clusterConnection)
+                    && size(self.k8sOptions.clusterConnection.hostApiServerUrl) >
+                    0) : (has(self.k8sOptions.secretName) && size(self.k8sOptions.secretName)
+                    > 0 && has(self.k8sOptions.contextName) && size(self.k8sOptions.contextName)
+                    > 0)) : true'
+                - message: auth requires tokenUrl, clientId, and clientSecretRef (name
+                    and key)
+                  rule: 'has(self.k8sOptions) && has(self.k8sOptions.auth) ? (has(self.k8sOptions.auth.tokenUrl)
+                    && size(self.k8sOptions.auth.tokenUrl) > 0 && has(self.k8sOptions.auth.clientId)
+                    && size(self.k8sOptions.auth.clientId) > 0 && has(self.k8sOptions.auth.clientSecretRef)
+                    && size(self.k8sOptions.auth.clientSecretRef.name) > 0 && size(self.k8sOptions.auth.clientSecretRef.key)
+                    > 0) : true'
               fixedNetworkIds:
                 description: List of network identifier associated with the fixedline
                   network of the operator platform.
@@ -666,6 +773,26 @@ spec:
                 - LOCKED
                 - NOT_AVAILABLE
                 type: string
+              tokenInfo:
+                description: |-
+                  TokenInfo contains metadata about the OIDC access token lifecycle and authentication state.
+                  The raw JWT token is intentionally NOT stored here for security reasons.
+                properties:
+                  authState:
+                    description: AuthState indicates the authentication status (e.g.
+                      AUTHENTICATED, REFRESHING, FAILED).
+                    type: string
+                  tokenExpiryDate:
+                    description: TokenExpiryDate indicates when the current OIDC access
+                      token will expire.
+                    format: date-time
+                    type: string
+                  tokenIssuedAt:
+                    description: TokenIssuedAt indicates when the current OIDC access
+                      token was issued.
+                    format: date-time
+                    type: string
+                type: object
               updateDetails:
                 properties:
                   objectType:

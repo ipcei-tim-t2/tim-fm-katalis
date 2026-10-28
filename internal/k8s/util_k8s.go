@@ -19,13 +19,16 @@ package k8s
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/neonephos-katalis/opg-ewbi-operator/api/operator/v1beta1"
+	"github.com/neonephos-katalis/opg-ewbi-operator/internal/auth"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,13 +51,62 @@ func CompareSameAZs(s1, s2 []v1beta1.ZoneDetails) bool {
 	return true
 }
 
-// Build a Kubernetes client and dynamic client for the host cluster using the kubeconfig stored in the secret referenced by the Federation resource.
+// Build a Kubernetes client and dynamic client for the host cluster.
+// Supports both Zero-Trust OIDC M2M authentication (Keycloak/Entra ID) and legacy kubeconfig secrets.
 func buildHostClient(ctx context.Context, fed *v1beta1.Federation, r client.Client, scheme *runtime.Scheme) (client.Client, dynamic.Interface, error) {
-	kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r, fed.Spec.FederationData.K8sOptions.SecretName, fed.Namespace)
-	if err != nil {
-		return nil, nil, err
+	if fed.Spec.FederationData != nil && fed.Spec.FederationData.K8sOptions != nil {
+		k8sOpts := fed.Spec.FederationData.K8sOptions
+
+		// Case 1: Zero-Trust OIDC Authentication
+		if k8sOpts.Auth != nil && k8sOpts.ClusterConnection != nil {
+			tokenResp, err := auth.DefaultTokenManager.GetToken(ctx, r, fed)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to obtain OIDC token for host cluster: %w", err)
+			}
+
+			var caBytes []byte
+			if k8sOpts.ClusterConnection.CaSecretRef != nil {
+				caBytes, err = auth.ResolveOptionalSecretBytes(ctx, r, fed.Namespace, k8sOpts.ClusterConnection.CaSecretRef)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to resolve host CA secret: %w", err)
+				}
+			}
+
+			restConfig := &rest.Config{
+				Host:        k8sOpts.ClusterConnection.HostApiServerUrl,
+				BearerToken: tokenResp.AccessToken,
+				TLSClientConfig: rest.TLSClientConfig{
+					Insecure: k8sOpts.ClusterConnection.InsecureSkipTLSVerify,
+					CAData:   caBytes,
+				},
+			}
+
+			k8sClient, err := client.New(restConfig, client.Options{
+				Scheme: scheme,
+			})
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to create host client: %w", err)
+			}
+
+			dynClient, err := dynamic.NewForConfig(restConfig)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to create host dynamic client: %w", err)
+			}
+
+			return k8sClient, dynClient, nil
+		}
+
+		// Case 2: Legacy Kubeconfig Secret
+		if k8sOpts.SecretName != "" {
+			kubeconfigBytes, err := GetKubeconfigFromSecret(ctx, r, k8sOpts.SecretName, fed.Namespace)
+			if err != nil {
+				return nil, nil, err
+			}
+			return BuildClientWithKubeconfig(kubeconfigBytes, k8sOpts.ContextName, scheme)
+		}
 	}
-	return BuildClientWithKubeconfig(kubeconfigBytes, fed.Spec.FederationData.K8sOptions.ContextName, scheme)
+
+	return nil, nil, errors.New("k8sOptions must specify either auth with clusterConnection or legacy secretName")
 }
 
 // GetKubeconfigFromSecret retrieves the kubeconfig from the specified secret in the given namespace.

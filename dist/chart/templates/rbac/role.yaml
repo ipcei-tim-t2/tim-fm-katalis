@@ -28,6 +28,14 @@ metadata:
   namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - opg.ewbi.katalis.com
   resources:
   - applicationdeployments

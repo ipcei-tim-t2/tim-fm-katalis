@@ -1,0 +1,23 @@
+apiVersion: opg.ewbi.katalis.com/v1beta1
+kind: Federation
+metadata:
+  namespace: guest
+  name: fed-telecomitalia-oidc
+spec:
+  federationData:
+    relationType: GUEST
+    technologyType: K8S
+    origOPFederationId: "telecomitalia"
+    origOPCountryCode: "IT"
+    initialDate: "2026-10-27T14:00:00Z"
+    k8sOptions:
+      namespace: host
+      clusterConnection:
+        hostApiServerUrl: "https://partnerop-control-plane:6443"
+        insecureSkipTLSVerify: true
+      auth:
+        tokenUrl: "https://keycloak-host-idp:8443/realms/host-operator/protocol/openid-connect/token"
+        clientId: "guest-operator"
+        clientSecretRef:
+          name: host-idp-credentials
+          key: client_secret

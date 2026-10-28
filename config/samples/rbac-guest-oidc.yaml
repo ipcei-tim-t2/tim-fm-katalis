@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: oidc-guest-manager-clusterbinding
+subjects:
+- kind: User
+  name: oidc:service-account-guest-operator
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: guest-manager
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: oidc-guest-manager-binding
+  namespace: host
+subjects:
+- kind: User
+  name: oidc:service-account-guest-operator
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: guest-manager
+  apiGroup: rbac.authorization.k8s.io
