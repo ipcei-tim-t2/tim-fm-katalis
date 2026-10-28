@@ -1,24 +1,5 @@
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: manager-role
-rules:
-- apiGroups:
-  - admissionregistration.k8s.io
-  resources:
-  - validatingadmissionpolicies
-  - validatingadmissionpolicybindings
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: manager-role

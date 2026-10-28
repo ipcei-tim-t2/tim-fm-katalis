@@ -274,17 +274,16 @@ helm: base-chart crd-chart ## build the operator's helm chart
 
 .PHONY: base-chart
 base-chart: manifests ## build the operator's helm chart
-	kubebuilder edit  --plugins=helm/v1-alpha
-# 	fix the namespace in the role.yaml file otherwise it hardcodes the namespace to "foo"
-	sed -i 's/namespace: foo/namespace: {{ .Release.Namespace }}/g' dist/chart/templates/rbac/role.yaml
+	rm -rf dist/chart
+	kubebuilder edit --plugins=helm/v2-alpha
 	helm lint dist/chart
 
 
 define CLUSTER_WIDE_SCRIPT
 set -euo pipefail
 templates=dist/chart/templates
-role=$templates/rbac/role.yaml
-binding=$templates/rbac/role_binding.yaml
+role=$templates/rbac/manager-role.yaml
+binding=$templates/rbac/manager-rolebinding.yaml
 values=dist/chart/values.yaml
 
 for file in "$role" "$binding" "$values"; do
@@ -297,7 +296,7 @@ if [ "$(grep -c '^kind: Role$' "$role")" != 1 ]; then
   echo "error: expected exactly one Role in $role" >&2
   exit 1
 fi
-if ! grep -q '^kind: RoleBinding$' "$binding" || ! grep -q '^  kind: Role$' "$binding" || ! grep -q 'name: opg-ewbi-manager-rolebinding$' "$binding"; then
+if ! grep -q '^kind: RoleBinding$' "$binding" || ! grep -q '^  kind: Role$' "$binding" || ! grep -q '"manager-rolebinding"' "$binding"; then
   echo "error: expected the manager RoleBinding in $binding" >&2
   exit 1
 fi
@@ -307,30 +306,22 @@ if grep -q '^clusterWide:' "$values"; then
 fi
 
 awk '
-  { lines[NR] = $0 }
-  /^kind: Role$/ { role = NR }
-  END {
-    start = role
-    while (start > 1 && lines[start] != "---") start--
-    end = role
-    while (end <= NR && lines[end] != "rules:") end++
-    for (i = 1; i <= NR; i++) {
-      if (i >= start && i <= end) continue
-      print lines[i]
-      if (lines[i] == "rules:" && !added) {
-        print "- apiGroups:"
-        print "  - \"\""
-        print "  resources:"
-        print "  - namespaces"
-        print "  verbs:"
-        print "  - create"
-        added = 1
-      }
-    }
+  /^kind: Role$/ { print "kind: ClusterRole"; next }
+  /^rules:$/ { inrules = 1 }
+  /^  namespace: / && !inrules { next }
+  { print }
+  /^rules:$/ && !added {
+    print "- apiGroups:"
+    print "  - \"\""
+    print "  resources:"
+    print "  - namespaces"
+    print "  verbs:"
+    print "  - create"
+    added = 1
   }
 ' "$role" > "$role.tmp"
 mv "$role.tmp" "$role"
-sed -i -e 's/^kind: RoleBinding$/kind: ClusterRoleBinding/' -e 's/^  kind: Role$/  kind: ClusterRole/' -e 's/name: opg-ewbi-manager-rolebinding$/name: opg-ewbi-manager-rolebinding-{{ .Release.Namespace }}/' "$binding"
+sed -i -e 's/^kind: RoleBinding$/kind: ClusterRoleBinding/' -e 's/^  kind: Role$/  kind: ClusterRole/' -e '/^metadata:$/,/^roleRef:$/{/^  namespace: /d}' "$binding"
 [ -z "$(tail -c 1 "$values")" ] || echo >> "$values"
 echo "clusterWide: true" >> "$values"
 endef
@@ -354,3 +345,50 @@ crd-chart: base-chart ## build the crd's helm chart
 		sed -i'' 's/^\(description:\).*/\1 A Helm chart to distribute the opg-ewbi-crd/' $(crd_chart_yaml); \
 	fi
 	helm lint dist/chart-crd
+
+##@ Helm Deployment
+
+## Helm binary to use for deploying the chart
+HELM ?= helm
+## Namespace to deploy the Helm release
+HELM_NAMESPACE ?= opg-ewbi-operator-system
+## Name of the Helm release
+HELM_RELEASE ?= opg-ewbi
+## Path to the Helm chart directory
+HELM_CHART_DIR ?= dist/chart
+## Additional arguments to pass to helm commands
+HELM_EXTRA_ARGS ?=
+
+.PHONY: install-helm
+install-helm: ## Install the latest version of Helm.
+	@command -v $(HELM) >/dev/null 2>&1 || { \
+		echo "Installing Helm..." && \
+		curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash; \
+	}
+
+.PHONY: helm-deploy
+helm-deploy: install-helm ## Deploy manager to the K8s cluster via Helm. Specify an image with IMG.
+	$(HELM) upgrade --install $(HELM_RELEASE) $(HELM_CHART_DIR) \
+		--namespace $(HELM_NAMESPACE) \
+		--create-namespace \
+		--set manager.image.repository=$${IMG%:*} \
+		--set manager.image.tag=$${IMG##*:} \
+		--wait \
+		--timeout 5m \
+		$(HELM_EXTRA_ARGS)
+
+.PHONY: helm-uninstall
+helm-uninstall: ## Uninstall the Helm release from the K8s cluster.
+	$(HELM) uninstall $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
+
+.PHONY: helm-status
+helm-status: ## Show Helm release status.
+	$(HELM) status $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
+
+.PHONY: helm-history
+helm-history: ## Show Helm release history.
+	$(HELM) history $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
+
+.PHONY: helm-rollback
+helm-rollback: ## Rollback to previous Helm release.
+	$(HELM) rollback $(HELM_RELEASE) --namespace $(HELM_NAMESPACE)
