@@ -305,6 +305,8 @@ certmanager:
 # [NETWORK POLICIES]: To enable NetworkPolicies set true
 networkPolicy:
   enable: false
+
+clusterWide: false
 EOF
 
 cat > dist/chart/templates/_helpers.tpl <<'EOF'
@@ -461,13 +463,6 @@ spec:
       {{- end }}
 EOF
 
-sed -i \
-  -e 's/name: opg-ewbi-manager-role$/name: opg-ewbi-manager-role-{{ .Release.Namespace }}/' \
-  dist/chart/templates/rbac/role.yaml
-sed -i \
-  's/name: opg-ewbi-manager-role$/name: opg-ewbi-manager-role-{{ .Release.Namespace }}/g' \
-  dist/chart/templates/rbac/role_binding.yaml
-
 cat > dist/chart-crd/Chart.yaml <<'EOF'
 apiVersion: v2
 name: opg-ewbi-crd
@@ -477,12 +472,6 @@ version: 0.0.3
 appVersion: "0.0.5"
 icon: https://blocklogos.s3.eu-west-1.amazonaws.com/nearbycomputing.png
 EOF
-
-case "${CLUSTER_WIDE:-false}" in
-  true) make cluster-wide ;;
-  false) ;;
-  *) echo "error: CLUSTER_WIDE must be true or false, got '${CLUSTER_WIDE}'" >&2; exit 1 ;;
-esac
 
 helm lint dist/chart
 helm lint dist/chart-crd

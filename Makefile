@@ -272,37 +272,16 @@ endef
 .PHONY: helm
 helm: base-chart crd-chart ## build the operator's helm chart
 
-.PHONY: base-chart
-base-chart: manifests ## build the operator's helm chart
-	kubebuilder edit  --plugins=helm/v1-alpha
-# 	fix the namespace in the role.yaml file otherwise it hardcodes the namespace to "foo"
-	sed -i 's/namespace: foo/namespace: {{ .Release.Namespace }}/g' dist/chart/templates/rbac/role.yaml
-	helm lint dist/chart
-
-
-define CLUSTER_WIDE_SCRIPT
+define CLUSTER_WIDE_RBAC_SCRIPT
 set -euo pipefail
-templates=dist/chart/templates
-role=$templates/rbac/role.yaml
-binding=$templates/rbac/role_binding.yaml
-values=dist/chart/values.yaml
-
-for file in "$role" "$binding" "$values"; do
-  if [ ! -f "$file" ]; then
-    echo "error: $file not found" >&2
-    exit 1
-  fi
-done
-if [ "$(grep -c '^kind: Role$' "$role")" != 1 ]; then
-  echo "error: expected exactly one Role in $role" >&2
+role=dist/chart/templates/rbac/role.yaml
+binding=dist/chart/templates/rbac/role_binding.yaml
+if [ "$(grep -c '^kind: Role$' "$role")" != 1 ] || [ "$(grep -c '^rules:$' "$role")" != 2 ]; then
+  echo "error: expected one ClusterRole and one Role in $role" >&2
   exit 1
 fi
 if ! grep -q '^kind: RoleBinding$' "$binding" || ! grep -q '^  kind: Role$' "$binding" || ! grep -q 'name: opg-ewbi-manager-rolebinding$' "$binding"; then
   echo "error: expected the manager RoleBinding in $binding" >&2
-  exit 1
-fi
-if grep -q '^clusterWide:' "$values"; then
-  echo "error: clusterWide already set in $values" >&2
   exit 1
 fi
 
@@ -315,31 +294,47 @@ awk '
     end = role
     while (end <= NR && lines[end] != "rules:") end++
     for (i = 1; i <= NR; i++) {
-      if (i >= start && i <= end) continue
+      if (i == start) print "{{- if not .Values.clusterWide }}"
       print lines[i]
-      if (lines[i] == "rules:" && !added) {
+      if (i == end) print "{{- end }}"
+      if (lines[i] == "rules:" && i < start) {
+        print "{{- if .Values.clusterWide }}"
         print "- apiGroups:"
         print "  - \"\""
         print "  resources:"
         print "  - namespaces"
         print "  verbs:"
         print "  - create"
-        added = 1
+        print "{{- end }}"
       }
     }
   }
 ' "$role" > "$role.tmp"
-mv "$role.tmp" "$role"
-sed -i -e 's/^kind: RoleBinding$/kind: ClusterRoleBinding/' -e 's/^  kind: Role$/  kind: ClusterRole/' -e 's/name: opg-ewbi-manager-rolebinding$/name: opg-ewbi-manager-rolebinding-{{ .Release.Namespace }}/' "$binding"
-[ -z "$(tail -c 1 "$values")" ] || echo >> "$values"
-echo "clusterWide: true" >> "$values"
+cat "$role.tmp" > "$role"
+rm "$role.tmp"
+sed -i \
+  -e 's/^kind: RoleBinding$/kind: {{ if .Values.clusterWide }}ClusterRoleBinding{{ else }}RoleBinding{{ end }}/' \
+  -e 's/^  kind: Role$/  kind: {{ if .Values.clusterWide }}ClusterRole{{ else }}Role{{ end }}/' \
+  -e 's/name: opg-ewbi-manager-rolebinding$/name: opg-ewbi-manager-rolebinding{{ if .Values.clusterWide }}-{{ .Release.Namespace }}{{ end }}/' \
+  "$binding"
 endef
-export CLUSTER_WIDE_SCRIPT := $(value CLUSTER_WIDE_SCRIPT)
+export CLUSTER_WIDE_RBAC_SCRIPT := $(value CLUSTER_WIDE_RBAC_SCRIPT)
 
-.PHONY: cluster-wide
-cluster-wide: ## turn the namespaced chart in dist/chart into a cluster-wide one
-	bash -c "$$CLUSTER_WIDE_SCRIPT"
+.PHONY: base-chart
+base-chart: manifests ## build the operator's helm chart
+	kubebuilder edit  --plugins=helm/v1-alpha
+# 	fix the namespace in the role.yaml file otherwise it hardcodes the namespace to "foo"
+	sed -i 's/namespace: foo/namespace: {{ .Release.Namespace }}/g' dist/chart/templates/rbac/role.yaml
+	sed -i 's/name: opg-ewbi-manager-role$$/name: opg-ewbi-manager-role-{{ .Release.Namespace }}/' dist/chart/templates/rbac/role.yaml
+	sed -i 's/name: opg-ewbi-manager-role$$/name: opg-ewbi-manager-role-{{ .Release.Namespace }}/g' dist/chart/templates/rbac/role_binding.yaml
+	bash -c "$$CLUSTER_WIDE_RBAC_SCRIPT"
+	sed -i 's/name: opg-ewbi-manager-policy$$/name: opg-ewbi-manager-policy-{{ .Release.Namespace }}/' dist/chart/templates/rbac/validation_policy_role.yaml
+	sed -i -e 's/name: opg-ewbi-manager-policybinding$$/name: opg-ewbi-manager-policybinding-{{ .Release.Namespace }}/' -e 's/name: opg-ewbi-manager-policy$$/name: opg-ewbi-manager-policy-{{ .Release.Namespace }}/' dist/chart/templates/rbac/validation_policy_role_binding.yaml
+	sed -i 's/name: opg-ewbi-metrics-auth-role$$/name: opg-ewbi-metrics-auth-role-{{ .Release.Namespace }}/' dist/chart/templates/rbac/metrics_auth_role.yaml
+	sed -i -e 's/name: opg-ewbi-metrics-auth-rolebinding$$/name: opg-ewbi-metrics-auth-rolebinding-{{ .Release.Namespace }}/' -e 's/name: opg-ewbi-metrics-auth-role$$/name: opg-ewbi-metrics-auth-role-{{ .Release.Namespace }}/' dist/chart/templates/rbac/metrics_auth_role_binding.yaml
+	sed -i 's/name: opg-ewbi-metrics-reader$$/name: opg-ewbi-metrics-reader-{{ .Release.Namespace }}/' dist/chart/templates/rbac/metrics_reader_role.yaml
 	helm lint dist/chart
+
 
 chart_yaml := dist/chart/Chart.yaml
 crd_chart_yaml := dist/chart-crd/Chart.yaml
